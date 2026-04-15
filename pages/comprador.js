@@ -357,19 +357,32 @@ perfiles:proveedor_id (
     }
   };
 
+const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
   const aceptarOferta = async (oferta, producto, fecha) => {
-    const { error } = await supabase
-      .from('ofertas_productos')
-      .update({ estado: 'en_espera_confirmacion' })
-      .eq('id', oferta.id);
+  const { error } = await supabase
+    .from('ofertas_productos')
+    .update({ estado: 'en_espera_confirmacion' })
+    .eq('id', oferta.id);
 
-    if (error) {
-      alert('Error al aceptar la oferta: ' + error.message);
-      return;
-    }
+  if (error) {
+    alert('Error al aceptar la oferta: ' + error.message);
+    return;
+  }
 
-    await verOfertas(fecha);
-  };
+  await supabase.from('notificaciones').insert([
+    {
+      usuario_id: oferta.proveedor_id,
+      rol: 'proveedor',
+      titulo: 'Oferta aceptada',
+      mensaje: `Tu oferta para ${oferta.producto} fue aceptada.`,
+      ruta: RUTA_MIS_OFERTAS,
+      leida: false,
+    },
+  ]);
+
+  await verOfertas(fecha);
+};
+
 
   const confirmarOferta = async (oferta, fecha) => {
   const { error: ganadorError } = await supabase
@@ -382,14 +395,13 @@ perfiles:proveedor_id (
     return;
   }
 
-  // 🔔 Notificar al proveedor ganador
   await supabase.from('notificaciones').insert([
     {
       usuario_id: oferta.proveedor_id,
       rol: 'proveedor',
-      titulo: 'Oferta aceptada',
-      mensaje: `Tu oferta para ${oferta.producto} fue aceptada.`,
-      ruta: '/proveedor/ofertas',
+      titulo: 'Oferta confirmada',
+      mensaje: `Tu oferta para ${oferta.producto} fue confirmada.`,
+      ruta: RUTA_MIS_OFERTAS,
       leida: false,
     },
   ]);
@@ -408,6 +420,8 @@ perfiles:proveedor_id (
   alert('Compra confirmada');
   await verOfertas(fecha);
 };
+
+
 const rechazarOferta = async (oferta, producto, fecha) => {
   const { error } = await supabase
     .from('ofertas_productos')
@@ -418,6 +432,17 @@ const rechazarOferta = async (oferta, producto, fecha) => {
     alert('Error al rechazar la oferta: ' + error.message);
     return;
   }
+
+  await supabase.from('notificaciones').insert([
+    {
+      usuario_id: oferta.proveedor_id,
+      rol: 'proveedor',
+      titulo: 'Oferta rechazada',
+      mensaje: `Tu oferta para ${oferta.producto} fue rechazada.`,
+      ruta: RUTA_MIS_OFERTAS,
+      leida: false,
+    },
+  ]);
 
   await verOfertas(fecha);
 };

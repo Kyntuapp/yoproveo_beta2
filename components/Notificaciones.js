@@ -18,6 +18,7 @@ export default function Notificaciones({ userId, rol }) {
       .select('*')
       .eq('usuario_id', userId)
       .eq('rol', rol)
+      .eq('leida', false)
       .order('created_at', { ascending: false });
 
     if (error) {
