@@ -207,6 +207,7 @@ export default function Comprador() {
     cantidad: Number(p.cantidad),
     precio: Number(p.precio),
     usuario_id: authUserId,
+    comprador_email: localStorage.getItem('user_email') || '',
     fecha_creacion: fecha,
     comuna_despacho: comunaDespacho.toUpperCase(),
   };
@@ -407,7 +408,19 @@ perfiles:proveedor_id (
   alert('Compra confirmada');
   await verOfertas(fecha);
 };
+const rechazarOferta = async (oferta, producto, fecha) => {
+  const { error } = await supabase
+    .from('ofertas_productos')
+    .update({ estado: 'rechazada' })
+    .eq('id', oferta.id);
 
+  if (error) {
+    alert('Error al rechazar la oferta: ' + error.message);
+    return;
+  }
+
+  await verOfertas(fecha);
+};
   const cerrarSesion = async () => {
     await supabase.auth.signOut();
     localStorage.clear();

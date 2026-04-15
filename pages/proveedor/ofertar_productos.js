@@ -104,7 +104,7 @@ const compradoresPorAuth = Object.fromEntries(
 
   return {
     ...item,
-    comprador_email: perfilComprador?.email || 'Desconocido',
+    comprador_email: item.comprador_email || perfilComprador?.email || 'Desconocido',
     oferta: ofertaExistente ? ofertaExistente.precio_ofertado : '',
     incluye_despacho: false,
     ya_oferto: !!ofertaExistente,
