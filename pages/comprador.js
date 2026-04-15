@@ -335,9 +335,9 @@ perfiles:proveedor_id (
 }
 
     const visibles = (ofertasAll || []).filter((o) => {
-      const st = (o.estado || '').toLowerCase();
-      return !['rechazada', 'confirmada'].includes(st);
-    });
+  const st = (o.estado || '').toLowerCase();
+  return st !== 'rechazada';
+});
 
     for (const item of productosFecha) {
       const listaId = getRowId(item);
@@ -864,10 +864,29 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                 )}
 
                                 {of.estado === 'confirmada' && (
-                                  <p style={{ color: 'green', marginTop: 8 }}>
-                                    ✅ Compra confirmada
-                                  </p>
-                                )}
+  <>
+    <p style={{ color: 'green', marginTop: 8, fontWeight: 'bold' }}>
+      ✅ Licitación cerrada
+    </p>
+
+    <div
+      style={{
+        marginTop: 8,
+        borderTop: '1px dashed #ddd',
+        paddingTop: 8,
+      }}
+    >
+      <p>
+        <strong>Proveedor:</strong>{' '}
+        {of.perfiles?.email_contacto || of.perfiles?.email || 'No disponible'}
+      </p>
+      <p>
+        <strong>Teléfono:</strong>{' '}
+        {of.perfiles?.telefono_contacto || 'No disponible'}
+      </p>
+    </div>
+  </>
+)}
                               </div>
                             );
                           })}
@@ -877,21 +896,33 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                   })}
 
                 {itemsDeLaFecha.map((item, idxProd) => {
-                  const listaId = getRowId(item);
-                  const clave = `${item.producto}__${listaId}`;
-                  const ofertasDeEste = ofertasPorProducto[clave] || [];
+  const listaId = getRowId(item);
+  const clave = `${item.producto}__${listaId}`;
+  const ofertasDeEste = ofertasPorProducto[clave] || [];
+  const ofertaConfirmada = ofertasDeEste.find((o) => o.estado === 'confirmada');
 
-                  if (ofertasDeEste.length > 0) return null;
+  if (ofertasDeEste.length > 0) return null;
 
-                  return (
-                    <div
-                      key={`recibiendo-${idxProd}`}
-                      style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}
-                    >
-                      <strong>{item.producto}:</strong> recibiendo oferta…
-                    </div>
-                  );
-                })}
+  if (ofertaConfirmada) {
+    return (
+      <div
+        key={`cerrada-${idxProd}`}
+        style={{ marginTop: 10, color: 'green', fontWeight: 'bold' }}
+      >
+        <strong>{item.producto}:</strong> licitación cerrada
+      </div>
+    );
+  }
+
+  return (
+    <div
+      key={`recibiendo-${idxProd}`}
+      style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}
+    >
+      <strong>{item.producto}:</strong> recibiendo oferta…
+    </div>
+  );
+})}
               </>
             )}
           </div>
