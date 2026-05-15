@@ -8,19 +8,14 @@ export default function CatalogoProveedor() {
   const [proveedorId, setProveedorId] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Formulario superior (productos del catálogo para agregar al stock)
   const [productosNuevos, setProductosNuevos] = useState([
     { nombre: '', marca: '', formato: '', cantidad_disponible: '' },
   ]);
 
-  // Universo de productos (para los selects)
-  const [universoProductos, setUniversoProductos] = useState([]); // [{nombre, formato, marca}]
-
-  // Stock actual del proveedor
+  const [universoProductos, setUniversoProductos] = useState([]);
   const [productosStock, setProductosStock] = useState([]);
   const [cantidadesEditadas, setCantidadesEditadas] = useState({});
 
-  // Solicitud de nuevo producto
   const [mostrarSolicitud, setMostrarSolicitud] = useState(false);
   const [solicitud, setSolicitud] = useState({
     nombre: '',
@@ -29,12 +24,10 @@ export default function CatalogoProveedor() {
     cantidad_disponible: '',
   });
 
-  // ============================
-  // Carga de perfil, universo y productos
-  // ============================
   useEffect(() => {
     const cargarDatos = async () => {
       const { data: userData, error } = await supabase.auth.getUser();
+
       if (error || !userData?.user) {
         alert('Debes iniciar sesión.');
         router.push('/');
@@ -56,7 +49,6 @@ export default function CatalogoProveedor() {
 
       setProveedorId(perfil.id);
 
-      // Universo de productos (toda la plataforma)
       const { data: universoData, error: universoError } = await supabase
         .from('productos_proveedores')
         .select('nombre, formato, marca');
@@ -67,7 +59,6 @@ export default function CatalogoProveedor() {
         setUniversoProductos(universoData || []);
       }
 
-      // Stock del proveedor
       await cargarProductos(perfil.id);
       setLoading(false);
     };
@@ -90,27 +81,21 @@ export default function CatalogoProveedor() {
     }
   };
 
-  // ============================
-  // Helpers para normalización
-  // ============================
   const normalizarTexto = (valor) =>
     (valor || '').toUpperCase().replace(/\s+/g, ' ').trim();
 
   const normalizarFormato = (valor) =>
     (valor || '').toUpperCase().replace(/\s+/g, '').trim();
 
-  // ============================
-  // Helpers para los selects
-  // ============================
   const obtenerNombres = () =>
-    Array.from(new Set((universoProductos || []).map(p => p.nombre))).filter(Boolean);
+    Array.from(new Set((universoProductos || []).map((p) => p.nombre))).filter(Boolean);
 
   const obtenerFormatos = (nombre) =>
     Array.from(
       new Set(
         (universoProductos || [])
-          .filter(p => p.nombre === nombre)
-          .map(p => p.formato)
+          .filter((p) => p.nombre === nombre)
+          .map((p) => p.formato)
       )
     ).filter(Boolean);
 
@@ -118,14 +103,11 @@ export default function CatalogoProveedor() {
     Array.from(
       new Set(
         (universoProductos || [])
-          .filter(p => p.nombre === nombre && p.formato === formato)
-          .map(p => p.marca)
+          .filter((p) => p.nombre === nombre && p.formato === formato)
+          .map((p) => p.marca)
       )
     ).filter(Boolean);
 
-  // ============================
-  // Nuevos productos (form arriba)
-  // ============================
   const handleNuevoChange = (index, field, value) => {
     const nuevos = [...productosNuevos];
 
@@ -144,7 +126,7 @@ export default function CatalogoProveedor() {
   };
 
   const agregarFila = () => {
-    setProductosNuevos(prev => [
+    setProductosNuevos((prev) => [
       ...prev,
       { nombre: '', marca: '', formato: '', cantidad_disponible: '' },
     ]);
@@ -154,7 +136,7 @@ export default function CatalogoProveedor() {
     if (!proveedorId) return;
 
     const productosValidos = productosNuevos.filter(
-      p =>
+      (p) =>
         (p.nombre || '').trim() !== '' &&
         (p.formato || '').trim() !== '' &&
         (p.marca || '').trim() !== ''
@@ -165,7 +147,7 @@ export default function CatalogoProveedor() {
       return;
     }
 
-    const productosConProveedor = productosValidos.map(producto => ({
+    const productosConProveedor = productosValidos.map((producto) => ({
       ...producto,
       cantidad_disponible: Number(producto.cantidad_disponible) || 0,
       proveedor_id: proveedorId,
@@ -186,18 +168,17 @@ export default function CatalogoProveedor() {
     }
   };
 
-  // ============================
-  // Stock (tabla abajo)
-  // ============================
   const handleCantidadChange = (id, nuevaCantidad) => {
-    setCantidadesEditadas(prev => ({ ...prev, [id]: nuevaCantidad }));
+    setCantidadesEditadas((prev) => ({ ...prev, [id]: nuevaCantidad }));
   };
 
   const actualizarCantidad = async (id) => {
     const nuevaCantidad = cantidadesEditadas[id];
+
     if (nuevaCantidad === undefined) return;
 
     const valor = Number(nuevaCantidad);
+
     if (Number.isNaN(valor) || valor < 0) {
       alert('La cantidad debe ser un número mayor o igual a 0.');
       return;
@@ -212,12 +193,14 @@ export default function CatalogoProveedor() {
       alert('Error al actualizar la cantidad: ' + error.message);
     } else {
       alert('Cantidad actualizada correctamente');
-      setProductosStock(prev =>
-        prev.map(p =>
+
+      setProductosStock((prev) =>
+        prev.map((p) =>
           p.id === id ? { ...p, cantidad_disponible: valor } : p
         )
       );
-      setCantidadesEditadas(prev => {
+
+      setCantidadesEditadas((prev) => {
         const copy = { ...prev };
         delete copy[id];
         return copy;
@@ -226,7 +209,10 @@ export default function CatalogoProveedor() {
   };
 
   const eliminarProducto = async (id) => {
-    const confirmar = window.confirm('¿Seguro que deseas eliminar este producto de tu catálogo?');
+    const confirmar = window.confirm(
+      '¿Seguro que deseas eliminar este producto de tu catálogo?'
+    );
+
     if (!confirmar) return;
 
     const { error } = await supabase
@@ -238,8 +224,10 @@ export default function CatalogoProveedor() {
       alert('Error al eliminar el producto: ' + error.message);
     } else {
       alert('Producto eliminado correctamente');
-      setProductosStock(prev => prev.filter(p => p.id !== id));
-      setCantidadesEditadas(prev => {
+
+      setProductosStock((prev) => prev.filter((p) => p.id !== id));
+
+      setCantidadesEditadas((prev) => {
         const copy = { ...prev };
         delete copy[id];
         return copy;
@@ -247,14 +235,11 @@ export default function CatalogoProveedor() {
     }
   };
 
-  // ============================
-  // Solicitud de nuevo producto
-  // ============================
   const handleSolicitudChange = (field, value) => {
     const valorNormalizado =
       field === 'cantidad_disponible' ? value : value.toUpperCase();
 
-    setSolicitud(prev => ({ ...prev, [field]: valorNormalizado }));
+    setSolicitud((prev) => ({ ...prev, [field]: valorNormalizado }));
   };
 
   const enviarSolicitud = async () => {
@@ -296,7 +281,9 @@ export default function CatalogoProveedor() {
     });
 
     if (existeProducto) {
-      alert("Este producto ya está en nuestro catálogo, puedes agregarlo directamente desde la opción 'Agregar producto'");
+      alert(
+        "Este producto ya está en nuestro catálogo, puedes agregarlo directamente desde la opción 'Agregar producto'"
+      );
       return;
     }
 
@@ -327,9 +314,6 @@ export default function CatalogoProveedor() {
     }
   };
 
-  // ============================
-  // Navegación / sesión
-  // ============================
   const volverAlPanel = () => router.push('/proveedor');
 
   const cerrarSesion = async () => {
@@ -340,255 +324,578 @@ export default function CatalogoProveedor() {
 
   if (loading) {
     return (
-      <div style={{ padding: 20, textAlign: 'center' }}>
-        Cargando...
+      <div style={styles.page}>
+        <div style={styles.backgroundGlow}></div>
+        <p style={styles.loading}>Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 20,
-        }}
-      >
-        <button onClick={volverAlPanel}>Volver al panel</button>
-        <h2>Catálogo de productos y stock</h2>
-        <button onClick={cerrarSesion}>Cerrar sesión</button>
-      </div>
+    <div style={styles.page}>
+      <div style={styles.backgroundGlow}></div>
 
-      <div style={{ textAlign: 'center', marginTop: 10 }}>
-        <h3>Agregar productos disponibles</h3>
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
 
-        <div style={{ display: 'inline-block', textAlign: 'left' }}>
-          <table
-            style={{
-              borderCollapse: 'collapse',
-            }}
-          >
-            <thead>
-              <tr>
-                <th style={{ padding: 4 }}>Producto</th>
-                <th style={{ padding: 4 }}>Formato</th>
-                <th style={{ padding: 4 }}>Marca</th>
-                <th style={{ padding: 4 }}>Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productosNuevos.map((item, index) => {
-                const nombres = obtenerNombres();
-                const formatos = item.nombre ? obtenerFormatos(item.nombre) : [];
-                const marcas = item.nombre && item.formato
-                  ? obtenerMarcas(item.nombre, item.formato)
-                  : [];
-
-                return (
-                  <tr key={index}>
-                    <td style={{ padding: 4 }}>
-                      <select
-                        value={item.nombre}
-                        onChange={(e) =>
-                          handleNuevoChange(index, 'nombre', e.target.value)
-                        }
-                        style={{ width: '160px' }}
-                      >
-                        <option value="">Selecciona</option>
-                        {nombres.map((n, idx) => (
-                          <option key={idx} value={n}>{n}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 4 }}>
-                      <select
-                        value={item.formato}
-                        onChange={(e) =>
-                          handleNuevoChange(index, 'formato', e.target.value)
-                        }
-                        style={{ width: '120px' }}
-                        disabled={!item.nombre}
-                      >
-                        <option value="">Selecciona</option>
-                        {formatos.map((f, idx) => (
-                          <option key={idx} value={f}>{f}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 4 }}>
-                      <select
-                        value={item.marca}
-                        onChange={(e) =>
-                          handleNuevoChange(index, 'marca', e.target.value)
-                        }
-                        style={{ width: '120px' }}
-                        disabled={!item.formato}
-                      >
-                        <option value="">Selecciona</option>
-                        {marcas.map((m, idx) => (
-                          <option key={idx} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={{ padding: 4 }}>
-                      <input
-                        type="number"
-                        value={item.cantidad_disponible}
-                        onChange={(e) =>
-                          handleNuevoChange(
-                            index,
-                            'cantidad_disponible',
-                            e.target.value
-                          )
-                        }
-                        style={{ width: '80px' }}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div style={{ marginTop: 8 }}>
-            <button onClick={agregarFila}>+</button>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <button onClick={guardarProductos}>Agregar productos</button>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <button onClick={() => setMostrarSolicitud(prev => !prev)}>
-            {mostrarSolicitud ? 'Cerrar solicitud de nuevo producto' : 'Solicitar nuevo producto'}
+      <div style={styles.topBar}>
+        <div style={styles.leftActions}>
+          <button onClick={volverAlPanel} style={styles.secondaryButton}>
+            Volver al panel
           </button>
         </div>
 
-        {mostrarSolicitud && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              border: '1px solid #ccc',
-              display: 'inline-block',
-              textAlign: 'left',
-            }}
-          >
-            <h4 style={{ marginTop: 0 }}>Solicitud de nuevo producto</h4>
-            <div style={{ marginBottom: 6 }}>
-              <label>Nombre:&nbsp;</label>
-              <input
-                type="text"
-                value={solicitud.nombre}
-                onChange={(e) => handleSolicitudChange('nombre', e.target.value)}
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
-            <div style={{ marginBottom: 6 }}>
-              <label>Marca:&nbsp;</label>
-              <input
-                type="text"
-                value={solicitud.marca}
-                onChange={(e) => handleSolicitudChange('marca', e.target.value)}
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
-            <div style={{ marginBottom: 6 }}>
-              <label>Formato:&nbsp;</label>
-              <input
-                type="text"
-                value={solicitud.formato}
-                onChange={(e) => handleSolicitudChange('formato', e.target.value)}
-                style={{ textTransform: 'uppercase' }}
-              />
-            </div>
-            <div style={{ marginBottom: 6 }}>
-              <label>Cantidad (referencia):&nbsp;</label>
-              <input
-                type="number"
-                value={solicitud.cantidad_disponible}
-                onChange={(e) =>
-                  handleSolicitudChange('cantidad_disponible', e.target.value)
-                }
-                style={{ width: '80px' }}
-              />
-            </div>
-            <div style={{ marginTop: 8, display: 'flex', gap: '8px' }}>
-  <button onClick={enviarSolicitud}>Enviar solicitud</button>
-  <button onClick={() => router.push('/proveedor/solicitudes')}>
-    Estado solicitudes
-  </button>
-</div>
-          </div>
-        )}
+        <div style={styles.centerTitle}>
+          <h1 style={styles.title}>Catálogo y Stock</h1>
+        </div>
+
+        <div style={styles.rightActions}>
+          <button onClick={cerrarSesion} style={styles.logoutButton}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: 40 }}>
-        <h3>Mis productos disponibles</h3>
+      <main style={styles.content}>
+        <section style={styles.card}>
+          <img
+            src="/icono_1.png"
+            alt="Kyntü"
+            style={styles.logo}
+          />
 
-        {productosStock.length === 0 ? (
-          <p>No tienes productos en stock.</p>
-        ) : (
-          <table
-            style={{
-              margin: 'auto',
-              borderCollapse: 'collapse',
-            }}
-          >
-            <thead>
-              <tr>
-                <th style={{ padding: 4 }}>Producto</th>
-                <th style={{ padding: 4 }}>Marca</th>
-                <th style={{ padding: 4 }}>Formato</th>
-                <th style={{ padding: 4 }}>Cantidad disponible</th>
-                <th style={{ padding: 4 }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {productosStock.map((producto) => (
-                <tr key={producto.id}>
-                  <td style={{ padding: 4 }}>{producto.nombre}</td>
-                  <td style={{ padding: 4 }}>{producto.marca}</td>
-                  <td style={{ padding: 4 }}>{producto.formato}</td>
-                  <td style={{ padding: 4 }}>
-                    <input
-                      type="number"
-                      value={
-                        cantidadesEditadas[producto.id] !== undefined
-                          ? cantidadesEditadas[producto.id]
-                          : producto.cantidad_disponible
-                      }
-                      onChange={(e) =>
-                        handleCantidadChange(producto.id, e.target.value)
-                      }
-                      style={{ width: '80px' }}
-                    />
-                  </td>
-                  <td style={{ padding: 4 }}>
-                    <button
-                      onClick={() => actualizarCantidad(producto.id)}
-                      style={{ marginRight: 6 }}
-                      title="Guardar cambios"
-                    >
-                      💾
-                    </button>
-                    <button
-                      onClick={() => eliminarProducto(producto.id)}
-                      style={{ color: 'red' }}
-                      title="Eliminar producto"
-                    >
-                      ❌
-                    </button>
-                  </td>
+          <h2 style={styles.cardTitle}>Agregar productos disponibles</h2>
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Producto</th>
+                  <th style={styles.th}>Formato</th>
+                  <th style={styles.th}>Marca</th>
+                  <th style={styles.th}>Cantidad</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+
+              <tbody>
+                {productosNuevos.map((item, index) => {
+                  const nombres = obtenerNombres();
+                  const formatos = item.nombre ? obtenerFormatos(item.nombre) : [];
+                  const marcas =
+                    item.nombre && item.formato
+                      ? obtenerMarcas(item.nombre, item.formato)
+                      : [];
+
+                  return (
+                    <tr key={index}>
+                      <td style={styles.td}>
+                        <select
+                          value={item.nombre}
+                          onChange={(e) =>
+                            handleNuevoChange(index, 'nombre', e.target.value)
+                          }
+                          style={styles.select}
+                        >
+                          <option value="">Selecciona</option>
+                          {nombres.map((n, idx) => (
+                            <option key={idx} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td style={styles.td}>
+                        <select
+                          value={item.formato}
+                          onChange={(e) =>
+                            handleNuevoChange(index, 'formato', e.target.value)
+                          }
+                          style={styles.select}
+                          disabled={!item.nombre}
+                        >
+                          <option value="">Selecciona</option>
+                          {formatos.map((f, idx) => (
+                            <option key={idx} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td style={styles.td}>
+                        <select
+                          value={item.marca}
+                          onChange={(e) =>
+                            handleNuevoChange(index, 'marca', e.target.value)
+                          }
+                          style={styles.select}
+                          disabled={!item.formato}
+                        >
+                          <option value="">Selecciona</option>
+                          {marcas.map((m, idx) => (
+                            <option key={idx} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td style={styles.td}>
+                        <input
+                          type="number"
+                          value={item.cantidad_disponible}
+                          onChange={(e) =>
+                            handleNuevoChange(
+                              index,
+                              'cantidad_disponible',
+                              e.target.value
+                            )
+                          }
+                          style={styles.quantityInput}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={styles.actionRow}>
+            <button onClick={agregarFila} style={styles.smallButton}>
+              +
+            </button>
+
+            <button onClick={guardarProductos} style={styles.mainButton}>
+              Agregar productos
+            </button>
+
+            <button
+              onClick={() => setMostrarSolicitud((prev) => !prev)}
+              style={styles.secondaryButton}
+            >
+              {mostrarSolicitud
+                ? 'Cerrar solicitud'
+                : 'Solicitar nuevo producto'}
+            </button>
+          </div>
+
+          {mostrarSolicitud && (
+            <div style={styles.requestBox}>
+              <h3 style={styles.requestTitle}>Solicitud de nuevo producto</h3>
+
+              <div style={styles.formGrid}>
+                <input
+                  type="text"
+                  placeholder="Nombre"
+                  value={solicitud.nombre}
+                  onChange={(e) =>
+                    handleSolicitudChange('nombre', e.target.value)
+                  }
+                  style={styles.input}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Marca"
+                  value={solicitud.marca}
+                  onChange={(e) =>
+                    handleSolicitudChange('marca', e.target.value)
+                  }
+                  style={styles.input}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Formato"
+                  value={solicitud.formato}
+                  onChange={(e) =>
+                    handleSolicitudChange('formato', e.target.value)
+                  }
+                  style={styles.input}
+                />
+
+                <input
+                  type="number"
+                  placeholder="Cantidad"
+                  value={solicitud.cantidad_disponible}
+                  onChange={(e) =>
+                    handleSolicitudChange('cantidad_disponible', e.target.value)
+                  }
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.actionRow}>
+                <button onClick={enviarSolicitud} style={styles.mainButton}>
+                  Enviar solicitud
+                </button>
+
+                <button
+                  onClick={() => router.push('/proveedor/solicitudes')}
+                  style={styles.secondaryButton}
+                >
+                  Estado solicitudes
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Mis productos disponibles</h2>
+
+          {productosStock.length === 0 ? (
+            <p style={styles.emptyText}>No tienes productos en stock.</p>
+          ) : (
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Producto</th>
+                    <th style={styles.th}>Marca</th>
+                    <th style={styles.th}>Formato</th>
+                    <th style={styles.th}>Cantidad</th>
+                    <th style={styles.th}>Acciones</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {productosStock.map((producto) => (
+                    <tr key={producto.id}>
+                      <td style={styles.td}>{producto.nombre}</td>
+                      <td style={styles.td}>{producto.marca}</td>
+                      <td style={styles.td}>{producto.formato}</td>
+                      <td style={styles.td}>
+                        <input
+                          type="number"
+                          value={
+                            cantidadesEditadas[producto.id] !== undefined
+                              ? cantidadesEditadas[producto.id]
+                              : producto.cantidad_disponible
+                          }
+                          onChange={(e) =>
+                            handleCantidadChange(producto.id, e.target.value)
+                          }
+                          style={styles.quantityInput}
+                        />
+                      </td>
+
+                      <td style={styles.td}>
+                        <div style={styles.iconActions}>
+                          <button
+                            onClick={() => actualizarCantidad(producto.id)}
+                            style={styles.iconButton}
+                            title="Guardar cambios"
+                          >
+                            💾
+                          </button>
+
+                          <button
+                            onClick={() => eliminarProducto(producto.id)}
+                            style={styles.deleteButton}
+                            title="Eliminar producto"
+                          >
+                            ❌
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    position: 'relative',
+    overflowX: 'hidden',
+    padding: '24px',
+    boxSizing: 'border-box',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
+
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+    zIndex: 1,
+  },
+
+  watermark: {
+    position: 'absolute',
+    top: '35px',
+    left: '45px',
+    width: '260px',
+    opacity: 0.08,
+    zIndex: 1,
+    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    pointerEvents: 'none',
+  },
+
+  topBar: {
+    position: 'relative',
+    zIndex: 3,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
+    alignItems: 'center',
+    marginBottom: '32px',
+  },
+
+  leftActions: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+  },
+
+  centerTitle: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  rightActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+
+  title: {
+    color: '#ffffff',
+    fontSize: '38px',
+    fontWeight: 800,
+    margin: 0,
+    textAlign: 'center',
+    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 3,
+    maxWidth: '1100px',
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '26px',
+  },
+
+  card: {
+    width: '100%',
+    background: 'rgba(5, 12, 29, 0.86)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '28px',
+    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
+    padding: '34px',
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+
+  logo: {
+    width: '220px',
+    marginBottom: '-18px',
+    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  },
+
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: '28px',
+    margin: '0 0 24px',
+    fontWeight: 800,
+    textAlign: 'center',
+  },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+  },
+
+  table: {
+    width: '100%',
+    borderCollapse: 'separate',
+    borderSpacing: '0 10px',
+  },
+
+  th: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: '13px',
+    padding: '8px',
+    textAlign: 'center',
+  },
+
+  td: {
+    color: '#ffffff',
+    padding: '8px',
+    textAlign: 'center',
+    background: 'rgba(255, 255, 255, 0.045)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+
+  select: {
+    width: '100%',
+    minWidth: '140px',
+    padding: '11px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: '#10192b',
+    color: '#ffffff',
+    outline: 'none',
+  },
+
+  input: {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '14px',
+    textTransform: 'uppercase',
+    boxSizing: 'border-box',
+  },
+
+  quantityInput: {
+    width: '90px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    textAlign: 'center',
+  },
+
+  actionRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginTop: '18px',
+  },
+
+  mainButton: {
+    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
+    color: '#fff',
+    border: 'none',
+    padding: '13px 28px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+  },
+
+  secondaryButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  logoutButton: {
+    background: 'rgba(255, 80, 80, 0.14)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 80, 80, 0.25)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  smallButton: {
+    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
+    color: '#ffffff',
+    border: 'none',
+    width: '42px',
+    height: '42px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 800,
+    fontSize: '20px',
+    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+  },
+
+  requestBox: {
+    width: '100%',
+    marginTop: '24px',
+    padding: '22px',
+    borderRadius: '20px',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    background: 'rgba(255, 255, 255, 0.045)',
+    boxSizing: 'border-box',
+  },
+
+  requestTitle: {
+    color: '#ffffff',
+    margin: '0 0 16px',
+    textAlign: 'center',
+  },
+
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '12px',
+  },
+
+  iconActions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '8px',
+  },
+
+  iconButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+  },
+
+  deleteButton: {
+    background: 'rgba(255, 80, 80, 0.14)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 80, 80, 0.25)',
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+  },
+
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    margin: 0,
+  },
+
+  loading: {
+    position: 'relative',
+    zIndex: 3,
+    color: '#ffffff',
+    textAlign: 'center',
+    paddingTop: '80px',
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+};

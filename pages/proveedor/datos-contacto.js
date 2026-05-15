@@ -5,30 +5,31 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function DatosContactoProveedor() {
   const router = useRouter();
+
   const [perfil, setPerfil] = useState(null);
   const [emailContacto, setEmailContacto] = useState('');
-  const [fono8, setFono8] = useState(''); // solo 8 dígitos; prefijo +569 fijo
+  const [fono8, setFono8] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const cargar = async () => {
       const { data: userWrap, error: userErr } = await supabase.auth.getUser();
+
       if (userErr || !userWrap?.user) {
         alert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
+
       const user = userWrap.user;
 
-      // 1) Buscar por auth_id + tipo proveedor
-      let { data: perfilData, error: perfilErr } = await supabase
+      let { data: perfilData } = await supabase
         .from('perfiles')
         .select('*')
         .eq('auth_id', user.id)
         .eq('tipo', 'proveedor')
         .maybeSingle();
 
-      // 2) Si no existe, buscar por email + tipo proveedor (fallback que ya usas en comprador)
       if (!perfilData) {
         const { data: perfByEmail } = await supabase
           .from('perfiles')
@@ -36,23 +37,30 @@ export default function DatosContactoProveedor() {
           .eq('email', user.email)
           .eq('tipo', 'proveedor')
           .maybeSingle();
+
         perfilData = perfByEmail || null;
       }
 
       if (!perfilData) {
-        alert('No se encontró perfil de proveedor.\nVe a "Cambiar perfil" y crea/selecciona el perfil de proveedor.');
+        alert(
+          'No se encontró perfil de proveedor.\nVe a "Cambiar perfil" y crea/selecciona el perfil de proveedor.'
+        );
         router.push('/proveedor');
         return;
       }
 
       setPerfil(perfilData);
-
-      // Prefills tolerantes
       setEmailContacto(perfilData.email_contacto ?? perfilData.email ?? '');
-      const tel = (perfilData.telefono_contacto || '').replace('+569', '').replace(/\D/g, '').slice(0, 8);
+
+      const tel = (perfilData.telefono_contacto || '')
+        .replace('+569', '')
+        .replace(/\D/g, '')
+        .slice(0, 8);
+
       setFono8(tel);
       setLoading(false);
     };
+
     cargar();
   }, [router]);
 
@@ -65,7 +73,9 @@ export default function DatosContactoProveedor() {
       alert('Ingresa un correo de contacto.');
       return;
     }
+
     const solo8 = normalizar8(fono8);
+
     if (solo8.length !== 8) {
       alert('El teléfono debe tener exactamente 8 dígitos después de +569.');
       return;
@@ -83,6 +93,7 @@ export default function DatosContactoProveedor() {
       alert('No se pudieron guardar los datos: ' + error.message);
       return;
     }
+
     alert('Datos de contacto actualizados.');
     router.push('/proveedor');
   };
@@ -95,66 +106,325 @@ export default function DatosContactoProveedor() {
     router.push('/login');
   };
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center' }}>Cargando…</div>;
+  if (loading) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.backgroundGlow}></div>
+        <p style={styles.loading}>Cargando…</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* Barra superior */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <button onClick={volver}>Volver al panel</button>
-        <h2>Actualizar datos de contacto</h2>
-        <button onClick={cerrarSesion}>Cerrar sesión</button>
+    <div style={styles.page}>
+      <div style={styles.backgroundGlow}></div>
+
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
+
+      <div style={styles.topBar}>
+        <div style={styles.leftActions}>
+          <button onClick={volver} style={styles.secondaryButton}>
+            Volver al panel
+          </button>
+        </div>
+
+        <div style={styles.centerTitle}>
+          <h1 style={styles.title}>Actualizar Datos</h1>
+        </div>
+
+        <div style={styles.rightActions}>
+          <button onClick={cerrarSesion} style={styles.logoutButton}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
-      {/* Formulario */}
-      <div style={{ maxWidth: 520, margin: '0 auto', border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 6 }}>Correo de contacto</label>
-          <input
-            type="email"
-            value={emailContacto}
-            onChange={(e) => setEmailContacto(e.target.value)}
-            placeholder="ej: ventas@tuempresa.cl"
-            style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid #ccc' }}
+      <main style={styles.content}>
+        <section style={styles.card}>
+          <img
+            src="/icono_1.png"
+            alt="Kyntü"
+            style={styles.logo}
           />
-          <small style={{ color: '#666' }}>
-            Este correo lo verá el comprador al aceptar tu oferta.
-          </small>
-        </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', marginBottom: 6 }}>Teléfono de contacto</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                padding: '8px 10px',
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                background: '#f7f7f7',
-                minWidth: 64,
-                textAlign: 'center',
-              }}
-            >
-              +569
-            </div>
+          <h2 style={styles.cardTitle}>Datos de contacto</h2>
+
+          <p style={styles.subtitle}>
+            Estos datos serán visibles para el comprador cuando acepte una de tus ofertas.
+          </p>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Correo de contacto</label>
+
             <input
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={fono8}
-              onChange={(e) => setFono8(normalizar8(e.target.value))}
-              placeholder="XXXXXXXX"
-              style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid #ccc' }}
+              type="email"
+              value={emailContacto}
+              onChange={(e) => setEmailContacto(e.target.value)}
+              placeholder="ej: ventas@tuempresa.cl"
+              style={styles.input}
             />
-          </div>
-          <small style={{ color: '#666' }}>
-            Solo ingresa los 8 dígitos finales. Se usará el formato +569XXXXXXXX.
-          </small>
-        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button onClick={guardar}>Guardar</button>
-        </div>
-      </div>
+            <small style={styles.helpText}>
+              Usa el correo donde quieres recibir comunicaciones comerciales.
+            </small>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Teléfono de contacto</label>
+
+            <div style={styles.phoneRow}>
+              <div style={styles.prefix}>+569</div>
+
+              <input
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={fono8}
+                onChange={(e) => setFono8(normalizar8(e.target.value))}
+                placeholder="XXXXXXXX"
+                style={styles.phoneInput}
+              />
+            </div>
+
+            <small style={styles.helpText}>
+              Ingresa solo los 8 dígitos finales.
+            </small>
+          </div>
+
+          <div style={styles.actionRow}>
+            <button onClick={guardar} style={styles.mainButton}>
+              Guardar cambios
+            </button>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    position: 'relative',
+    overflowX: 'hidden',
+    padding: '24px',
+    boxSizing: 'border-box',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
+
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+    zIndex: 1,
+  },
+
+  watermark: {
+    position: 'absolute',
+    top: '35px',
+    left: '45px',
+    width: '260px',
+    opacity: 0.08,
+    zIndex: 1,
+    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    pointerEvents: 'none',
+  },
+
+  topBar: {
+    position: 'relative',
+    zIndex: 3,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
+    alignItems: 'center',
+    marginBottom: '32px',
+  },
+
+  leftActions: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+  },
+
+  centerTitle: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  rightActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+
+  title: {
+    color: '#ffffff',
+    fontSize: '38px',
+    fontWeight: 800,
+    margin: 0,
+    textAlign: 'center',
+    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 3,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  card: {
+    width: 'min(560px, 100%)',
+    background: 'rgba(5, 12, 29, 0.86)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '28px',
+    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
+    padding: '38px 34px',
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+
+  logo: {
+    width: '220px',
+    marginBottom: '-18px',
+    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  },
+
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: '28px',
+    margin: '0 0 10px',
+    fontWeight: 800,
+    textAlign: 'center',
+  },
+
+  subtitle: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: '14px',
+    lineHeight: 1.5,
+    textAlign: 'center',
+    margin: '0 0 28px',
+    maxWidth: '420px',
+  },
+
+  formGroup: {
+    width: '100%',
+    marginBottom: '18px',
+  },
+
+  label: {
+    display: 'block',
+    color: '#ffffff',
+    fontSize: '14px',
+    fontWeight: 700,
+    marginBottom: '8px',
+  },
+
+  input: {
+    width: '100%',
+    padding: '13px 15px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+  },
+
+  phoneRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: '100%',
+  },
+
+  prefix: {
+    padding: '13px 15px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    fontWeight: 800,
+    minWidth: '70px',
+    textAlign: 'center',
+    boxSizing: 'border-box',
+  },
+
+  phoneInput: {
+    flex: 1,
+    padding: '13px 15px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+  },
+
+  helpText: {
+    display: 'block',
+    color: 'rgba(255, 255, 255, 0.58)',
+    fontSize: '12px',
+    marginTop: '7px',
+  },
+
+  actionRow: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    marginTop: '12px',
+  },
+
+  mainButton: {
+    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
+    color: '#fff',
+    border: 'none',
+    padding: '13px 32px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+  },
+
+  secondaryButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  logoutButton: {
+    background: 'rgba(255, 80, 80, 0.14)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 80, 80, 0.25)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  loading: {
+    position: 'relative',
+    zIndex: 3,
+    color: '#ffffff',
+    textAlign: 'center',
+    paddingTop: '80px',
+    fontSize: '18px',
+    fontWeight: 700,
+  },
+};

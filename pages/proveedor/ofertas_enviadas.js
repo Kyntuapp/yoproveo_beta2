@@ -55,6 +55,7 @@ export default function OfertasEnviadas() {
       );
 
       const mapLista = {};
+
       if (listaIds.length) {
         const { data: listasRows, error: listasErr } = await supabase
           .from('listas_compras')
@@ -93,6 +94,7 @@ export default function OfertasEnviadas() {
       );
 
       const mapPerfilComprador = {};
+
       if (usuarioIds.length) {
         const { data: perfilesRows, error: perfilesErr } = await supabase
           .from('perfiles')
@@ -159,7 +161,13 @@ export default function OfertasEnviadas() {
   const volverAlPanel = () => router.push('/proveedor');
 
   const normalizarTexto = (t) =>
-    t ? t.toString().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    t
+      ? t
+          .toString()
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+      : '';
 
   const formatearNumero = (num) =>
     num === '' || num === null || num === undefined
@@ -181,23 +189,24 @@ export default function OfertasEnviadas() {
     }
   };
 
-  const getColorEstado = (estado) => {
+  const getEstadoStyle = (estado) => {
     switch ((estado || '').toLowerCase()) {
       case 'pendiente':
-        return { color: '#5dade2', fontWeight: 'bold' };
+        return styles.estadoAzul;
       case 'en_espera_confirmacion':
-        return { color: '#f39c12', fontWeight: 'bold' };
+        return styles.estadoNaranja;
       case 'confirmada':
-        return { color: '#27ae60', fontWeight: 'bold' };
+        return styles.estadoConfirmada;
       case 'rechazada':
-        return { color: '#7f8c8d', fontStyle: 'italic' };
+        return styles.estadoGris;
       default:
-        return {};
+        return styles.estadoDefault;
     }
   };
 
   const ofertasFiltradas = useMemo(() => {
     const busq = normalizarTexto(busqueda);
+
     if (!busq) return ofertas;
 
     return ofertas.filter((item) => {
@@ -226,199 +235,418 @@ export default function OfertasEnviadas() {
   const ofertasPaginadas = ofertasFiltradas.slice(inicio, fin);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <button onClick={volverAlPanel} style={{ marginBottom: '15px' }}>
-        Volver al panel principal
-      </button>
+    <div style={styles.page}>
+      <div style={styles.backgroundGlow}></div>
 
-      <h2>Mis ofertas enviadas</h2>
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
 
-      <div style={{ marginBottom: '10px' }}>
-        <input
-          type="text"
-          placeholder="BUSCAR EN TODOS LOS CAMPOS"
-          value={busqueda}
-          onChange={(e) => {
-            setBusqueda(e.target.value.toUpperCase());
-            setPaginaActual(1);
-          }}
-          style={{ width: '320px', textTransform: 'uppercase' }}
-        />
+      <div style={styles.topBar}>
+        <div style={styles.leftActions}>
+          <button onClick={volverAlPanel} style={styles.secondaryButton}>
+            Volver al panel
+          </button>
+        </div>
+
+        <div style={styles.centerTitle}>
+          <h1 style={styles.title}>Mis Ofertas Enviadas</h1>
+        </div>
+
+        <div style={styles.rightActions}></div>
       </div>
 
-      {ofertasFiltradas.length === 0 ? (
-        <p>No has enviado ofertas todavía.</p>
-      ) : (
-        <>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'center',
-            }}
-          >
-            <thead>
-              <tr>
-                <th>Producto</th>
-                <th>Formato</th>
-                <th>Marca</th>
-                <th>Cantidad</th>
-                <th>Precio objetivo</th>
-                <th>Tu oferta</th>
-                <th>Comuna</th>
-                <th>Comprador</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Contacto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ofertasPaginadas.map((item) => {
-  const puedeVerContacto =
-    item.estado === 'en_espera_confirmacion' ||
-    item.estado === 'confirmada';
+      <main style={styles.content}>
+        <section style={styles.card}>
+          <img
+            src="/icono_1.png"
+            alt="Kyntü"
+            style={styles.logo}
+          />
 
-  return (
-    <>
-      <tr>
-        <td>{item.producto}</td>
-        <td>{item.formato}</td>
-        <td>{item.marca}</td>
-        <td>{item.cantidad}</td>
-        <td>${formatearNumero(item.precio_objetivo)}</td>
-        <td>${formatearNumero(item.precio_ofertado)}</td>
-        <td>{item.comuna}</td>
-        <td>{item.comprador_email}</td>
-        <td>
-          {item.fecha_creacion
-            ? new Date(item.fecha_creacion).toLocaleString()
-            : ''}
-        </td>
-        <td style={getColorEstado(item.estado)}>
-          {estadoTexto(item.estado)}
-        </td>
-        <td>
-          {puedeVerContacto ? (
-            <button
-              onClick={() =>
-                setDetalleContactoId(
-                  detalleContactoId === item.id ? null : item.id
-                )
-              }
-            >
-              {detalleContactoId === item.id
-                ? 'Ocultar contacto'
-                : 'Ver contacto'}
-            </button>
+          <h2 style={styles.cardTitle}>Historial de ofertas</h2>
+
+          <input
+            type="text"
+            placeholder="BUSCAR EN TODOS LOS CAMPOS"
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value.toUpperCase());
+              setPaginaActual(1);
+            }}
+            style={styles.searchInput}
+          />
+
+          {ofertasFiltradas.length === 0 ? (
+            <p style={styles.emptyText}>No has enviado ofertas todavía.</p>
           ) : (
-            '—'
-          )}
-        </td>
-      </tr>
+            <>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Producto</th>
+                      <th style={styles.th}>Formato</th>
+                      <th style={styles.th}>Marca</th>
+                      <th style={styles.th}>Cantidad</th>
+                      <th style={styles.th}>Precio objetivo</th>
+                      <th style={styles.th}>Tu oferta</th>
+                      <th style={styles.th}>Comuna</th>
+                      <th style={styles.th}>Comprador</th>
+                      <th style={styles.th}>Fecha</th>
+                      <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Contacto</th>
+                    </tr>
+                  </thead>
 
-      {puedeVerContacto && detalleContactoId === item.id && (
-        <tr>
-          <td
-            colSpan={11}
-            style={{
-              textAlign: 'left',
-              backgroundColor: '#f9f9f9',
-              padding: '12px 16px',
-              borderTop: '1px solid #ddd',
-            }}
-          >
-            <strong>Datos de contacto del comprador</strong>
-            <div style={{ marginTop: '8px', fontSize: '14px' }}>
-              <p>
-                <strong>Correo:</strong> {item.comprador_email || 'N/A'}
-              </p>
-              <p>
-                <strong>Teléfono:</strong>{' '}
-                {item.comprador_telefono || 'No disponible'}
-              </p>
-              <p>
-                <strong>Dirección de despacho:</strong>{' '}
-                {item.comprador_direccion || 'No disponible'}
-              </p>
-              <p>
-                <strong>Precio aceptado:</strong>{' '}
-                ${formatearNumero(item.precio_ofertado)}
-              </p>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-})}
-            </tbody>
-          </table>
+                  <tbody>
+                    {ofertasPaginadas.map((item) => {
+                      const puedeVerContacto =
+                        item.estado === 'en_espera_confirmacion' ||
+                        item.estado === 'confirmada';
 
-          {ofertasPaginadas.map((item) => {
-            const puedeVerContacto =
-              item.estado === 'en_espera_confirmacion' ||
-              item.estado === 'confirmada';
+                      return (
+                        <>
+                          <tr key={item.id}>
+                            <td style={styles.td}>{item.producto}</td>
+                            <td style={styles.td}>{item.formato}</td>
+                            <td style={styles.td}>{item.marca}</td>
+                            <td style={styles.td}>{item.cantidad}</td>
+                            <td style={styles.td}>
+                              ${formatearNumero(item.precio_objetivo)}
+                            </td>
+                            <td style={styles.td}>
+                              ${formatearNumero(item.precio_ofertado)}
+                            </td>
+                            <td style={styles.td}>{item.comuna}</td>
+                            <td style={styles.td}>{item.comprador_email}</td>
+                            <td style={styles.td}>
+                              {item.fecha_creacion
+                                ? new Date(item.fecha_creacion).toLocaleString()
+                                : ''}
+                            </td>
+                            <td style={styles.td}>
+                              <span style={getEstadoStyle(item.estado)}>
+                                {estadoTexto(item.estado)}
+                              </span>
+                            </td>
+                            <td style={styles.td}>
+                              {puedeVerContacto ? (
+                                <button
+                                  onClick={() =>
+                                    setDetalleContactoId(
+                                      detalleContactoId === item.id
+                                        ? null
+                                        : item.id
+                                    )
+                                  }
+                                  style={styles.smallButton}
+                                >
+                                  {detalleContactoId === item.id
+                                    ? 'Ocultar'
+                                    : 'Ver contacto'}
+                                </button>
+                              ) : (
+                                <span style={styles.emptyAction}>—</span>
+                              )}
+                            </td>
+                          </tr>
 
-            if (!puedeVerContacto || detalleContactoId !== item.id) return null;
+                          {puedeVerContacto && detalleContactoId === item.id && (
+                            <tr key={`detalle-${item.id}`}>
+                              <td colSpan={11} style={styles.contactBox}>
+                                <strong>Datos de contacto del comprador</strong>
 
-            return (
-              <div
-                key={`detalle-${item.id}`}
-                style={{
-                  marginTop: '12px',
-                  border: '1px solid #ddd',
-                  borderRadius: 8,
-                  padding: '12px 16px',
-                  background: '#f9f9f9',
-                }}
-              >
-                <strong>Datos de contacto del comprador</strong>
-                <div style={{ marginTop: '8px', fontSize: '14px' }}>
-                  <p>
-                    <strong>Correo:</strong> {item.comprador_email || 'N/A'}
-                  </p>
-                  <p>
-                    <strong>Teléfono:</strong>{' '}
-                    {item.comprador_telefono || 'No disponible'}
-                  </p>
-                  <p>
-                    <strong>Dirección de despacho:</strong>{' '}
-                    {item.comprador_direccion || 'No disponible'}
-                  </p>
-                  <p>
-                    <strong>Precio aceptado:</strong>{' '}
-                    ${formatearNumero(item.precio_ofertado)}
-                  </p>
-                </div>
+                                <div style={styles.contactText}>
+                                  <p>
+                                    <strong>Correo:</strong>{' '}
+                                    {item.comprador_email || 'N/A'}
+                                  </p>
+                                  <p>
+                                    <strong>Teléfono:</strong>{' '}
+                                    {item.comprador_telefono ||
+                                      'No disponible'}
+                                  </p>
+                                  <p>
+                                    <strong>Dirección de despacho:</strong>{' '}
+                                    {item.comprador_direccion ||
+                                      'No disponible'}
+                                  </p>
+                                  <p>
+                                    <strong>Precio aceptado:</strong>{' '}
+                                    ${formatearNumero(item.precio_ofertado)}
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            );
-          })}
 
-          <div style={{ marginTop: '15px', textAlign: 'center' }}>
-            <button
-              onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
-              disabled={paginaActual === 1}
-              style={{ marginRight: '10px' }}
-            >
-              Anterior
-            </button>
+              <div style={styles.pagination}>
+                <button
+                  onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
+                  disabled={paginaActual === 1}
+                  style={styles.secondaryButton}
+                >
+                  Anterior
+                </button>
 
-            <span>
-              Página {paginaActual} de {totalPaginas || 1}
-            </span>
+                <span style={styles.pageText}>
+                  Página {paginaActual} de {totalPaginas || 1}
+                </span>
 
-            <button
-              onClick={() =>
-                setPaginaActual((p) => Math.min(p + 1, totalPaginas || 1))
-              }
-              disabled={paginaActual === totalPaginas || totalPaginas === 0}
-              style={{ marginLeft: '10px' }}
-            >
-              Siguiente
-            </button>
-          </div>
-        </>
-      )}
+                <button
+                  onClick={() =>
+                    setPaginaActual((p) => Math.min(p + 1, totalPaginas || 1))
+                  }
+                  disabled={
+                    paginaActual === totalPaginas || totalPaginas === 0
+                  }
+                  style={styles.secondaryButton}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    position: 'relative',
+    overflowX: 'hidden',
+    padding: '24px',
+    boxSizing: 'border-box',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
+
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+    zIndex: 1,
+  },
+
+  watermark: {
+    position: 'absolute',
+    top: '35px',
+    left: '45px',
+    width: '260px',
+    opacity: 0.08,
+    zIndex: 1,
+    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    pointerEvents: 'none',
+  },
+
+  topBar: {
+    position: 'relative',
+    zIndex: 3,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
+    alignItems: 'center',
+    marginBottom: '32px',
+  },
+
+  leftActions: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+  },
+
+  centerTitle: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  rightActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+
+  title: {
+    color: '#ffffff',
+    fontSize: '38px',
+    fontWeight: 800,
+    margin: 0,
+    textAlign: 'center',
+    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 3,
+    maxWidth: '1280px',
+    margin: '0 auto',
+  },
+
+  card: {
+    width: '100%',
+    background: 'rgba(5, 12, 29, 0.86)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '28px',
+    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
+    padding: '34px',
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+
+  logo: {
+    width: '220px',
+    marginBottom: '-18px',
+    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  },
+
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: '28px',
+    margin: '0 0 24px',
+    fontWeight: 800,
+    textAlign: 'center',
+  },
+
+  searchInput: {
+    width: 'min(420px, 100%)',
+    padding: '13px 15px',
+    marginBottom: '24px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '14px',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+  },
+
+  table: {
+    width: '100%',
+    borderCollapse: 'separate',
+    borderSpacing: '0 10px',
+    textAlign: 'center',
+  },
+
+  th: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: '12px',
+    padding: '8px',
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+
+  td: {
+    color: '#ffffff',
+    padding: '9px 8px',
+    textAlign: 'center',
+    background: 'rgba(255, 255, 255, 0.045)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    fontSize: '13px',
+  },
+
+  smallButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '10px 14px',
+    borderRadius: '11px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+  },
+
+  secondaryButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '14px',
+    flexWrap: 'wrap',
+    marginTop: '24px',
+  },
+
+  pageText: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontWeight: 700,
+  },
+
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    margin: 0,
+  },
+
+  emptyAction: {
+    color: 'rgba(255, 255, 255, 0.45)',
+  },
+
+  contactBox: {
+    color: '#ffffff',
+    textAlign: 'left',
+    background: 'rgba(255, 255, 255, 0.07)',
+    padding: '16px 20px',
+    borderRadius: '14px',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+  },
+
+  contactText: {
+    marginTop: '8px',
+    fontSize: '14px',
+    color: 'rgba(255, 255, 255, 0.82)',
+  },
+
+  estadoAzul: {
+    color: '#5dade2',
+    fontWeight: 800,
+  },
+
+  estadoNaranja: {
+    color: '#f39c12',
+    fontWeight: 800,
+  },
+
+  estadoConfirmada: {
+    color: '#2ecc71',
+    fontWeight: 800,
+  },
+
+  estadoGris: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontStyle: 'italic',
+  },
+
+  estadoDefault: {
+    color: '#ffffff',
+  },
+};
