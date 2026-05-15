@@ -2,8 +2,5 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/comprador": "pages/comprador.js",
-  "/proveedor/ofertas_enviadas": "pages/proveedor/ofertas_enviadas.js",
-  "/proveedor": "pages/proveedor.js",
-  "/proveedor/ofertar_productos": "pages/proveedor/ofertar_productos.js"
+  "/": "pages/index.js"
 }

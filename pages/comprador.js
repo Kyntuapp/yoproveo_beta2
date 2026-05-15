@@ -14,8 +14,8 @@ const filaVacia = {
 
 export default function Comprador() {
   const [productos, setProductos] = useState([{ ...filaVacia }]);
-  const [usuarioId, setUsuarioId] = useState(null); // perfiles.id
-  const [authUserId, setAuthUserId] = useState(null); // auth.users.id
+  const [usuarioId, setUsuarioId] = useState(null);
+  const [authUserId, setAuthUserId] = useState(null);
   const [stock, setStock] = useState([]);
   const [comunaDespacho, setComunaDespacho] = useState('');
   const [listas, setListas] = useState([]);
@@ -24,7 +24,12 @@ export default function Comprador() {
   const [ofertasPorProducto, setOfertasPorProducto] = useState({});
   const [nuevosProductos, setNuevosProductos] = useState({});
   const [listasConOfertas, setListasConOfertas] = useState([]);
+  const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
+  const [comentariosCompra, setComentariosCompra] = useState({});
+
   const router = useRouter();
+
+  const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
 
   const getRowId = (item) =>
     item?.id ?? item?.identificacion ?? item?.['identificación'] ?? null;
@@ -38,9 +43,6 @@ export default function Comprador() {
     }, {});
   }, [listas]);
 
-  // ======================
-  // Carga inicial
-  // ======================
   useEffect(() => {
     const fetchData = async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -53,6 +55,10 @@ export default function Comprador() {
 
       setAuthUserId(userData.user.id);
 
+      if (userData.user.email) {
+        localStorage.setItem('user_email', userData.user.email);
+      }
+
       let { data: perfilData, error: perfilError } = await supabase
         .from('perfiles')
         .select('id, tipo, email, auth_id')
@@ -61,7 +67,7 @@ export default function Comprador() {
         .maybeSingle();
 
       if (perfilError) {
-        console.error('Error buscando perfil por auth_id:', perfilError);
+        console.error('Error buscando perfil comprador por auth_id:', perfilError);
       }
 
       if (!perfilData) {
@@ -73,7 +79,7 @@ export default function Comprador() {
           .maybeSingle();
 
         if (perfilByEmailError) {
-          console.error('Error buscando perfil por email:', perfilByEmailError);
+          console.error('Error buscando perfil comprador por email:', perfilByEmailError);
         }
 
         perfilData = perfilByEmail;
@@ -87,6 +93,15 @@ export default function Comprador() {
 
       setUsuarioId(perfilData.id);
 
+      const { data: perfilProveedor } = await supabase
+        .from('perfiles')
+        .select('id')
+        .eq('auth_id', userData.user.id)
+        .eq('tipo', 'proveedor')
+        .maybeSingle();
+
+      setTienePerfilProveedor(!!perfilProveedor);
+
       const { data: stockData, error: stockError } = await supabase
         .from('productos_proveedores')
         .select('nombre, formato, marca, cantidad_disponible')
@@ -98,11 +113,11 @@ export default function Comprador() {
         setStock(stockData);
       }
 
- const { data: listasData, error: listasError } = await supabase
-  .from('listas_compras')
-  .select('*')
-  .eq('usuario_id', userData.user.id)
-  .order('fecha_creacion', { ascending: false });
+      const { data: listasData, error: listasError } = await supabase
+        .from('listas_compras')
+        .select('*')
+        .eq('usuario_id', userData.user.id)
+        .order('fecha_creacion', { ascending: false });
 
       if (listasError) {
         console.error('Error cargando listas:', listasError);
@@ -114,9 +129,6 @@ export default function Comprador() {
     fetchData();
   }, [router]);
 
-  // ======================
-  // Abrir automáticamente la lista al venir desde la campana
-  // ======================
   useEffect(() => {
     if (!router.isReady) return;
     if (router.query?.notif !== 'ofertas') return;
@@ -149,9 +161,6 @@ export default function Comprador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query, listas]);
 
-  // ======================
-  // Helpers
-  // ======================
   const handleChange = (index, field, value) => {
     const updated = [...productos];
     updated[index][field] = typeof value === 'string' ? value.toUpperCase() : value;
@@ -183,7 +192,7 @@ export default function Comprador() {
   };
 
   const enviarLista = async () => {
-    if (!usuarioId || !comunaDespacho) {
+    if (!authUserId || !comunaDespacho) {
       alert('Debes iniciar sesión y completar la comuna.');
       return;
     }
@@ -199,19 +208,17 @@ export default function Comprador() {
 
     const fecha = new Date().toISOString();
 
-  const lista = productosValidos.map((p) => {
-  return {
-    producto: p.producto,
-    formato: p.formato,
-    marca: p.marca,
-    cantidad: Number(p.cantidad),
-    precio: Number(p.precio),
-    usuario_id: authUserId,
-    comprador_email: localStorage.getItem('user_email') || '',
-    fecha_creacion: fecha,
-    comuna_despacho: comunaDespacho.toUpperCase(),
-  };
-});
+    const lista = productosValidos.map((p) => ({
+      producto: p.producto,
+      formato: p.formato,
+      marca: p.marca,
+      cantidad: Number(p.cantidad),
+      precio: Number(p.precio),
+      usuario_id: authUserId,
+      comprador_email: localStorage.getItem('user_email') || '',
+      fecha_creacion: fecha,
+      comuna_despacho: comunaDespacho.toUpperCase(),
+    }));
 
     const { data, error } = await supabase
       .from('listas_compras')
@@ -294,9 +301,6 @@ export default function Comprador() {
     setEditandoFechas((prev) => prev.filter((f) => f !== fecha));
   };
 
-  // ======================
-  // Ofertas
-  // ======================
   const verOfertas = async (fecha) => {
     if (!expandedFechas.includes(fecha)) {
       setExpandedFechas((prev) => [...prev, fecha]);
@@ -318,26 +322,26 @@ export default function Comprador() {
     const { data: ofertasAll, error } = await supabase
       .from('ofertas_productos')
       .select(`
-  *,
-perfiles:proveedor_id (
-  email,
-  email_contacto,
-  telefono_contacto
-)
-`)
+        *,
+        perfiles:proveedor_id (
+          email,
+          email_contacto,
+          telefono_contacto
+        )
+      `)
       .in('lista_id', listaIds)
       .order('precio_ofertado', { ascending: true });
 
-   if (error) {
-  alert('Error cargando ofertas: ' + error.message);
-  setOfertasPorProducto({});
-  return;
-}
+    if (error) {
+      alert('Error cargando ofertas: ' + error.message);
+      setOfertasPorProducto({});
+      return;
+    }
 
     const visibles = (ofertasAll || []).filter((o) => {
-  const st = (o.estado || '').toLowerCase();
-  return st !== 'rechazada';
-});
+      const st = (o.estado || '').toLowerCase();
+      return st !== 'rechazada';
+    });
 
     for (const item of productosFecha) {
       const listaId = getRowId(item);
@@ -357,95 +361,96 @@ perfiles:proveedor_id (
     }
   };
 
-const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
   const aceptarOferta = async (oferta, producto, fecha) => {
-  const { error } = await supabase
-    .from('ofertas_productos')
-    .update({ estado: 'en_espera_confirmacion' })
-    .eq('id', oferta.id);
+    const { error } = await supabase
+      .from('ofertas_productos')
+      .update({ estado: 'en_espera_confirmacion' })
+      .eq('id', oferta.id);
 
-  if (error) {
-    alert('Error al aceptar la oferta: ' + error.message);
-    return;
-  }
+    if (error) {
+      alert('Error al aceptar la oferta: ' + error.message);
+      return;
+    }
 
-  await supabase.from('notificaciones').insert([
-    {
-      usuario_id: oferta.proveedor_id,
-      rol: 'proveedor',
-      titulo: 'Oferta aceptada',
-      mensaje: `Tu oferta para ${oferta.producto} fue aceptada.`,
-      ruta: RUTA_MIS_OFERTAS,
-      leida: false,
-    },
-  ]);
+    await supabase.from('notificaciones').insert([
+      {
+        usuario_id: oferta.proveedor_id,
+        rol: 'proveedor',
+        titulo: 'Oferta aceptada',
+        mensaje: `Tu oferta para ${oferta.producto} fue aceptada.`,
+        ruta: RUTA_MIS_OFERTAS,
+        leida: false,
+      },
+    ]);
 
-  await verOfertas(fecha);
-};
-
+    await verOfertas(fecha);
+  };
 
   const confirmarOferta = async (oferta, fecha) => {
-  const { error: ganadorError } = await supabase
-    .from('ofertas_productos')
-    .update({ estado: 'confirmada' })
-    .eq('id', oferta.id);
+    const { error: ganadorError } = await supabase
+      .from('ofertas_productos')
+      .update({
+        estado: 'confirmada',
+        comentario_comprador: comentariosCompra[oferta.id] || '',
+      })
+      .eq('id', oferta.id);
 
-  if (ganadorError) {
-    alert('Error al confirmar la oferta ganadora: ' + ganadorError.message);
-    return;
-  }
+    if (ganadorError) {
+      alert('Error al confirmar la oferta ganadora: ' + ganadorError.message);
+      return;
+    }
 
-  await supabase.from('notificaciones').insert([
-    {
-      usuario_id: oferta.proveedor_id,
-      rol: 'proveedor',
-      titulo: 'Oferta confirmada',
-      mensaje: `Tu oferta para ${oferta.producto} fue confirmada.`,
-      ruta: RUTA_MIS_OFERTAS,
-      leida: false,
-    },
-  ]);
+    await supabase.from('notificaciones').insert([
+      {
+        usuario_id: oferta.proveedor_id,
+        rol: 'proveedor',
+        titulo: 'Oferta confirmada',
+        mensaje: `Tu oferta para ${oferta.producto} fue confirmada.`,
+        ruta: RUTA_MIS_OFERTAS,
+        leida: false,
+      },
+    ]);
 
-  const { error: rechazadasError } = await supabase
-    .from('ofertas_productos')
-    .update({ estado: 'rechazada' })
-    .eq('lista_id', oferta.lista_id)
-    .neq('id', oferta.id);
+    const { error: rechazadasError } = await supabase
+      .from('ofertas_productos')
+      .update({ estado: 'rechazada' })
+      .eq('lista_id', oferta.lista_id)
+      .neq('id', oferta.id);
 
-  if (rechazadasError) {
-    alert('Error al marcar las otras ofertas como rechazadas: ' + rechazadasError.message);
-    return;
-  }
+    if (rechazadasError) {
+      alert('Error al marcar las otras ofertas como rechazadas: ' + rechazadasError.message);
+      return;
+    }
 
-  alert('Compra confirmada');
-  await verOfertas(fecha);
-};
+    alert('Compra confirmada');
+    await verOfertas(fecha);
+  };
 
+  const rechazarOferta = async (oferta, producto, fecha) => {
+    const { error } = await supabase
+      .from('ofertas_productos')
+      .update({ estado: 'rechazada' })
+      .eq('id', oferta.id);
 
-const rechazarOferta = async (oferta, producto, fecha) => {
-  const { error } = await supabase
-    .from('ofertas_productos')
-    .update({ estado: 'rechazada' })
-    .eq('id', oferta.id);
+    if (error) {
+      alert('Error al rechazar la oferta: ' + error.message);
+      return;
+    }
 
-  if (error) {
-    alert('Error al rechazar la oferta: ' + error.message);
-    return;
-  }
+    await supabase.from('notificaciones').insert([
+      {
+        usuario_id: oferta.proveedor_id,
+        rol: 'proveedor',
+        titulo: 'Oferta rechazada',
+        mensaje: `Tu oferta para ${oferta.producto} fue rechazada.`,
+        ruta: RUTA_MIS_OFERTAS,
+        leida: false,
+      },
+    ]);
 
-  await supabase.from('notificaciones').insert([
-    {
-      usuario_id: oferta.proveedor_id,
-      rol: 'proveedor',
-      titulo: 'Oferta rechazada',
-      mensaje: `Tu oferta para ${oferta.producto} fue rechazada.`,
-      ruta: RUTA_MIS_OFERTAS,
-      leida: false,
-    },
-  ]);
+    await verOfertas(fecha);
+  };
 
-  await verOfertas(fecha);
-};
   const cerrarSesion = async () => {
     await supabase.auth.signOut();
     localStorage.clear();
@@ -479,11 +484,25 @@ const rechazarOferta = async (oferta, producto, fecha) => {
     const listaBase = groupByFecha[fecha]?.[0];
     if (!listaBase) return;
 
+    if (
+      !producto.producto ||
+      !producto.formato ||
+      !producto.marca ||
+      !producto.cantidad ||
+      !producto.precio
+    ) {
+      alert('Completa todos los datos del producto.');
+      return;
+    }
+
     const nuevo = {
-      ...producto,
+      producto: producto.producto,
+      formato: producto.formato,
+      marca: producto.marca,
       cantidad: Number(producto.cantidad),
       precio: Number(producto.precio),
       usuario_id: listaBase.usuario_id,
+      comprador_email: listaBase.comprador_email || localStorage.getItem('user_email') || '',
       fecha_creacion: listaBase.fecha_creacion,
       comuna_despacho: listaBase.comuna_despacho,
     };
@@ -503,9 +522,6 @@ const rechazarOferta = async (oferta, producto, fecha) => {
     setNuevosProductos((prev) => ({ ...prev, [fecha]: [] }));
   };
 
-  // ======================
-  // UI
-  // ======================
   return (
     <div style={{ padding: 20 }}>
       <div
@@ -516,8 +532,18 @@ const rechazarOferta = async (oferta, producto, fecha) => {
           marginBottom: 12,
         }}
       >
-        <button onClick={cambiarPerfil}>Cambiar perfil</button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {tienePerfilProveedor && (
+            <button onClick={cambiarPerfil}>Cambiar perfil</button>
+          )}
+
+          <button onClick={() => router.push('/comprador/datos-contacto')}>
+            Actualizar datos de contacto
+          </button>
+        </div>
+
         <h2>Agrega productos a tu lista de compras</h2>
+
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Notificaciones userId={authUserId} rol="comprador" />
           <button onClick={cerrarSesion}>Cerrar sesión</button>
@@ -613,7 +639,9 @@ const rechazarOferta = async (oferta, producto, fecha) => {
 
       {Object.keys(groupByFecha).map((fecha, idx) => {
         const itemsDeLaFecha = groupByFecha[fecha] || [];
-        const listaIdsDeLaFecha = new Set(itemsDeLaFecha.map((it) => String(getRowId(it))));
+        const listaIdsDeLaFecha = new Set(
+          itemsDeLaFecha.map((it) => String(getRowId(it)))
+        );
 
         return (
           <div
@@ -626,9 +654,11 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                 <button onClick={() => eliminarLista(fecha)} style={{ marginRight: 5 }}>
                   Eliminar
                 </button>
+
                 <button onClick={() => verOfertas(fecha)} style={{ marginRight: 5 }}>
-                  Ver ofertas
+                  {expandedFechas.includes(fecha) ? 'Ocultar ofertas' : 'Ver ofertas'}
                 </button>
+
                 {listasConOfertas.includes(fecha) ? (
                   <span style={{ color: 'red', marginLeft: 10 }}>
                     Ya has recibido ofertas por esta lista, por lo que ya no es posible
@@ -668,7 +698,11 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                 type="number"
                                 defaultValue={item.cantidad}
                                 onBlur={(e) =>
-                                  actualizarProducto(itemId, 'cantidad', Number(e.target.value))
+                                  actualizarProducto(
+                                    itemId,
+                                    'cantidad',
+                                    Number(e.target.value)
+                                  )
                                 }
                               />
                             ) : (
@@ -681,7 +715,11 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                 type="number"
                                 defaultValue={item.precio}
                                 onBlur={(e) =>
-                                  actualizarProducto(itemId, 'precio', Number(e.target.value))
+                                  actualizarProducto(
+                                    itemId,
+                                    'precio',
+                                    Number(e.target.value)
+                                  )
                                 }
                               />
                             ) : (
@@ -690,7 +728,9 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                           </td>
                           <td>
                             {editandoFechas.includes(fecha) && (
-                              <button onClick={() => eliminarProducto(itemId)}>Quitar</button>
+                              <button onClick={() => eliminarProducto(itemId)}>
+                                Quitar
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -721,11 +761,13 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                           }
                         >
                           <option value="">Selecciona producto</option>
-                          {[...new Set(stock.map((p) => p.nombre))].map((nombre, idx2) => (
-                            <option key={idx2} value={nombre}>
-                              {nombre}
-                            </option>
-                          ))}
+                          {[...new Set(stock.map((p) => p.nombre))].map(
+                            (nombre, idx2) => (
+                              <option key={idx2} value={nombre}>
+                                {nombre}
+                              </option>
+                            )
+                          )}
                         </select>
 
                         <select
@@ -751,11 +793,13 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                           disabled={!nuevo.formato}
                         >
                           <option value="">Selecciona marca</option>
-                          {obtenerMarcas(nuevo.producto, nuevo.formato).map((m, idx2) => (
-                            <option key={idx2} value={m}>
-                              {m}
-                            </option>
-                          ))}
+                          {obtenerMarcas(nuevo.producto, nuevo.formato).map(
+                            (m, idx2) => (
+                              <option key={idx2} value={m}>
+                                {m}
+                              </option>
+                            )
+                          )}
                         </select>
 
                         <input
@@ -824,17 +868,28 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                   <strong>Precio:</strong>{' '}
                                   ${Number(of.precio_ofertado).toLocaleString('es-CL')}
                                 </p>
+
                                 <p>
                                   <strong>Despacho:</strong>{' '}
-                                  {of.incluye_despacho ? '🚚 Con despacho' : '❌ Sin despacho'}
+                                  {of.incluye_despacho
+                                    ? '🚚 Con despacho'
+                                    : '❌ Sin despacho'}
                                 </p>
 
                                 {of.estado === 'pendiente' && (
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                    <button onClick={() => aceptarOferta(of, productoNombre, fecha)}>
+                                    <button
+                                      onClick={() =>
+                                        aceptarOferta(of, productoNombre, fecha)
+                                      }
+                                    >
                                       Aceptar
                                     </button>
-                                    <button onClick={() => rechazarOferta(of, productoNombre, fecha)}>
+                                    <button
+                                      onClick={() =>
+                                        rechazarOferta(of, productoNombre, fecha)
+                                      }
+                                    >
                                       Rechazar
                                     </button>
                                   </div>
@@ -849,14 +904,44 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                         paddingTop: 8,
                                       }}
                                     >
-                                     <p><strong>Proveedor:</strong> {of.perfiles?.email_contacto || of.perfiles?.email || 'No disponible'}</p>
-<p><strong>Teléfono:</strong> {of.perfiles?.telefono_contacto || 'No disponible'}</p>
+                                      <p>
+                                        <strong>Proveedor:</strong>{' '}
+                                        {of.perfiles?.email_contacto ||
+                                          of.perfiles?.email ||
+                                          'No disponible'}
+                                      </p>
+                                      <p>
+                                        <strong>Teléfono:</strong>{' '}
+                                        {of.perfiles?.telefono_contacto ||
+                                          'No disponible'}
+                                      </p>
                                     </div>
+
+                                    <textarea
+                                      placeholder="Comentario para el proveedor"
+                                      value={comentariosCompra[of.id] || ''}
+                                      onChange={(e) =>
+                                        setComentariosCompra((prev) => ({
+                                          ...prev,
+                                          [of.id]: e.target.value,
+                                        }))
+                                      }
+                                      style={{
+                                        width: '100%',
+                                        marginTop: 8,
+                                        minHeight: 60,
+                                      }}
+                                    />
+
                                     <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                       <button onClick={() => confirmarOferta(of, fecha)}>
                                         Confirmar compra
                                       </button>
-                                      <button onClick={() => rechazarOferta(of, productoNombre, fecha)}>
+                                      <button
+                                        onClick={() =>
+                                          rechazarOferta(of, productoNombre, fecha)
+                                        }
+                                      >
                                         Rechazar
                                       </button>
                                     </div>
@@ -864,29 +949,38 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                                 )}
 
                                 {of.estado === 'confirmada' && (
-  <>
-    <p style={{ color: 'green', marginTop: 8, fontWeight: 'bold' }}>
-      ✅ Licitación cerrada
-    </p>
+                                  <>
+                                    <p
+                                      style={{
+                                        color: 'green',
+                                        marginTop: 8,
+                                        fontWeight: 'bold',
+                                      }}
+                                    >
+                                      ✅ Licitación cerrada
+                                    </p>
 
-    <div
-      style={{
-        marginTop: 8,
-        borderTop: '1px dashed #ddd',
-        paddingTop: 8,
-      }}
-    >
-      <p>
-        <strong>Proveedor:</strong>{' '}
-        {of.perfiles?.email_contacto || of.perfiles?.email || 'No disponible'}
-      </p>
-      <p>
-        <strong>Teléfono:</strong>{' '}
-        {of.perfiles?.telefono_contacto || 'No disponible'}
-      </p>
-    </div>
-  </>
-)}
+                                    <div
+                                      style={{
+                                        marginTop: 8,
+                                        borderTop: '1px dashed #ddd',
+                                        paddingTop: 8,
+                                      }}
+                                    >
+                                      <p>
+                                        <strong>Proveedor:</strong>{' '}
+                                        {of.perfiles?.email_contacto ||
+                                          of.perfiles?.email ||
+                                          'No disponible'}
+                                      </p>
+                                      <p>
+                                        <strong>Teléfono:</strong>{' '}
+                                        {of.perfiles?.telefono_contacto ||
+                                          'No disponible'}
+                                      </p>
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             );
                           })}
@@ -896,33 +990,21 @@ const rechazarOferta = async (oferta, producto, fecha) => {
                   })}
 
                 {itemsDeLaFecha.map((item, idxProd) => {
-  const listaId = getRowId(item);
-  const clave = `${item.producto}__${listaId}`;
-  const ofertasDeEste = ofertasPorProducto[clave] || [];
-  const ofertaConfirmada = ofertasDeEste.find((o) => o.estado === 'confirmada');
+                  const listaId = getRowId(item);
+                  const clave = `${item.producto}__${listaId}`;
+                  const ofertasDeEste = ofertasPorProducto[clave] || [];
 
-  if (ofertasDeEste.length > 0) return null;
+                  if (ofertasDeEste.length > 0) return null;
 
-  if (ofertaConfirmada) {
-    return (
-      <div
-        key={`cerrada-${idxProd}`}
-        style={{ marginTop: 10, color: 'green', fontWeight: 'bold' }}
-      >
-        <strong>{item.producto}:</strong> licitación cerrada
-      </div>
-    );
-  }
-
-  return (
-    <div
-      key={`recibiendo-${idxProd}`}
-      style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}
-    >
-      <strong>{item.producto}:</strong> recibiendo oferta…
-    </div>
-  );
-})}
+                  return (
+                    <div
+                      key={`recibiendo-${idxProd}`}
+                      style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}
+                    >
+                      <strong>{item.producto}:</strong> recibiendo oferta…
+                    </div>
+                  );
+                })}
               </>
             )}
           </div>
