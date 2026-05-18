@@ -26,26 +26,41 @@ export default function Comprador() {
   const [listasConOfertas, setListasConOfertas] = useState([]);
   const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
   const [comentariosCompra, setComentariosCompra] = useState({});
+  const [productosConOfertasAbiertas, setProductosConOfertasAbiertas] =
+    useState({});
+
+  // NUEVOS FILTROS
+  const [filtroMejorPrecio, setFiltroMejorPrecio] = useState(true);
+  const [filtroDespacho, setFiltroDespacho] = useState(false);
+  const [filtroCincoEstrellas, setFiltroCincoEstrellas] =
+    useState(false);
 
   const router = useRouter();
 
   const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
 
   const getRowId = (item) =>
-    item?.id ?? item?.identificacion ?? item?.['identificación'] ?? null;
+    item?.id ??
+    item?.identificacion ??
+    item?.['identificación'] ??
+    null;
 
   const groupByFecha = useMemo(() => {
     return listas.reduce((acc, item) => {
       const fecha = new Date(item.fecha_creacion).toLocaleString();
+
       if (!acc[fecha]) acc[fecha] = [];
+
       acc[fecha].push(item);
+
       return acc;
     }, {});
   }, [listas]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
         alert('Debes iniciar sesión.');
@@ -56,31 +71,34 @@ export default function Comprador() {
       setAuthUserId(userData.user.id);
 
       if (userData.user.email) {
-        localStorage.setItem('user_email', userData.user.email);
+        localStorage.setItem(
+          'user_email',
+          userData.user.email
+        );
       }
 
-      let { data: perfilData, error: perfilError } = await supabase
-        .from('perfiles')
-        .select('id, tipo, email, auth_id')
-        .eq('auth_id', userData.user.id)
-        .eq('tipo', 'comprador')
-        .maybeSingle();
+      let { data: perfilData, error: perfilError } =
+        await supabase
+          .from('perfiles')
+          .select('id, tipo, email, auth_id')
+          .eq('auth_id', userData.user.id)
+          .eq('tipo', 'comprador')
+          .maybeSingle();
 
       if (perfilError) {
-        console.error('Error buscando perfil comprador por auth_id:', perfilError);
+        console.error(
+          'Error buscando perfil comprador:',
+          perfilError
+        );
       }
 
       if (!perfilData) {
-        const { data: perfilByEmail, error: perfilByEmailError } = await supabase
+        const { data: perfilByEmail } = await supabase
           .from('perfiles')
           .select('id, tipo, email, auth_id')
           .eq('email', userData.user.email)
           .eq('tipo', 'comprador')
           .maybeSingle();
-
-        if (perfilByEmailError) {
-          console.error('Error buscando perfil comprador por email:', perfilByEmailError);
-        }
 
         perfilData = perfilByEmail;
       }
@@ -102,26 +120,26 @@ export default function Comprador() {
 
       setTienePerfilProveedor(!!perfilProveedor);
 
-      const { data: stockData, error: stockError } = await supabase
+      const { data: stockData } = await supabase
         .from('productos_proveedores')
-        .select('nombre, formato, marca, cantidad_disponible')
+        .select(
+          'nombre, formato, marca, cantidad_disponible'
+        )
         .gt('cantidad_disponible', 0);
 
-      if (stockError) {
-        console.error('Error cargando stock:', stockError);
-      } else if (stockData) {
+      if (stockData) {
         setStock(stockData);
       }
 
-      const { data: listasData, error: listasError } = await supabase
+      const { data: listasData } = await supabase
         .from('listas_compras')
         .select('*')
         .eq('usuario_id', userData.user.id)
-        .order('fecha_creacion', { ascending: false });
+        .order('fecha_creacion', {
+          ascending: false,
+        });
 
-      if (listasError) {
-        console.error('Error cargando listas:', listasError);
-      } else if (listasData) {
+      if (listasData) {
         setListas(listasData);
       }
     };
@@ -138,32 +156,54 @@ export default function Comprador() {
 
     if (router.query?.list_id) {
       const listaMatch = listas.find(
-        (l) => String(getRowId(l)) === String(router.query.list_id)
+        (l) =>
+          String(getRowId(l)) ===
+          String(router.query.list_id)
       );
 
       if (listaMatch) {
-        fechaKey = new Date(listaMatch.fecha_creacion).toLocaleString();
+        fechaKey = new Date(
+          listaMatch.fecha_creacion
+        ).toLocaleString();
       }
     }
 
     if (!fechaKey) {
       const ultima = listas.reduce((a, b) =>
-        new Date(a.fecha_creacion) > new Date(b.fecha_creacion) ? a : b
+        new Date(a.fecha_creacion) >
+        new Date(b.fecha_creacion)
+          ? a
+          : b
       );
-      fechaKey = new Date(ultima.fecha_creacion).toLocaleString();
+
+      fechaKey = new Date(
+        ultima.fecha_creacion
+      ).toLocaleString();
     }
 
     if (!expandedFechas.includes(fechaKey)) {
-      setExpandedFechas((prev) => [...prev, fechaKey]);
+      setExpandedFechas((prev) => [
+        ...prev,
+        fechaKey,
+      ]);
     }
 
     verOfertas(fechaKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // eslint-disable-next-line
   }, [router.isReady, router.query, listas]);
 
-  const handleChange = (index, field, value) => {
+  const handleChange = (
+    index,
+    field,
+    value
+  ) => {
     const updated = [...productos];
-    updated[index][field] = typeof value === 'string' ? value.toUpperCase() : value;
+
+    updated[index][field] =
+      typeof value === 'string'
+        ? value.toUpperCase()
+        : value;
 
     if (field === 'producto') {
       updated[index].formato = '';
@@ -176,22 +216,39 @@ export default function Comprador() {
   };
 
   const obtenerFormatos = (producto) =>
-    [...new Set(stock.filter((p) => p.nombre === producto).map((p) => p.formato))];
-
-  const obtenerMarcas = (producto, formato) =>
     [
       ...new Set(
         stock
-          .filter((p) => p.nombre === producto && p.formato === formato)
+          .filter((p) => p.nombre === producto)
+          .map((p) => p.formato)
+      ),
+    ];
+
+  const obtenerMarcas = (
+    producto,
+    formato
+  ) =>
+    [
+      ...new Set(
+        stock
+          .filter(
+            (p) =>
+              p.nombre === producto &&
+              p.formato === formato
+          )
           .map((p) => p.marca)
       ),
     ];
 
   const agregarFila = () => {
-    setProductos([...productos, { ...filaVacia }]);
+    setProductos([
+      ...productos,
+      { ...filaVacia },
+    ]);
   };
 
-  const enviarLista = async () => {
+  // FIN PARTE 1
+    const enviarLista = async () => {
     if (!authUserId || !comunaDespacho) {
       alert('Debes iniciar sesión y completar la comuna.');
       return;
@@ -227,11 +284,11 @@ export default function Comprador() {
 
     if (error) {
       alert('Error al enviar la lista: ' + error.message);
-      console.error(error);
       return;
     }
 
     alert('Lista enviada correctamente');
+
     setProductos([{ ...filaVacia }]);
     setComunaDespacho('');
     setListas((prev) => [...(data || []), ...prev]);
@@ -239,14 +296,25 @@ export default function Comprador() {
 
   const toggleExpand = (fecha) => {
     setExpandedFechas((prev) =>
-      prev.includes(fecha) ? prev.filter((f) => f !== fecha) : [...prev, fecha]
+      prev.includes(fecha)
+        ? prev.filter((f) => f !== fecha)
+        : [...prev, fecha]
     );
   };
 
   const toggleEdit = (fecha) => {
     setEditandoFechas((prev) =>
-      prev.includes(fecha) ? prev.filter((f) => f !== fecha) : [...prev, fecha]
+      prev.includes(fecha)
+        ? prev.filter((f) => f !== fecha)
+        : [...prev, fecha]
     );
+  };
+
+  const toggleOfertasProducto = (productoId) => {
+    setProductosConOfertasAbiertas((prev) => ({
+      ...prev,
+      [productoId]: !prev[productoId],
+    }));
   };
 
   const actualizarProducto = async (id, field, value) => {
@@ -282,7 +350,9 @@ export default function Comprador() {
   const eliminarLista = async (fecha) => {
     if (!confirm('¿Estás seguro de eliminar esta lista?')) return;
 
-    const ids = (groupByFecha[fecha] || []).map((p) => getRowId(p)).filter(Boolean);
+    const ids = (groupByFecha[fecha] || [])
+      .map((p) => getRowId(p))
+      .filter(Boolean);
 
     if (ids.length === 0) return;
 
@@ -301,23 +371,48 @@ export default function Comprador() {
     setEditandoFechas((prev) => prev.filter((f) => f !== fecha));
   };
 
+  const aplicarFiltrosOfertas = (ofertas) => {
+    let resultado = [...(ofertas || [])];
+
+    if (filtroDespacho) {
+      resultado = resultado.filter((of) => of.incluye_despacho);
+    }
+
+    if (filtroCincoEstrellas) {
+      resultado = resultado.filter((of) => {
+        const rating =
+          of.calificacion_proveedor ||
+          of.rating_proveedor ||
+          of.perfiles?.calificacion ||
+          0;
+
+        return Number(rating) >= 5;
+      });
+    }
+
+    if (filtroMejorPrecio) {
+      resultado.sort(
+        (a, b) =>
+          Number(a.precio_ofertado || 0) -
+          Number(b.precio_ofertado || 0)
+      );
+    }
+
+    return resultado.slice(0, 3);
+  };
+
   const verOfertas = async (fecha) => {
     if (!expandedFechas.includes(fecha)) {
       setExpandedFechas((prev) => [...prev, fecha]);
     }
 
     const productosFecha = groupByFecha[fecha] || [];
-    const nuevas = {};
-    let hay = false;
 
     const listaIds = Array.from(
       new Set(productosFecha.map((item) => getRowId(item)).filter(Boolean))
     );
 
-    if (listaIds.length === 0) {
-      setOfertasPorProducto({});
-      return;
-    }
+    if (listaIds.length === 0) return;
 
     const { data: ofertasAll, error } = await supabase
       .from('ofertas_productos')
@@ -334,7 +429,6 @@ export default function Comprador() {
 
     if (error) {
       alert('Error cargando ofertas: ' + error.message);
-      setOfertasPorProducto({});
       return;
     }
 
@@ -343,22 +437,22 @@ export default function Comprador() {
       return st !== 'rechazada';
     });
 
+    const nuevas = {};
+
     for (const item of productosFecha) {
       const listaId = getRowId(item);
       const ofertasDeEste = visibles.filter((o) => o.lista_id === listaId);
+      const clave = `${item.producto}__${listaId}`;
 
-      if (ofertasDeEste.length > 0) {
-        const clave = `${item.producto}__${listaId}`;
-        nuevas[clave] = ofertasDeEste.slice(0, 3);
-        hay = true;
-      }
+      nuevas[clave] = aplicarFiltrosOfertas(ofertasDeEste);
     }
 
-    setOfertasPorProducto(nuevas);
+    setOfertasPorProducto((prev) => ({
+      ...prev,
+      ...nuevas,
+    }));
 
-    if (hay) {
-      setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
-    }
+    setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
   };
 
   const aceptarOferta = async (oferta, producto, fecha) => {
@@ -418,7 +512,10 @@ export default function Comprador() {
       .neq('id', oferta.id);
 
     if (rechazadasError) {
-      alert('Error al marcar las otras ofertas como rechazadas: ' + rechazadasError.message);
+      alert(
+        'Error al marcar las otras ofertas como rechazadas: ' +
+          rechazadasError.message
+      );
       return;
     }
 
@@ -426,7 +523,8 @@ export default function Comprador() {
     await verOfertas(fecha);
   };
 
-  const rechazarOferta = async (oferta, producto, fecha) => {
+  // FIN PARTE 2
+    const rechazarOferta = async (oferta, producto, fecha) => {
     const { error } = await supabase
       .from('ofertas_productos')
       .update({ estado: 'rechazada' })
@@ -468,7 +566,9 @@ export default function Comprador() {
 
   const handleNuevoChange = (fecha, index, field, value) => {
     const updated = [...(nuevosProductos[fecha] || [])];
-    updated[index][field] = typeof value === 'string' ? value.toUpperCase() : value;
+
+    updated[index][field] =
+      typeof value === 'string' ? value.toUpperCase() : value;
 
     if (field === 'producto') {
       updated[index].formato = '';
@@ -482,6 +582,7 @@ export default function Comprador() {
 
   const guardarNuevoProducto = async (fecha, producto) => {
     const listaBase = groupByFecha[fecha]?.[0];
+
     if (!listaBase) return;
 
     if (
@@ -502,7 +603,8 @@ export default function Comprador() {
       cantidad: Number(producto.cantidad),
       precio: Number(producto.precio),
       usuario_id: listaBase.usuario_id,
-      comprador_email: listaBase.comprador_email || localStorage.getItem('user_email') || '',
+      comprador_email:
+        listaBase.comprador_email || localStorage.getItem('user_email') || '',
       fecha_creacion: listaBase.fecha_creacion,
       comuna_despacho: listaBase.comuna_despacho,
     };
@@ -522,494 +624,989 @@ export default function Comprador() {
     setNuevosProductos((prev) => ({ ...prev, [fecha]: [] }));
   };
 
+  const formatearPrecio = (valor) =>
+    valor === '' || valor === null || valor === undefined
+      ? ''
+      : Number(valor).toLocaleString('es-CL');
+
   return (
-    <div style={{ padding: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div style={styles.page}>
+      <div style={styles.backgroundGlow}></div>
+
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
+
+      <div style={styles.topBar}>
+        <div style={styles.leftActions}>
           {tienePerfilProveedor && (
-            <button onClick={cambiarPerfil}>Cambiar perfil</button>
+            <button onClick={cambiarPerfil} style={styles.secondaryButton}>
+              Cambiar perfil
+            </button>
           )}
 
-          <button onClick={() => router.push('/comprador/datos-contacto')}>
-            Actualizar datos de contacto
+          <button
+            onClick={() => router.push('/comprador/datos-contacto')}
+            style={styles.secondaryButton}
+          >
+            Actualizar datos
           </button>
         </div>
 
-        <h2>Agrega productos a tu lista de compras</h2>
+        <div style={styles.centerTitle}>
+          <h1 style={styles.title}>Panel del Comprador</h1>
+        </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={styles.rightActions}>
           <Notificaciones userId={authUserId} rol="comprador" />
-          <button onClick={cerrarSesion}>Cerrar sesión</button>
+
+          <button onClick={cerrarSesion} style={styles.logoutButton}>
+            Cerrar sesión
+          </button>
         </div>
       </div>
 
-      <div style={{ marginBottom: 15 }}>
-        <label>Comuna de despacho: </label>
-        <input
-          type="text"
-          value={comunaDespacho}
-          onChange={(e) => setComunaDespacho(e.target.value.toUpperCase())}
-        />
-      </div>
+      <main style={styles.content}>
+        <section style={styles.card}>
+          <img
+            src="/icono_1.png"
+            alt="Kyntü"
+            style={styles.logo}
+          />
 
-      <table>
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Formato</th>
-            <th>Marca</th>
-            <th>Cantidad</th>
-            <th>Precio</th>
-          </tr>
-        </thead>
-        <tbody>
-          {productos.map((item, i) => (
-            <tr key={i}>
-              <td>
-                <select
-                  value={item.producto}
-                  onChange={(e) => handleChange(i, 'producto', e.target.value)}
-                >
-                  <option value="">Selecciona</option>
-                  {[...new Set(stock.map((p) => p.nombre))].map((nombre, idx) => (
-                    <option key={idx} value={nombre}>
-                      {nombre}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select
-                  value={item.formato}
-                  onChange={(e) => handleChange(i, 'formato', e.target.value)}
-                  disabled={!item.producto}
-                >
-                  <option value="">Selecciona</option>
-                  {obtenerFormatos(item.producto).map((f, idx) => (
-                    <option key={idx} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select
-                  value={item.marca}
-                  onChange={(e) => handleChange(i, 'marca', e.target.value)}
-                  disabled={!item.formato}
-                >
-                  <option value="">Selecciona</option>
-                  {obtenerMarcas(item.producto, item.formato).map((m, idx) => (
-                    <option key={idx} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="number"
-                  value={item.cantidad}
-                  onChange={(e) => handleChange(i, 'cantidad', e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  value={item.precio}
-                  onChange={(e) => handleChange(i, 'precio', e.target.value)}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <h2 style={styles.cardTitle}>Agrega productos a tu lista</h2>
 
-      <button onClick={agregarFila}>Agregar otro producto</button>
-      <button onClick={enviarLista}>Enviar lista</button>
+          <div style={styles.comunaBox}>
+            <label style={styles.label}>Comuna de despacho</label>
 
-      <h3 style={{ marginTop: 30 }}>🛒 Tus Listas de Compra</h3>
-
-      {Object.keys(groupByFecha).map((fecha, idx) => {
-        const itemsDeLaFecha = groupByFecha[fecha] || [];
-        const listaIdsDeLaFecha = new Set(
-          itemsDeLaFecha.map((it) => String(getRowId(it)))
-        );
-
-        return (
-          <div
-            key={idx}
-            style={{ border: '1px solid #ccc', padding: 10, margin: '10px 0' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <button onClick={() => toggleExpand(fecha)}>{fecha}</button>
-              <div>
-                <button onClick={() => eliminarLista(fecha)} style={{ marginRight: 5 }}>
-                  Eliminar
-                </button>
-
-                <button onClick={() => verOfertas(fecha)} style={{ marginRight: 5 }}>
-                  {expandedFechas.includes(fecha) ? 'Ocultar ofertas' : 'Ver ofertas'}
-                </button>
-
-                {listasConOfertas.includes(fecha) ? (
-                  <span style={{ color: 'red', marginLeft: 10 }}>
-                    Ya has recibido ofertas por esta lista, por lo que ya no es posible
-                    modificarla.
-                  </span>
-                ) : (
-                  <button onClick={() => toggleEdit(fecha)}>Editar</button>
-                )}
-              </div>
-            </div>
-
-            {expandedFechas.includes(fecha) && (
-              <>
-                <table style={{ marginTop: 10 }}>
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Formato</th>
-                      <th>Marca</th>
-                      <th>Cantidad</th>
-                      <th>Precio</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemsDeLaFecha.map((item, i) => {
-                      const itemId = getRowId(item);
-
-                      return (
-                        <tr key={i}>
-                          <td>{item.producto}</td>
-                          <td>{item.formato}</td>
-                          <td>{item.marca}</td>
-                          <td>
-                            {editandoFechas.includes(fecha) ? (
-                              <input
-                                type="number"
-                                defaultValue={item.cantidad}
-                                onBlur={(e) =>
-                                  actualizarProducto(
-                                    itemId,
-                                    'cantidad',
-                                    Number(e.target.value)
-                                  )
-                                }
-                              />
-                            ) : (
-                              item.cantidad
-                            )}
-                          </td>
-                          <td>
-                            {editandoFechas.includes(fecha) ? (
-                              <input
-                                type="number"
-                                defaultValue={item.precio}
-                                onBlur={(e) =>
-                                  actualizarProducto(
-                                    itemId,
-                                    'precio',
-                                    Number(e.target.value)
-                                  )
-                                }
-                              />
-                            ) : (
-                              `$${Number(item.precio).toLocaleString('es-CL')}`
-                            )}
-                          </td>
-                          <td>
-                            {editandoFechas.includes(fecha) && (
-                              <button onClick={() => eliminarProducto(itemId)}>
-                                Quitar
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {editandoFechas.includes(fecha) && !listasConOfertas.includes(fecha) && (
-                  <div style={{ marginTop: 12 }}>
-                    <button onClick={() => agregarProductoEnLista(fecha)}>
-                      Agregar producto a esta lista
-                    </button>
-
-                    {(nuevosProductos[fecha] || []).map((nuevo, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          marginTop: 10,
-                          padding: 10,
-                          border: '1px solid #ddd',
-                        }}
-                      >
-                        <select
-                          value={nuevo.producto}
-                          onChange={(e) =>
-                            handleNuevoChange(fecha, index, 'producto', e.target.value)
-                          }
-                        >
-                          <option value="">Selecciona producto</option>
-                          {[...new Set(stock.map((p) => p.nombre))].map(
-                            (nombre, idx2) => (
-                              <option key={idx2} value={nombre}>
-                                {nombre}
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        <select
-                          value={nuevo.formato}
-                          onChange={(e) =>
-                            handleNuevoChange(fecha, index, 'formato', e.target.value)
-                          }
-                          disabled={!nuevo.producto}
-                        >
-                          <option value="">Selecciona formato</option>
-                          {obtenerFormatos(nuevo.producto).map((f, idx2) => (
-                            <option key={idx2} value={f}>
-                              {f}
-                            </option>
-                          ))}
-                        </select>
-
-                        <select
-                          value={nuevo.marca}
-                          onChange={(e) =>
-                            handleNuevoChange(fecha, index, 'marca', e.target.value)
-                          }
-                          disabled={!nuevo.formato}
-                        >
-                          <option value="">Selecciona marca</option>
-                          {obtenerMarcas(nuevo.producto, nuevo.formato).map(
-                            (m, idx2) => (
-                              <option key={idx2} value={m}>
-                                {m}
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        <input
-                          type="number"
-                          placeholder="Cantidad"
-                          value={nuevo.cantidad}
-                          onChange={(e) =>
-                            handleNuevoChange(fecha, index, 'cantidad', e.target.value)
-                          }
-                        />
-
-                        <input
-                          type="number"
-                          placeholder="Precio"
-                          value={nuevo.precio}
-                          onChange={(e) =>
-                            handleNuevoChange(fecha, index, 'precio', e.target.value)
-                          }
-                        />
-
-                        <button onClick={() => guardarNuevoProducto(fecha, nuevo)}>
-                          Guardar producto
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {Object.entries(ofertasPorProducto)
-                  .filter(([clave]) => {
-                    const [, listaIdStr] = String(clave).split('__');
-                    return listaIdsDeLaFecha.has(String(listaIdStr));
-                  })
-                  .map(([clave, ofertas], i) => {
-                    const [productoNombre] = String(clave).split('__');
-
-                    return (
-                      <div key={i} style={{ marginTop: 15 }}>
-                        <strong>Ofertas para {productoNombre}:</strong>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: 12,
-                            flexWrap: 'wrap',
-                            marginTop: 8,
-                          }}
-                        >
-                          {ofertas.map((of, j) => {
-                            const isConfirm = of.estado === 'en_espera_confirmacion';
-
-                            return (
-                              <div
-                                key={j}
-                                style={{
-                                  border: '1px solid #ddd',
-                                  borderRadius: 8,
-                                  padding: 12,
-                                  minWidth: 240,
-                                  maxWidth: 280,
-                                  flex: '0 0 auto',
-                                  boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                                }}
-                              >
-                                <p>
-                                  <strong>Precio:</strong>{' '}
-                                  ${Number(of.precio_ofertado).toLocaleString('es-CL')}
-                                </p>
-
-                                <p>
-                                  <strong>Despacho:</strong>{' '}
-                                  {of.incluye_despacho
-                                    ? '🚚 Con despacho'
-                                    : '❌ Sin despacho'}
-                                </p>
-
-                                {of.estado === 'pendiente' && (
-                                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                    <button
-                                      onClick={() =>
-                                        aceptarOferta(of, productoNombre, fecha)
-                                      }
-                                    >
-                                      Aceptar
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        rechazarOferta(of, productoNombre, fecha)
-                                      }
-                                    >
-                                      Rechazar
-                                    </button>
-                                  </div>
-                                )}
-
-                                {isConfirm && (
-                                  <>
-                                    <div
-                                      style={{
-                                        marginTop: 8,
-                                        borderTop: '1px dashed #ddd',
-                                        paddingTop: 8,
-                                      }}
-                                    >
-                                      <p>
-                                        <strong>Proveedor:</strong>{' '}
-                                        {of.perfiles?.email_contacto ||
-                                          of.perfiles?.email ||
-                                          'No disponible'}
-                                      </p>
-                                      <p>
-                                        <strong>Teléfono:</strong>{' '}
-                                        {of.perfiles?.telefono_contacto ||
-                                          'No disponible'}
-                                      </p>
-                                    </div>
-
-                                    <textarea
-                                      placeholder="Comentario para el proveedor"
-                                      value={comentariosCompra[of.id] || ''}
-                                      onChange={(e) =>
-                                        setComentariosCompra((prev) => ({
-                                          ...prev,
-                                          [of.id]: e.target.value,
-                                        }))
-                                      }
-                                      style={{
-                                        width: '100%',
-                                        marginTop: 8,
-                                        minHeight: 60,
-                                      }}
-                                    />
-
-                                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                      <button onClick={() => confirmarOferta(of, fecha)}>
-                                        Confirmar compra
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          rechazarOferta(of, productoNombre, fecha)
-                                        }
-                                      >
-                                        Rechazar
-                                      </button>
-                                    </div>
-                                  </>
-                                )}
-
-                                {of.estado === 'confirmada' && (
-                                  <>
-                                    <p
-                                      style={{
-                                        color: 'green',
-                                        marginTop: 8,
-                                        fontWeight: 'bold',
-                                      }}
-                                    >
-                                      ✅ Licitación cerrada
-                                    </p>
-
-                                    <div
-                                      style={{
-                                        marginTop: 8,
-                                        borderTop: '1px dashed #ddd',
-                                        paddingTop: 8,
-                                      }}
-                                    >
-                                      <p>
-                                        <strong>Proveedor:</strong>{' '}
-                                        {of.perfiles?.email_contacto ||
-                                          of.perfiles?.email ||
-                                          'No disponible'}
-                                      </p>
-                                      <p>
-                                        <strong>Teléfono:</strong>{' '}
-                                        {of.perfiles?.telefono_contacto ||
-                                          'No disponible'}
-                                      </p>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                {itemsDeLaFecha.map((item, idxProd) => {
-                  const listaId = getRowId(item);
-                  const clave = `${item.producto}__${listaId}`;
-                  const ofertasDeEste = ofertasPorProducto[clave] || [];
-
-                  if (ofertasDeEste.length > 0) return null;
-
-                  return (
-                    <div
-                      key={`recibiendo-${idxProd}`}
-                      style={{ marginTop: 10, fontStyle: 'italic', color: '#666' }}
-                    >
-                      <strong>{item.producto}:</strong> recibiendo oferta…
-                    </div>
-                  );
-                })}
-              </>
-            )}
+            <input
+              type="text"
+              value={comunaDespacho}
+              onChange={(e) => setComunaDespacho(e.target.value.toUpperCase())}
+              placeholder="Ej: Santiago"
+              style={styles.input}
+            />
           </div>
-        );
-      })}
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Producto</th>
+                  <th style={styles.th}>Formato</th>
+                  <th style={styles.th}>Marca</th>
+                  <th style={styles.th}>Cantidad</th>
+                  <th style={styles.th}>Precio</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {productos.map((item, i) => (
+                  <tr key={i}>
+                    <td style={styles.td}>
+                      <select
+                        value={item.producto}
+                        onChange={(e) =>
+                          handleChange(i, 'producto', e.target.value)
+                        }
+                        style={styles.select}
+                      >
+                        <option value="">Selecciona</option>
+
+                        {[...new Set(stock.map((p) => p.nombre))].map(
+                          (nombre, idx) => (
+                            <option key={idx} value={nombre}>
+                              {nombre}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </td>
+
+                    <td style={styles.td}>
+                      <select
+                        value={item.formato}
+                        onChange={(e) =>
+                          handleChange(i, 'formato', e.target.value)
+                        }
+                        disabled={!item.producto}
+                        style={styles.select}
+                      >
+                        <option value="">Selecciona</option>
+
+                        {obtenerFormatos(item.producto).map((f, idx) => (
+                          <option key={idx} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    <td style={styles.td}>
+                      <select
+                        value={item.marca}
+                        onChange={(e) =>
+                          handleChange(i, 'marca', e.target.value)
+                        }
+                        disabled={!item.formato}
+                        style={styles.select}
+                      >
+                        <option value="">Selecciona</option>
+
+                        {obtenerMarcas(item.producto, item.formato).map(
+                          (m, idx) => (
+                            <option key={idx} value={m}>
+                              {m}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </td>
+
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={item.cantidad}
+                        onChange={(e) =>
+                          handleChange(i, 'cantidad', e.target.value)
+                        }
+                        style={styles.quantityInput}
+                      />
+                    </td>
+
+                    <td style={styles.td}>
+                      <input
+                        type="number"
+                        value={item.precio}
+                        onChange={(e) =>
+                          handleChange(i, 'precio', e.target.value)
+                        }
+                        style={styles.quantityInput}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={styles.actionRow}>
+            <button onClick={agregarFila} style={styles.secondaryButton}>
+              Agregar otro producto
+            </button>
+
+            <button onClick={enviarLista} style={styles.mainButton}>
+              Enviar lista
+            </button>
+          </div>
+        </section>
+
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Mis listas enviadas</h2>
+
+          <div style={styles.filtersBox}>
+            <p style={styles.filtersTitle}>
+              Mostrar mejores ofertas según:
+            </p>
+
+            <label style={styles.filterLabel}>
+              <input
+                type="checkbox"
+                checked={filtroMejorPrecio}
+                onChange={(e) => setFiltroMejorPrecio(e.target.checked)}
+              />
+              Mejor precio
+            </label>
+
+            <label style={styles.filterLabel}>
+              <input
+                type="checkbox"
+                checked={filtroDespacho}
+                onChange={(e) => setFiltroDespacho(e.target.checked)}
+              />
+              Incluye despacho
+            </label>
+
+            <label style={styles.filterLabel}>
+              <input
+                type="checkbox"
+                checked={filtroCincoEstrellas}
+                onChange={(e) => setFiltroCincoEstrellas(e.target.checked)}
+              />
+              Solo 5 estrellas
+            </label>
+          </div>
+
+          {Object.keys(groupByFecha).length === 0 ? (
+            <p style={styles.emptyText}>
+              Aún no has enviado listas de compra.
+            </p>
+          ) : (
+            Object.entries(groupByFecha).map(([fecha, productos]) => {
+              const expanded = expandedFechas.includes(fecha);
+              const editando = editandoFechas.includes(fecha);
+
+              return (
+                <div key={fecha} style={styles.listBox}>
+                  <div style={styles.listHeader}>
+                    <div>
+                      <h3 style={styles.listTitle}>
+                        Lista enviada el {fecha}
+                      </h3>
+
+                      <p style={styles.listSubtitle}>
+                        {productos.length} productos
+                      </p>
+                    </div>
+
+                    <div style={styles.listActions}>
+                      <button
+                        onClick={() => toggleExpand(fecha)}
+                        style={styles.smallButton}
+                      >
+                        {expanded ? 'Ocultar' : 'Ver'}
+                      </button>
+
+                      <button
+                        onClick={() => toggleEdit(fecha)}
+                        style={styles.smallButton}
+                      >
+                        {editando ? 'Cerrar edición' : 'Editar'}
+                      </button>
+
+                      <button
+                        onClick={() => verOfertas(fecha)}
+                        style={styles.mainButtonSmall}
+                      >
+                        Ver ofertas
+                      </button>
+
+                      <button
+                        onClick={() => eliminarLista(fecha)}
+                        style={styles.deleteButton}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* FIN PARTE 3 */}
+                                    {expanded && (
+                    <>
+                      <div style={styles.tableWrapper}>
+                        <table style={styles.table}>
+                          <thead>
+                            <tr>
+                              <th style={styles.th}>Producto</th>
+                              <th style={styles.th}>Formato</th>
+                              <th style={styles.th}>Marca</th>
+                              <th style={styles.th}>Cantidad</th>
+                              <th style={styles.th}>Precio</th>
+                              <th style={styles.th}>Ofertas</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {productos.map((item, idx) => {
+                              const rowId = getRowId(item);
+                              const clave = `${item.producto}__${rowId}`;
+                              const ofertas = ofertasPorProducto[clave] || [];
+                              const abierto =
+                                productosConOfertasAbiertas[rowId];
+
+                              return (
+                                <>
+                                  <tr
+                                    key={`producto-${rowId || idx}`}
+                                    onClick={() =>
+                                      toggleOfertasProducto(rowId)
+                                    }
+                                    style={styles.clickableRow}
+                                  >
+                                    <td style={styles.td}>{item.producto}</td>
+                                    <td style={styles.td}>{item.formato}</td>
+                                    <td style={styles.td}>{item.marca}</td>
+                                    <td style={styles.td}>{item.cantidad}</td>
+                                    <td style={styles.td}>
+                                      ${formatearPrecio(item.precio)}
+                                    </td>
+                                    <td style={styles.td}>
+                                      <span style={styles.offerCount}>
+                                        {ofertas.length > 0
+                                          ? 'Ver ofertas'
+                                          : 'Sin ofertas'}
+                                      </span>
+                                      <span style={styles.arrow}>
+                                        {abierto ? '▲' : '▼'}
+                                      </span>
+                                    </td>
+                                  </tr>
+
+                                  {abierto && (
+                                    <tr key={`ofertas-${rowId || idx}`}>
+                                      <td colSpan={6} style={styles.offersRow}>
+                                        {ofertas.length === 0 ? (
+                                          <p style={styles.waitingOffer}>
+                                            Aún no has recibido ofertas por este producto.
+                                          </p>
+                                        ) : (
+                                          <div style={styles.offersGrid}>
+                                            {ofertas.map((of, i) => {
+                                              const estado = (
+                                                of.estado || ''
+                                              ).toLowerCase();
+
+                                              const isPending =
+                                                estado === 'pendiente';
+                                              const isWaiting =
+                                                estado ===
+                                                'en_espera_confirmacion';
+                                              const isConfirm =
+                                                estado === 'confirmada';
+
+                                              return (
+                                                <div
+                                                  key={i}
+                                                  style={styles.offerCard}
+                                                >
+                                                  <p style={styles.offerPrice}>
+                                                    $
+                                                    {formatearPrecio(
+                                                      of.precio_ofertado
+                                                    )}
+                                                  </p>
+
+                                                  <p style={styles.offerMeta}>
+                                                    {of.incluye_despacho
+                                                      ? '🚚 Incluye despacho'
+                                                      : '❌ Sin despacho'}
+                                                  </p>
+
+                                                  {isPending && (
+                                                    <div
+                                                      style={styles.offerActions}
+                                                    >
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          aceptarOferta(
+                                                            of,
+                                                            item,
+                                                            fecha
+                                                          );
+                                                        }}
+                                                        style={
+                                                          styles.mainButtonSmall
+                                                        }
+                                                      >
+                                                        Aceptar
+                                                      </button>
+
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          rechazarOferta(
+                                                            of,
+                                                            item,
+                                                            fecha
+                                                          );
+                                                        }}
+                                                        style={
+                                                          styles.deleteButton
+                                                        }
+                                                      >
+                                                        Rechazar
+                                                      </button>
+                                                    </div>
+                                                  )}
+
+                                                  {isWaiting && (
+                                                    <>
+                                                      <div
+                                                        style={styles.contactBox}
+                                                      >
+                                                        <p
+                                                          style={
+                                                            styles.contactText
+                                                          }
+                                                        >
+                                                          <strong>
+                                                            Proveedor:
+                                                          </strong>{' '}
+                                                          {of.perfiles
+                                                            ?.email_contacto ||
+                                                            of.perfiles
+                                                              ?.email ||
+                                                            'No disponible'}
+                                                        </p>
+
+                                                        <p
+                                                          style={
+                                                            styles.contactText
+                                                          }
+                                                        >
+                                                          <strong>
+                                                            Teléfono:
+                                                          </strong>{' '}
+                                                          {of.perfiles
+                                                            ?.telefono_contacto ||
+                                                            'No disponible'}
+                                                        </p>
+                                                      </div>
+
+                                                      <textarea
+                                                        placeholder="Comentario para el proveedor"
+                                                        value={
+                                                          comentariosCompra[
+                                                            of.id
+                                                          ] || ''
+                                                        }
+                                                        onClick={(e) =>
+                                                          e.stopPropagation()
+                                                        }
+                                                        onChange={(e) =>
+                                                          setComentariosCompra(
+                                                            (prev) => ({
+                                                              ...prev,
+                                                              [of.id]:
+                                                                e.target.value,
+                                                            })
+                                                          )
+                                                        }
+                                                        style={styles.textArea}
+                                                      />
+
+                                                      <div
+                                                        style={
+                                                          styles.offerActions
+                                                        }
+                                                      >
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            confirmarOferta(
+                                                              of,
+                                                              fecha
+                                                            );
+                                                          }}
+                                                          style={
+                                                            styles.mainButtonSmall
+                                                          }
+                                                        >
+                                                          Confirmar compra
+                                                        </button>
+
+                                                        <button
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            rechazarOferta(
+                                                              of,
+                                                              item,
+                                                              fecha
+                                                            );
+                                                          }}
+                                                          style={
+                                                            styles.deleteButton
+                                                          }
+                                                        >
+                                                          Rechazar
+                                                        </button>
+                                                      </div>
+                                                    </>
+                                                  )}
+
+                                                  {isConfirm && (
+                                                    <>
+                                                      <p
+                                                        style={
+                                                          styles.confirmedText
+                                                        }
+                                                      >
+                                                        ✅ Compra confirmada
+                                                      </p>
+
+                                                      <div
+                                                        style={styles.contactBox}
+                                                      >
+                                                        <p
+                                                          style={
+                                                            styles.contactText
+                                                          }
+                                                        >
+                                                          <strong>
+                                                            Proveedor:
+                                                          </strong>{' '}
+                                                          {of.perfiles
+                                                            ?.email_contacto ||
+                                                            of.perfiles
+                                                              ?.email ||
+                                                            'No disponible'}
+                                                        </p>
+
+                                                        <p
+                                                          style={
+                                                            styles.contactText
+                                                          }
+                                                        >
+                                                          <strong>
+                                                            Teléfono:
+                                                          </strong>{' '}
+                                                          {of.perfiles
+                                                            ?.telefono_contacto ||
+                                                            'No disponible'}
+                                                        </p>
+
+                                                        {of.comentario_comprador && (
+                                                          <p
+                                                            style={
+                                                              styles.contactText
+                                                            }
+                                                          >
+                                                            <strong>
+                                                              Comentario:
+                                                            </strong>{' '}
+                                                            {
+                                                              of.comentario_comprador
+                                                            }
+                                                          </p>
+                                                        )}
+                                                      </div>
+                                                    </>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )}
+                                </>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </section>
+      </main>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    position: 'relative',
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    padding: '24px',
+    boxSizing: 'border-box',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
+
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+    zIndex: 1,
+  },
+
+  watermark: {
+    position: 'absolute',
+    top: '35px',
+    left: '45px',
+    width: '260px',
+    opacity: 0.08,
+    zIndex: 1,
+    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    pointerEvents: 'none',
+  },
+
+  topBar: {
+    position: 'relative',
+    zIndex: 20,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
+    alignItems: 'center',
+    marginBottom: '32px',
+  },
+
+  leftActions: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-start',
+  },
+
+  centerTitle: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  rightActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    position: 'relative',
+    zIndex: 30,
+  },
+
+  title: {
+    color: '#ffffff',
+    fontSize: '38px',
+    fontWeight: 800,
+    margin: 0,
+    textAlign: 'center',
+    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 3,
+    maxWidth: '1100px',
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '28px',
+  },
+
+  card: {
+    width: '100%',
+    background: 'rgba(5, 12, 29, 0.86)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '28px',
+    boxShadow: '0 28px 80px rgba(0,0,0,0.35)',
+    padding: '34px',
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(10px)',
+    overflow: 'visible',
+  },
+
+  logo: {
+    width: '220px',
+    display: 'block',
+    margin: '0 auto -20px',
+    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  },
+
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: '28px',
+    marginBottom: '24px',
+    fontWeight: 800,
+    textAlign: 'center',
+  },
+
+  comunaBox: {
+    marginBottom: '22px',
+  },
+
+  label: {
+    display: 'block',
+    color: '#ffffff',
+    fontWeight: 700,
+    marginBottom: '8px',
+  },
+
+  input: {
+    width: '100%',
+    padding: '13px 15px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+
+  select: {
+    width: '100%',
+    minWidth: '140px',
+    padding: '11px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: '#10192b',
+    color: '#ffffff',
+    outline: 'none',
+  },
+
+  quantityInput: {
+    width: '90px',
+    padding: '10px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    textAlign: 'center',
+  },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+  },
+
+  table: {
+    width: '100%',
+    borderCollapse: 'separate',
+    borderSpacing: '0 10px',
+  },
+
+  th: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: '13px',
+    padding: '8px',
+    textAlign: 'center',
+  },
+
+  td: {
+    color: '#ffffff',
+    padding: '10px 8px',
+    textAlign: 'center',
+    background: 'rgba(255,255,255,0.045)',
+    borderTop: '1px solid rgba(255,255,255,0.08)',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
+  },
+
+  actionRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginTop: '18px',
+  },
+
+  mainButton: {
+    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
+    color: '#fff',
+    border: 'none',
+    padding: '13px 28px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+    boxShadow: '0 10px 24px rgba(23,107,255,0.32)',
+  },
+
+  mainButtonSmall: {
+    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 14px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+  },
+
+  secondaryButton: {
+    background: 'rgba(255,255,255,0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255,255,255,0.18)',
+    padding: '12px 20px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+  },
+
+  logoutButton: {
+    background: 'rgba(255,80,80,0.14)',
+    color: '#ffffff',
+    border: '1px solid rgba(255,80,80,0.25)',
+    padding: '12px 20px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+  },
+
+  smallButton: {
+    background: 'rgba(255,255,255,0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255,255,255,0.18)',
+    padding: '10px 14px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+  },
+
+  deleteButton: {
+    background: 'rgba(255,80,80,0.14)',
+    color: '#ffffff',
+    border: '1px solid rgba(255,80,80,0.25)',
+    padding: '10px 14px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+  },
+
+  emptyText: {
+    color: 'rgba(255,255,255,0.72)',
+    textAlign: 'center',
+  },
+
+  listBox: {
+    marginBottom: '24px',
+    border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '20px',
+    padding: '20px',
+    background: 'rgba(255,255,255,0.03)',
+  },
+
+  listHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '20px',
+    flexWrap: 'wrap',
+    marginBottom: '16px',
+  },
+
+  listTitle: {
+    color: '#ffffff',
+    margin: 0,
+  },
+
+  listSubtitle: {
+    color: 'rgba(255,255,255,0.65)',
+    margin: '4px 0 0',
+  },
+
+  listActions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+
+  filtersBox: {
+    marginBottom: '22px',
+    padding: '16px',
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.045)',
+    border: '1px solid rgba(255,255,255,0.10)',
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  filtersTitle: {
+    color: '#ffffff',
+    fontWeight: 800,
+    margin: 0,
+  },
+
+  filterLabel: {
+    color: 'rgba(255,255,255,0.82)',
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    fontWeight: 700,
+  },
+
+  clickableRow: {
+    cursor: 'pointer',
+  },
+
+  offerCount: {
+    color: '#31f7c6',
+    fontWeight: 800,
+  },
+
+  arrow: {
+    marginLeft: '8px',
+    color: '#31f7c6',
+    fontWeight: 800,
+  },
+
+  offersRow: {
+    padding: '18px',
+    background: 'rgba(255,255,255,0.025)',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
+  },
+
+  offersGrid: {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    marginTop: '10px',
+  },
+
+  offerCard: {
+    padding: '16px',
+    borderRadius: '16px',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    minWidth: '240px',
+    maxWidth: '280px',
+    flex: '0 0 auto',
+  },
+
+  offerPrice: {
+    color: '#31f7c6',
+    fontSize: '24px',
+    fontWeight: 800,
+    margin: 0,
+  },
+
+  offerMeta: {
+    color: 'rgba(255,255,255,0.72)',
+    marginTop: '4px',
+  },
+
+  offerActions: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    marginTop: '12px',
+  },
+
+  contactBox: {
+    marginTop: '10px',
+    borderTop: '1px dashed rgba(255,255,255,0.18)',
+    paddingTop: '10px',
+  },
+
+  contactText: {
+    color: 'rgba(255,255,255,0.82)',
+    margin: '6px 0',
+  },
+
+  textArea: {
+    width: '100%',
+    minHeight: '70px',
+    marginTop: '10px',
+    padding: '12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.18)',
+    background: 'rgba(255,255,255,0.08)',
+    color: '#ffffff',
+    resize: 'vertical',
+    boxSizing: 'border-box',
+  },
+
+  confirmedText: {
+    color: '#31f7c6',
+    marginTop: '10px',
+    fontWeight: 800,
+  },
+
+  waitingOffer: {
+    margin: 0,
+    fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.65)',
+  },
+};

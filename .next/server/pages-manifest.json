@@ -2,7 +2,9 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/proveedor/datos-contacto": "pages/proveedor/datos-contacto.js",
+  "/proveedor/ofertar_productos": "pages/proveedor/ofertar_productos.js",
+  "/seleccionar-perfil": "pages/seleccionar-perfil.js",
   "/proveedor": "pages/proveedor.js",
-  "/proveedor/ofertar_productos": "pages/proveedor/ofertar_productos.js"
+  "/comprador": "pages/comprador.js",
+  "/login": "pages/login.js"
 }

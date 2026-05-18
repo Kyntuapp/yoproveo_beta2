@@ -22,15 +22,30 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
+    "/comprador": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/comprador.js"
+    ],
+    "/login": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/login.js"
+    ],
     "/proveedor": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/proveedor.js"
     ],
-    "/proveedor/datos-contacto": [
+    "/proveedor/ofertar_productos": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/proveedor/datos-contacto.js"
+      "static/chunks/pages/proveedor/ofertar_productos.js"
+    ],
+    "/seleccionar-perfil": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/seleccionar-perfil.js"
     ]
   },
   "ampFirstPages": []
