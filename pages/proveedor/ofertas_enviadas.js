@@ -1,443 +1,652 @@
 // pages/proveedor/ofertas_enviadas.js
-import { useEffect, useMemo, useState, Fragment } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function OfertasEnviadas() {
-  const [perfilId, setPerfilId] = useState(null);
-  const [ofertas, setOfertas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedRow, setExpandedRow] = useState(null); // id oferta expandida
-
-  // Filtros (uno por columna)
-  const [fProducto, setFProducto] = useState('');
-  const [fFormato, setFFormato] = useState('');
-  const [fMarca, setFMarca] = useState('');
-  const [fPrecioMin, setFPrecioMin] = useState('');
-  const [fPrecioMax, setFPrecioMax] = useState('');
-  const [fDespacho, setFDespacho] = useState(''); // '', 'si', 'no'
-  const [fEstado, setFEstado] = useState('');     // '', 'confirmada','rechazada','por_confirmar','pendiente'
-  const [fComprador, setFComprador] = useState('');
-  const [fComuna, setFComuna] = useState('');
-  const [fFechaDDMMAA, setFFechaDDMMAA] = useState(''); // único filtro de fecha (dd-mm-aa sin guiones al filtrar)
-
   const router = useRouter();
 
+  const [ofertas, setOfertas] = useState([]);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [busqueda, setBusqueda] = useState('');
+  const [detalleContactoId, setDetalleContactoId] = useState(null);
+  const itemsPorPagina = 20;
+
   useEffect(() => {
-    const run = async () => {
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userData?.user) {
+    const cargarOfertas = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !userData?.user) {
         alert('Debes iniciar sesión.');
-        router.push('/login');
+        router.push('/');
         return;
       }
 
-      const { data: perfil, error: perfilErr } = await supabase
+      const authUserId = userData.user.id;
+
+      const { data: perfilProv, error: perfilErr } = await supabase
         .from('perfiles')
-        .select('id')
-        .eq('auth_id', userData.user.id)
+        .select('id, tipo')
+        .eq('auth_id', authUserId)
         .eq('tipo', 'proveedor')
         .maybeSingle();
 
-      if (perfilErr || !perfil) {
-        alert('No se encontró perfil de proveedor');
-        router.push('/login');
+      if (perfilErr || !perfilProv) {
+        alert('No se encontró perfil proveedor.');
+        router.push('/proveedor');
         return;
       }
-      setPerfilId(perfil.id);
 
-      // Ofertas del proveedor
-      const { data: ofertasData, error: ofertasErr } = await supabase
+      const proveedorPerfilId = perfilProv.id;
+
+      const { data: ofertasData, error: ofertasError } = await supabase
         .from('ofertas_productos')
-        .select('id, lista_id, producto, formato, marca, precio_ofertado, incluye_despacho, fecha, estado')
-        .eq('proveedor_id', perfil.id)
-        .order('fecha', { ascending: false });
+        .select('*')
+        .eq('proveedor_id', proveedorPerfilId)
+        .order('id', { ascending: false });
 
-      if (ofertasErr) {
-        console.error(ofertasErr);
-        setLoading(false);
+      if (ofertasError) {
+        alert('Error al cargar ofertas: ' + ofertasError.message);
         return;
       }
 
-      // Enriquecer: lista_id -> (usuario_id, comuna_despacho, direccion_envio?) y luego perfil comprador
-      const listaIds = Array.from(new Set((ofertasData || []).map(o => o.lista_id))).filter(Boolean);
+      const listaIds = Array.from(
+        new Set((ofertasData || []).map((o) => o.lista_id).filter(Boolean))
+      );
 
       const mapLista = {};
+
       if (listaIds.length) {
-        const { data: listasRows } = await supabase
+        const { data: listasRows, error: listasErr } = await supabase
           .from('listas_compras')
-          .select('id, usuario_id, comuna_despacho, direccion_envio')
+          .select(
+            'id, usuario_id, comprador_email, producto, formato, marca, cantidad, precio, comuna_despacho, direccion_envio, fecha_creacion'
+          )
           .in('id', listaIds);
 
-        (listasRows || []).forEach(l => {
+        if (listasErr) {
+          console.error('Error cargando listas_compras:', listasErr);
+        }
+
+        (listasRows || []).forEach((l) => {
           mapLista[l.id] = {
-            usuario_id: l.usuario_id,
+            id: l.id,
+            usuario_id: (l.usuario_id || '').toString().trim(),
+            comprador_email: (l.comprador_email || '').toString().trim(),
+            producto: l.producto || '',
+            formato: l.formato || '',
+            marca: l.marca || '',
+            cantidad: l.cantidad || '',
+            precio: l.precio || '',
             comuna_despacho: (l.comuna_despacho || '').toString().trim(),
             direccion_envio: (l.direccion_envio || '').toString().trim(),
+            fecha_creacion: l.fecha_creacion || null,
           };
         });
       }
 
-      const usuarioIds = Array.from(new Set(Object.values(mapLista).map(v => v?.usuario_id).filter(Boolean)));
+      const usuarioIds = Array.from(
+        new Set(
+          Object.values(mapLista)
+            .map((v) => (v?.usuario_id || '').toString().trim())
+            .filter(Boolean)
+        )
+      );
 
       const mapPerfilComprador = {};
-      if (usuarioIds.length) {
-        const { data: perfilesRows } = await supabase
-          .from('perfiles')
-          .select('id, email, email_contacto, telefono_contacto, direccion, comuna')
-          .in('id', usuarioIds);
 
-        (perfilesRows || []).forEach(p => {
+      if (usuarioIds.length) {
+        const { data: perfilesRows, error: perfilesErr } = await supabase
+          .from('perfiles')
+          .select(
+            'id, auth_id, tipo, email, email_contacto, telefono_contacto, direccion, comuna'
+          )
+          .eq('tipo', 'comprador')
+          .in('auth_id', usuarioIds);
+
+        if (perfilesErr) {
+          console.error('Error cargando perfiles comprador:', perfilesErr);
+        }
+
+        (perfilesRows || []).forEach((p) => {
+          const authId = (p.auth_id || '').toString().trim();
+          if (!authId) return;
+
           const emailContacto = (p.email_contacto || '').toString().trim();
           const emailBase = (p.email || '').toString().trim();
-          const tel = (p.telefono_contacto || '').toString().trim();
+          const telefono = (p.telefono_contacto || '').toString().trim();
           const direccion = (p.direccion || '').toString().trim();
-          const comunaPerfil = (p.comuna || '').toString().trim();
+          const comuna = (p.comuna || '').toString().trim();
 
-          mapPerfilComprador[p.id] = {
+          mapPerfilComprador[authId] = {
             email: emailContacto || emailBase || 'N/A',
-            telefono: tel || 'No disponible',
-            direccionPerfil: [direccion, comunaPerfil].filter(Boolean).join(', '),
+            telefono: telefono || 'No disponible',
+            direccionPerfil: [direccion, comuna].filter(Boolean).join(', '),
           };
         });
       }
 
-      const enriquecidas = (ofertasData || []).map(o => {
+      const enriquecidas = (ofertasData || []).map((o) => {
         const li = mapLista[o.lista_id] || {};
-        const buyer = mapPerfilComprador[li.usuario_id] || {};
+        const buyer =
+          mapPerfilComprador[(li.usuario_id || '').toString().trim()] || {};
 
         const direccionFinal =
           buyer.direccionPerfil ||
           li.direccion_envio ||
-          (li.comuna_despacho ? `Comuna: ${li.comuna_despacho}` : '');
+          li.comuna_despacho ||
+          'No disponible';
 
         return {
           ...o,
-          comprador_email: buyer.email || 'N/A',
+          producto: o.producto || li.producto || '',
+          formato: o.formato || li.formato || '',
+          marca: o.marca || li.marca || '',
+          cantidad: li.cantidad || '',
+          precio_objetivo: li.precio || '',
+          comprador_email: buyer.email || li.comprador_email || 'N/A',
           comprador_telefono: buyer.telefono || 'No disponible',
-          comprador_direccion: direccionFinal || 'No disponible',
-          comuna: li.comuna_despacho || '', // columna "Comuna"
+          comprador_direccion: direccionFinal,
+          comuna: li.comuna_despacho || '—',
+          fecha_creacion: li.fecha_creacion || null,
         };
       });
 
       setOfertas(enriquecidas);
-      setLoading(false);
     };
 
-    run();
+    cargarOfertas();
   }, [router]);
 
-  // Helpers
-  const dd_mm_aa = (dateVal) => {
-    if (!dateVal) return '';
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return '';
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${dd}-${mm}-${yy}`;
+  const volverAlPanel = () => router.push('/proveedor');
+
+  const normalizarTexto = (t) =>
+    t
+      ? t
+          .toString()
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+      : '';
+
+  const formatearNumero = (num) =>
+    num === '' || num === null || num === undefined
+      ? ''
+      : new Intl.NumberFormat('es-CL').format(num);
+
+  const estadoTexto = (estado) => {
+    switch ((estado || '').toLowerCase()) {
+      case 'pendiente':
+        return 'Oferta enviada';
+      case 'en_espera_confirmacion':
+        return 'Aceptada';
+      case 'confirmada':
+        return 'Confirmada';
+      case 'rechazada':
+        return 'Rechazada';
+      default:
+        return estado || '—';
+    }
   };
 
-  const normalizaFiltroFecha = (s) => s.replace(/\D/g, '').slice(0, 6); // ddmmaa (6 dígitos)
+  const getEstadoStyle = (estado) => {
+    switch ((estado || '').toLowerCase()) {
+      case 'pendiente':
+        return styles.estadoAzul;
+      case 'en_espera_confirmacion':
+        return styles.estadoNaranja;
+      case 'confirmada':
+        return styles.estadoConfirmada;
+      case 'rechazada':
+        return styles.estadoGris;
+      default:
+        return styles.estadoDefault;
+    }
+  };
 
   const ofertasFiltradas = useMemo(() => {
-    return (ofertas || []).filter(o => {
-      if (fProducto && !String(o.producto || '').toLowerCase().includes(fProducto.toLowerCase())) return false;
-      if (fFormato && !String(o.formato || '').toLowerCase().includes(fFormato.toLowerCase())) return false;
-      if (fMarca && !String(o.marca || '').toLowerCase().includes(fMarca.toLowerCase())) return false;
+    const busq = normalizarTexto(busqueda);
 
-      const precio = Number(o.precio_ofertado || 0);
-      if (fPrecioMin && !Number.isNaN(Number(fPrecioMin)) && precio < Number(fPrecioMin)) return false;
-      if (fPrecioMax && !Number.isNaN(Number(fPrecioMax)) && precio > Number(fPrecioMax)) return false;
+    if (!busq) return ofertas;
 
-      if (fDespacho === 'si' && !o.incluye_despacho) return false;
-      if (fDespacho === 'no' && !!o.incluye_despacho) return false;
+    return ofertas.filter((item) => {
+      const campos = [
+        item.producto,
+        item.formato,
+        item.marca,
+        item.cantidad?.toString(),
+        item.precio_objetivo?.toString(),
+        item.precio_ofertado?.toString(),
+        item.comuna,
+        item.comprador_email,
+        item.comprador_telefono,
+        item.comprador_direccion,
+        item.fecha_creacion,
+        estadoTexto(item.estado),
+      ];
 
-      if (fEstado) {
-        const estadoN = String(o.estado || '').toLowerCase();
-        if (estadoN !== fEstado) return false;
-      }
-
-      if (fComprador && !String(o.comprador_email || '').toLowerCase().includes(fComprador.toLowerCase())) return false;
-      if (fComuna && !String(o.comuna || '').toLowerCase().includes(fComuna.toLowerCase())) return false;
-
-      if (fFechaDDMMAA) {
-        // Comparamos contra dd-mm-aa → lo normalizamos a ddmmaa para comparar
-        const s = dd_mm_aa(o.fecha).replace(/\D/g, ''); // ddmmaa
-        if (!s.includes(normalizaFiltroFecha(fFechaDDMMAA))) return false;
-      }
-      return true;
+      return campos.some((c) => normalizarTexto(c || '').includes(busq));
     });
-  }, [ofertas, fProducto, fFormato, fMarca, fPrecioMin, fPrecioMax, fDespacho, fEstado, fComprador, fComuna, fFechaDDMMAA]);
+  }, [ofertas, busqueda]);
 
-  if (loading) return <p style={{ padding: 16 }}>Cargando ofertas enviadas...</p>;
-
-  const colorEstado = (estadoRaw) => {
-    const e = String(estadoRaw || '').toLowerCase();
-    if (e === 'confirmada') return { color: '#15803d', fontWeight: 600 }; // verde
-    if (e === 'rechazada') return { color: '#b91c1c', fontWeight: 600 }; // rojo
-    if (e === 'por_confirmar' || e === 'pendiente de confirmación') return { color: '#1d4ed8', fontWeight: 600 }; // azul
-    return { color: '#374151' }; // gris
-  };
-
-  // Estilos
-  const tableWrap = { overflowX: 'auto' };
-  const tableStyle = {
-    width: '100%',
-    background: '#fff',
-    borderCollapse: 'separate',
-    borderSpacing: '0 8px',
-  };
-  const thBase = {
-    padding: '10px 14px',
-    fontWeight: 700,
-    fontSize: 13,
-    textAlign: 'left',
-    color: '#0f172a',
-    background: '#f3f4f6',
-    borderTop: '1px solid #e5e7eb',
-    borderBottom: '1px solid #e5e7eb',
-    whiteSpace: 'nowrap',
-  };
-  const thCenter = { ...thBase, textAlign: 'center' };
-  const thRight = { ...thBase, textAlign: 'right' };
-
-  const filterCell = {
-    padding: '8px 14px',
-    background: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb',
-  };
-  const inputStyle = { width: '100%', padding: 8, border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 };
-
-  const tdBase = {
-    padding: '10px 14px',
-    fontSize: 14,
-    color: '#111827',
-    background: '#fff',
-    borderTop: '1px solid #e5e7eb',
-    borderBottom: '1px solid #e5e7eb',
-    lineHeight: 1.2,
-  };
-  const tdCenter = { ...tdBase, textAlign: 'center' };
-  const tdRight = { ...tdBase, textAlign: 'right' };
-
-  const actionBtn = {
-    padding: '6px 10px',
-    border: '1px solid #d1d5db',
-    borderRadius: 8,
-    background: '#fff',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-  };
-
-  // Header con botón arriba-izquierda y título centrado
-  const HeaderBar = () => (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr auto 1fr',
-      alignItems: 'center',
-      marginBottom: 12
-    }}>
-      <div>
-        <button
-          onClick={() => router.push('/proveedor')}
-          style={{ ...actionBtn, padding: '8px 12px' }}
-          title="Volver al Panel"
-        >
-          ← Volver al Panel
-        </button>
-      </div>
-      <div style={{ justifySelf: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, textAlign: 'center' }}>
-          Mis Ofertas Enviadas
-        </h1>
-      </div>
-      <div /> {/* vacío para balancear la grilla */}
-    </div>
-  );
-
-  // Encabezado con indicador de filtro activo
-  const ThWithDot = ({ active, children, style }) => (
-    <th style={style}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {children}
-        {active ? <span title="Filtro activo" style={{ width: 8, height: 8, background: '#16a34a', borderRadius: '50%' }} /> : null}
-      </span>
-    </th>
-  );
+  const totalPaginas = Math.ceil(ofertasFiltradas.length / itemsPorPagina);
+  const inicio = (paginaActual - 1) * itemsPorPagina;
+  const fin = inicio + itemsPorPagina;
+  const ofertasPaginadas = ofertasFiltradas.slice(inicio, fin);
 
   return (
-    <div style={{ padding: 24 }}>
-      <HeaderBar />
+    <div style={styles.page}>
+      <div style={styles.backgroundGlow}></div>
 
-      <div style={tableWrap}>
-        <table style={tableStyle}>
-          <colgroup>
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '8%' }} />
-          </colgroup>
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
 
-          <thead>
-            <tr>
-              <ThWithDot style={thBase} active={!!fProducto}>Producto</ThWithDot>
-              <ThWithDot style={thBase} active={!!fFormato}>Formato</ThWithDot>
-              <ThWithDot style={thBase} active={!!fMarca}>Marca</ThWithDot>
-              <ThWithDot style={thRight} active={!!(fPrecioMin || fPrecioMax)}>Precio</ThWithDot>
-              <ThWithDot style={thCenter} active={!!fDespacho}>Despacho</ThWithDot>
-              <ThWithDot style={thBase} active={!!fEstado}>Estado</ThWithDot>
-              <ThWithDot style={thBase} active={!!fComprador}>Comprador</ThWithDot>
-              <ThWithDot style={thBase} active={!!fComuna}>Comuna</ThWithDot>
-              <ThWithDot style={thBase} active={!!fFechaDDMMAA}>Fecha (dd-mm-aa)</ThWithDot>
-              <th style={thCenter}>Acción</th>
-            </tr>
-
-            {/* FILTROS DEBAJO DE CADA TÍTULO */}
-            <tr>
-              <th style={filterCell}>
-                <input style={inputStyle} placeholder="Filtrar…" value={fProducto} onChange={e=>setFProducto(e.target.value)} />
-              </th>
-              <th style={filterCell}>
-                <input style={inputStyle} placeholder="Filtrar…" value={fFormato} onChange={e=>setFFormato(e.target.value)} />
-              </th>
-              <th style={filterCell}>
-                <input style={inputStyle} placeholder="Filtrar…" value={fMarca} onChange={e=>setFMarca(e.target.value)} />
-              </th>
-              <th style={filterCell}>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...inputStyle, width: '50%' }} type="number" placeholder="Mín" value={fPrecioMin} onChange={e=>setFPrecioMin(e.target.value)} />
-                  <input style={{ ...inputStyle, width: '50%' }} type="number" placeholder="Máx" value={fPrecioMax} onChange={e=>setFPrecioMax(e.target.value)} />
-                </div>
-              </th>
-              <th style={filterCell}>
-                <select style={inputStyle} value={fDespacho} onChange={e=>setFDespacho(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="si">Con despacho</option>
-                  <option value="no">Sin despacho</option>
-                </select>
-              </th>
-              <th style={filterCell}>
-                <select style={inputStyle} value={fEstado} onChange={e=>setFEstado(e.target.value)}>
-                  <option value="">Todos</option>
-                  <option value="confirmada">Confirmada</option>
-                  <option value="rechazada">Rechazada</option>
-                  <option value="por_confirmar">Pendiente de confirmación</option>
-                  <option value="pendiente">Pendiente</option>
-                </select>
-              </th>
-              <th style={filterCell}>
-                <input style={inputStyle} placeholder="correo@dominio" value={fComprador} onChange={e=>setFComprador(e.target.value)} />
-              </th>
-              <th style={filterCell}>
-                <input style={inputStyle} placeholder="Comuna" value={fComuna} onChange={e=>setFComuna(e.target.value)} />
-              </th>
-              <th style={filterCell}>
-                <input
-                  style={inputStyle}
-                  placeholder="ddmmaaa"
-                  value={fFechaDDMMAA}
-                  onChange={(e) => setFFechaDDMMAA(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                />
-              </th>
-              <th style={{ ...filterCell, textAlign: 'center' }}>
-                <button
-                  onClick={() => {
-                    setFProducto(''); setFFormato(''); setFMarca('');
-                    setFPrecioMin(''); setFPrecioMax('');
-                    setFDespacho(''); setFEstado('');
-                    setFComprador(''); setFComuna('');
-                    setFFechaDDMMAA('');
-                  }}
-                  style={actionBtn}
-                >
-                  Limpiar
-                </button>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {ofertasFiltradas.length === 0 ? (
-              <tr>
-                <td colSpan={10} style={{ ...tdBase, textAlign: 'center' }}>
-                  No hay resultados con los filtros aplicados.
-                </td>
-              </tr>
-            ) : (
-              ofertasFiltradas.map((o) => (
-                <RowWithDetail
-                  key={o.id}
-                  oferta={o}
-                  expanded={expandedRow === o.id}
-                  onToggle={() => setExpandedRow(expandedRow === o.id ? null : o.id)}
-                  tdBase={tdBase}
-                  tdCenter={tdCenter}
-                  tdRight={tdRight}
-                  actionBtn={actionBtn}
-                  colorEstado={colorEstado}
-                  dd_mm_aa={dd_mm_aa}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function RowWithDetail({
-  oferta, expanded, onToggle,
-  tdBase, tdCenter, tdRight,
-  actionBtn, colorEstado, dd_mm_aa
-}) {
-  return (
-    <Fragment>
-      <tr>
-        <td style={tdBase}>{oferta.producto}</td>
-        <td style={tdBase}>{oferta.formato || '—'}</td>
-        <td style={tdBase}>{oferta.marca || '—'}</td>
-        <td style={tdRight}>
-          ${Number(oferta.precio_ofertado).toLocaleString('es-CL')}
-        </td>
-        <td style={tdCenter}>
-          {oferta.incluye_despacho ? '🚚 Sí' : '—'}
-        </td>
-        <td style={{ ...tdBase, ...colorEstado(oferta.estado) }}>
-          {oferta.estado === 'por_confirmar' ? 'Pendiente de confirmación' : oferta.estado}
-        </td>
-        <td style={tdBase}>{oferta.comprador_email}</td>
-        <td style={tdBase}>{oferta.comuna || '—'}</td>
-        <td style={tdBase}>{dd_mm_aa(oferta.fecha)}</td>
-        <td style={tdCenter}>
-          <button style={actionBtn} onClick={onToggle} title="Ver datos de contacto">
-            👁 <span>Ver contacto</span>
+      <div style={styles.topBar}>
+        <div style={styles.leftActions}>
+          <button onClick={volverAlPanel} style={styles.secondaryButton}>
+            Volver al panel
           </button>
-        </td>
-      </tr>
+        </div>
 
-      {expanded && (
-        <tr>
-          <td colSpan={10} style={{ ...tdBase, background: '#f9fafb' }}>
-            <h4 style={{ margin: 0, marginBottom: 8, fontWeight: 600 }}>Datos de contacto del comprador</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 12 }}>
-              <p style={{ margin: 0 }}><strong>Correo:</strong> {oferta.comprador_email || 'No disponible'}</p>
-              <p style={{ margin: 0 }}><strong>Teléfono:</strong> {oferta.comprador_telefono || 'No disponible'}</p>
-              <p style={{ margin: 0 }}><strong>Dirección de despacho:</strong> {oferta.comprador_direccion || 'No disponible'}</p>
-            </div>
-          </td>
-        </tr>
-      )}
-    </Fragment>
+        <div style={styles.centerTitle}>
+          <h1 style={styles.title}>Mis Ofertas Enviadas</h1>
+        </div>
+
+        <div style={styles.rightActions}></div>
+      </div>
+
+      <main style={styles.content}>
+        <section style={styles.card}>
+          <img
+            src="/icono_1.png"
+            alt="Kyntü"
+            style={styles.logo}
+          />
+
+          <h2 style={styles.cardTitle}>Historial de ofertas</h2>
+
+          <input
+            type="text"
+            placeholder="BUSCAR EN TODOS LOS CAMPOS"
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value.toUpperCase());
+              setPaginaActual(1);
+            }}
+            style={styles.searchInput}
+          />
+
+          {ofertasFiltradas.length === 0 ? (
+            <p style={styles.emptyText}>No has enviado ofertas todavía.</p>
+          ) : (
+            <>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Producto</th>
+                      <th style={styles.th}>Formato</th>
+                      <th style={styles.th}>Marca</th>
+                      <th style={styles.th}>Cantidad</th>
+                      <th style={styles.th}>Precio objetivo</th>
+                      <th style={styles.th}>Tu oferta</th>
+                      <th style={styles.th}>Comuna</th>
+                      <th style={styles.th}>Comprador</th>
+                      <th style={styles.th}>Fecha</th>
+                      <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Contacto</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {ofertasPaginadas.map((item) => {
+                      const puedeVerContacto =
+                        item.estado === 'en_espera_confirmacion' ||
+                        item.estado === 'confirmada';
+
+                      return (
+                        <>
+                          <tr key={item.id}>
+                            <td style={styles.td}>{item.producto}</td>
+                            <td style={styles.td}>{item.formato}</td>
+                            <td style={styles.td}>{item.marca}</td>
+                            <td style={styles.td}>{item.cantidad}</td>
+                            <td style={styles.td}>
+                              ${formatearNumero(item.precio_objetivo)}
+                            </td>
+                            <td style={styles.td}>
+                              ${formatearNumero(item.precio_ofertado)}
+                            </td>
+                            <td style={styles.td}>{item.comuna}</td>
+                            <td style={styles.td}>{item.comprador_email}</td>
+                            <td style={styles.td}>
+                              {item.fecha_creacion
+                                ? new Date(item.fecha_creacion).toLocaleString()
+                                : ''}
+                            </td>
+                            <td style={styles.td}>
+                              <span style={getEstadoStyle(item.estado)}>
+                                {estadoTexto(item.estado)}
+                              </span>
+                            </td>
+                            <td style={styles.td}>
+                              {puedeVerContacto ? (
+                                <button
+                                  onClick={() =>
+                                    setDetalleContactoId(
+                                      detalleContactoId === item.id
+                                        ? null
+                                        : item.id
+                                    )
+                                  }
+                                  style={styles.smallButton}
+                                >
+                                  {detalleContactoId === item.id
+                                    ? 'Ocultar'
+                                    : 'Ver contacto'}
+                                </button>
+                              ) : (
+                                <span style={styles.emptyAction}>—</span>
+                              )}
+                            </td>
+                          </tr>
+
+                          {puedeVerContacto && detalleContactoId === item.id && (
+                            <tr key={`detalle-${item.id}`}>
+                              <td colSpan={11} style={styles.contactBox}>
+                                <strong>Datos de contacto del comprador</strong>
+
+                                <div style={styles.contactText}>
+                                  <p>
+                                    <strong>Correo:</strong>{' '}
+                                    {item.comprador_email || 'N/A'}
+                                  </p>
+                                  <p>
+                                    <strong>Teléfono:</strong>{' '}
+                                    {item.comprador_telefono ||
+                                      'No disponible'}
+                                  </p>
+                                  <p>
+                                    <strong>Dirección de despacho:</strong>{' '}
+                                    {item.comprador_direccion ||
+                                      'No disponible'}
+                                  </p>
+                                  <p>
+                                    <strong>Precio aceptado:</strong>{' '}
+                                    ${formatearNumero(item.precio_ofertado)}
+                                  </p>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={styles.pagination}>
+                <button
+                  onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
+                  disabled={paginaActual === 1}
+                  style={styles.secondaryButton}
+                >
+                  Anterior
+                </button>
+
+                <span style={styles.pageText}>
+                  Página {paginaActual} de {totalPaginas || 1}
+                </span>
+
+                <button
+                  onClick={() =>
+                    setPaginaActual((p) => Math.min(p + 1, totalPaginas || 1))
+                  }
+                  disabled={
+                    paginaActual === totalPaginas || totalPaginas === 0
+                  }
+                  style={styles.secondaryButton}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    position: 'relative',
+    overflowX: 'hidden',
+    padding: '24px',
+    boxSizing: 'border-box',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+  },
+
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+    zIndex: 1,
+  },
+
+  watermark: {
+    position: 'absolute',
+    top: '35px',
+    left: '45px',
+    width: '260px',
+    opacity: 0.08,
+    zIndex: 1,
+    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    pointerEvents: 'none',
+  },
+
+  topBar: {
+    position: 'relative',
+    zIndex: 3,
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
+    alignItems: 'center',
+    marginBottom: '32px',
+  },
+
+  leftActions: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+  },
+
+  centerTitle: {
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  rightActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+  },
+
+  title: {
+    color: '#ffffff',
+    fontSize: '38px',
+    fontWeight: 800,
+    margin: 0,
+    textAlign: 'center',
+    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+  },
+
+  content: {
+    position: 'relative',
+    zIndex: 3,
+    maxWidth: '1280px',
+    margin: '0 auto',
+  },
+
+  card: {
+    width: '100%',
+    background: 'rgba(5, 12, 29, 0.86)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '28px',
+    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
+    padding: '34px',
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+
+  logo: {
+    width: '220px',
+    marginBottom: '-18px',
+    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  },
+
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: '28px',
+    margin: '0 0 24px',
+    fontWeight: 800,
+    textAlign: 'center',
+  },
+
+  searchInput: {
+    width: 'min(420px, 100%)',
+    padding: '13px 15px',
+    marginBottom: '24px',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '14px',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto',
+  },
+
+  table: {
+    width: '100%',
+    borderCollapse: 'separate',
+    borderSpacing: '0 10px',
+    textAlign: 'center',
+  },
+
+  th: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: '12px',
+    padding: '8px',
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+  },
+
+  td: {
+    color: '#ffffff',
+    padding: '9px 8px',
+    textAlign: 'center',
+    background: 'rgba(255, 255, 255, 0.045)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    fontSize: '13px',
+  },
+
+  smallButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '10px 14px',
+    borderRadius: '11px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+  },
+
+  secondaryButton: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    padding: '12px 22px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '14px',
+    flexWrap: 'wrap',
+    marginTop: '24px',
+  },
+
+  pageText: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    fontWeight: 700,
+  },
+
+  emptyText: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    margin: 0,
+  },
+
+  emptyAction: {
+    color: 'rgba(255, 255, 255, 0.45)',
+  },
+
+  contactBox: {
+    color: '#ffffff',
+    textAlign: 'left',
+    background: 'rgba(255, 255, 255, 0.07)',
+    padding: '16px 20px',
+    borderRadius: '14px',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+  },
+
+  contactText: {
+    marginTop: '8px',
+    fontSize: '14px',
+    color: 'rgba(255, 255, 255, 0.82)',
+  },
+
+  estadoAzul: {
+    color: '#5dade2',
+    fontWeight: 800,
+  },
+
+  estadoNaranja: {
+    color: '#f39c12',
+    fontWeight: 800,
+  },
+
+  estadoConfirmada: {
+    color: '#2ecc71',
+    fontWeight: 800,
+  },
+
+  estadoGris: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontStyle: 'italic',
+  },
+
+  estadoDefault: {
+    color: '#ffffff',
+  },
+};

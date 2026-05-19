@@ -1,0 +1,10 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/login": "pages/login.js",
+  "/proveedor/catalogo": "pages/proveedor/catalogo.js",
+  "/proveedor": "pages/proveedor.js",
+  "/proveedor/ofertar_productos": "pages/proveedor/ofertar_productos.js",
+  "/proveedor/ofertas_enviadas": "pages/proveedor/ofertas_enviadas.js"
+}
