@@ -422,7 +422,17 @@ export default function Comprador() {
       return;
     }
 
-    alert('Compra confirmada');
+    const linkPago = process.env.NEXT_PUBLIC_MERCADOPAGO_LINK;
+
+alert('Oferta confirmada. Serás redirigido al pago.');
+
+if (linkPago) {
+  window.open(linkPago, '_blank', 'noopener,noreferrer');
+} else {
+  alert('No existe link de Mercado Pago configurado.');
+}
+
+await verOfertas(fecha);
     await verOfertas(fecha);
   };
 
