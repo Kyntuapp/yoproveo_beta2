@@ -422,15 +422,20 @@ export default function Comprador() {
       return;
     }
 
-    const linkPago = process.env.NEXT_PUBLIC_MERCADOPAGO_LINK;
+const response = await fetch('/api/create-payment', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    titulo: of.producto,
+    precio: of.precio_ofertado,
+  }),
+});
 
-alert('Oferta confirmada. Serás redirigido al pago.');
+const data = await response.json();
 
-if (linkPago) {
-  window.open(linkPago, '_blank', 'noopener,noreferrer');
-} else {
-  alert('No existe link de Mercado Pago configurado.');
-}
+window.open(data.init_point, '_blank');
 
 await verOfertas(fecha);
     await verOfertas(fecha);
