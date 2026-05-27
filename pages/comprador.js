@@ -525,9 +525,9 @@ const response = await fetch('/api/create-payment', {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    titulo: of.producto,
-    precio: of.precio_ofertado,
-  }),
+  titulo: oferta.producto,
+  precio: oferta.precio_ofertado,
+}),
 });
 
 const data = await response.json();
