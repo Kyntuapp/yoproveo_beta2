@@ -480,63 +480,114 @@ export default function Comprador() {
     await verOfertas(fecha);
   };
 
-  const confirmarOferta = async (oferta, fecha) => {
-    const { error: ganadorError } = await supabase
-      .from('ofertas_productos')
-      .update({
-        estado: 'confirmada',
-        comentario_comprador: comentariosCompra[oferta.id] || '',
-      })
-      .eq('id', oferta.id);
+ const confirmarOferta = async (oferta, fecha) => {
+  const { error: ganadorError } = await supabase
+    .from('ofertas_productos')
+    .update({
+      estado: 'pendiente_pago',
+      comentario_comprador: comentariosCompra[oferta.id] || '',
+    })
+    .eq('id', oferta.id);
 
-    if (ganadorError) {
-      alert('Error al confirmar la oferta ganadora: ' + ganadorError.message);
-      return;
-    }
+  if (ganadorError) {
+    alert('Error al confirmar la oferta: ' + ganadorError.message);
+    return;
+  }
 
-    await supabase.from('notificaciones').insert([
-      {
-        usuario_id: oferta.proveedor_id,
-        rol: 'proveedor',
-        titulo: 'Oferta confirmada',
-        mensaje: `Tu oferta para ${oferta.producto} fue confirmada.`,
-        ruta: RUTA_MIS_OFERTAS,
-        leida: false,
-      },
-    ]);
+  await supabase.from('notificaciones').insert([
+    {
+      usuario_id: oferta.proveedor_id,
+      rol: 'proveedor',
+      titulo: 'Compra pendiente de pago',
+      mensaje: `El comprador confirmó tu oferta para ${oferta.producto}, pero el pago aún está pendiente.`,
+      ruta: RUTA_MIS_OFERTAS,
+      leida: false,
+    },
+  ]);
 
-    const { error: rechazadasError } = await supabase
-      .from('ofertas_productos')
-      .update({ estado: 'rechazada' })
-      .eq('lista_id', oferta.lista_id)
-      .neq('id', oferta.id);
+  const { error: rechazadasError } = await supabase
+    .from('ofertas_productos')
+    .update({ estado: 'rechazada' })
+    .eq('lista_id', oferta.lista_id)
+    .neq('id', oferta.id);
 
-    if (rechazadasError) {
-      alert(
-        'Error al marcar las otras ofertas como rechazadas: ' +
-          rechazadasError.message
-      );
-      return;
-    }
+  if (rechazadasError) {
+    alert('Error al marcar las otras ofertas como rechazadas: ' + rechazadasError.message);
+    return;
+  }
 
-const response = await fetch('/api/create-payment', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-  titulo: oferta.producto,
-  precio: oferta.precio_ofertado,
-}),
-});
+  alert('Compra confirmada. Ahora puedes realizar el pago.');
+  await verOfertas(fecha);
+};
 
-const data = await response.json();
+const pagarOferta = async (oferta) => {
+  const { data: proveedor, error } = await supabase
+    .from('perfiles')
+    .select(`
+      banco,
+      tipo_cuenta,
+      numero_cuenta,
+      rut_titular,
+      nombre_titular,
+      email_titular
+    `)
+    .eq('id', oferta.proveedor_id)
+    .maybeSingle();
 
-window.open(data.init_point, '_blank');
+  if (error || !proveedor) {
+    alert('No se encontraron los datos bancarios del proveedor.');
+    return;
+  }
 
-await verOfertas(fecha);
-    await verOfertas(fecha);
-  };
+  if (!proveedor.banco || !proveedor.tipo_cuenta || !proveedor.numero_cuenta) {
+    alert('El proveedor aún no ha ingresado sus datos bancarios.');
+    return;
+  }
+
+  const montoOferta = Number(oferta.precio_ofertado);
+  const comisionKyntu = Math.round(montoOferta * 0.1);
+  const totalPagado = montoOferta + comisionKyntu;
+
+  const { data: pagoCreado, error: pagoError } = await supabase
+    .from('pagos')
+    .insert({
+      oferta_id: oferta.id,
+      proveedor_id: oferta.proveedor_id,
+      monto_oferta: montoOferta,
+      comision_kyntu: comisionKyntu,
+      total_pagado: totalPagado,
+      estado_pago: 'pendiente',
+    })
+    .select()
+    .single();
+
+  if (pagoError) {
+    alert('Error creando registro de pago: ' + pagoError.message);
+    return;
+  }
+
+  const response = await fetch('/api/create-payment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      pago_id: pagoCreado.id,
+      oferta_id: oferta.id,
+      proveedor_id: oferta.proveedor_id,
+      titulo: oferta.producto,
+      precio: totalPagado,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (data.init_point) {
+    window.open(data.init_point, '_blank');
+  } else {
+    alert('No se pudo crear el pago.');
+  }
+};
 
   // FIN PARTE 2
     const rechazarOferta = async (oferta, producto, fecha) => {
@@ -974,7 +1025,7 @@ await verOfertas(fecha);
                                               ).toLowerCase();
 
                                               const isPending =
-                                                estado === 'pendiente';
+                                                estado === 'pendiente_de_pago';
                                               const isWaiting =
                                                 estado ===
                                                 'en_espera_confirmacion';
@@ -1129,6 +1180,24 @@ await verOfertas(fecha);
                                                           Rechazar
                                                         </button>
                                                       </div>
+                                                    </>
+                                                  )}
+
+                                                  {isPendingPayment && (
+                                                    <>
+                                                      <p style={styles.pendingPaymentText}>
+                                                        ⏳ Pago pendiente
+                                                      </p>
+
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          pagarOferta(of);
+                                                        }}
+                                                        style={styles.mainButtonSmall}
+                                                      >
+                                                        Pagar
+                                                      </button>
                                                     </>
                                                   )}
 
@@ -1624,4 +1693,9 @@ const styles = {
     fontStyle: 'italic',
     color: 'rgba(255,255,255,0.65)',
   },
+  pendingPaymentText: {
+  color: '#ffd166',
+  marginTop: '10px',
+  fontWeight: 800,
+},
 };

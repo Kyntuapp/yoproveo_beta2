@@ -10,6 +10,11 @@ export default function DatosContactoProveedor() {
   const [emailContacto, setEmailContacto] = useState('');
   const [fono8, setFono8] = useState('');
   const [loading, setLoading] = useState(true);
+  const [banco, setBanco] = useState('');
+  const [tipoCuenta, setTipoCuenta] = useState('');
+  const [numeroCuenta, setNumeroCuenta] = useState('');
+  const [rutTitular, setRutTitular] = useState('');
+  const [nombreTitular, setNombreTitular] = useState('');
 
   useEffect(() => {
     const cargar = async () => {
@@ -58,6 +63,11 @@ export default function DatosContactoProveedor() {
         .slice(0, 8);
 
       setFono8(tel);
+      setBanco(perfilData.banco || '');
+      setTipoCuenta(perfilData.tipo_cuenta || '');
+      setNumeroCuenta(perfilData.numero_cuenta || '');
+      setRutTitular(perfilData.rut_titular || '');
+      setNombreTitular(perfilData.nombre_titular || '');
       setLoading(false);
     };
 
@@ -83,9 +93,14 @@ export default function DatosContactoProveedor() {
 
     const { error } = await supabase
       .from('perfiles')
-      .update({
+       .update({
         email_contacto: emailContacto.trim(),
         telefono_contacto: `+569${solo8}`,
+        banco,
+        tipo_cuenta: tipoCuenta,
+        numero_cuenta: numeroCuenta,
+        rut_titular: rutTitular,
+        nombre_titular: nombreTitular,
       })
       .eq('id', perfil.id);
 
@@ -192,6 +207,63 @@ export default function DatosContactoProveedor() {
             <small style={styles.helpText}>
               Ingresa solo los 8 dígitos finales.
             </small>
+          </div>
+
+          <h2 style={styles.cardTitle}>Datos bancarios</h2>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Banco</label>
+
+            <input
+              value={banco}
+              onChange={(e) => setBanco(e.target.value)}
+              style={styles.input}
+              placeholder="Banco de Chile"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Tipo de cuenta</label>
+
+            <input
+              value={tipoCuenta}
+              onChange={(e) => setTipoCuenta(e.target.value)}
+              style={styles.input}
+              placeholder="Cuenta Corriente"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Número de cuenta</label>
+
+            <input
+              value={numeroCuenta}
+              onChange={(e) => setNumeroCuenta(e.target.value)}
+              style={styles.input}
+              placeholder="123456789"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>RUT titular</label>
+
+            <input
+              value={rutTitular}
+              onChange={(e) => setRutTitular(e.target.value)}
+              style={styles.input}
+              placeholder="12345678-9"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Nombre titular</label>
+
+            <input
+              value={nombreTitular}
+              onChange={(e) => setNombreTitular(e.target.value)}
+              style={styles.input}
+              placeholder="Juan Pérez"
+            />
           </div>
 
           <div style={styles.actionRow}>
