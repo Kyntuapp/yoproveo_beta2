@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { useRequireMaster } from '../../lib/useRequireMaster';
 
 export default function AdminSolicitudes() {
+  const { authorized, loading } = useRequireMaster();
   const [solicitudes, setSolicitudes] = useState([]);
 
   useEffect(() => {
+    if (!authorized) return;
     cargarSolicitudes();
-  }, []);
+  }, [authorized]);
 
   const cargarSolicitudes = async () => {
     const { data, error } = await supabase
@@ -162,6 +165,10 @@ export default function AdminSolicitudes() {
     alert('Solicitud rechazada');
     await cargarSolicitudes();
   };
+
+  if (loading || !authorized) {
+    return <div style={{ padding: 20 }}>Verificando acceso...</div>;
+  }
 
   return (
     <div style={{ padding: 20 }}>

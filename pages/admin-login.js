@@ -11,26 +11,40 @@ export default function AdminLogin() {
   const handleLogin = async () => {
     setErrorMessage('');
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
 
     if (error || !data.user) {
       setErrorMessage('Credenciales incorrectas');
       return;
     }
 
-    // Consultar perfil y verificar si es "master"
-    const { data: perfiles, error: perfilesError } = await supabase
+    const { data: perfilPorAuth } = await supabase
       .from('perfiles')
       .select('tipo')
-      .eq('email', email);
+      .eq('auth_id', data.user.id)
+      .eq('tipo', 'master')
+      .maybeSingle();
 
-    if (perfilesError || !perfiles || perfiles.length === 0) {
-      setErrorMessage('No se encontró perfil asociado');
-      return;
+    let perfilMaster = perfilPorAuth;
+
+    if (!perfilMaster) {
+      const { data: perfilPorEmail } = await supabase
+        .from('perfiles')
+        .select('tipo')
+        .eq('email', normalizedEmail)
+        .eq('tipo', 'master')
+        .maybeSingle();
+
+      perfilMaster = perfilPorEmail;
     }
 
-    const perfil = perfiles[0];
-    if (perfil.tipo !== 'master') {
+    if (!perfilMaster) {
+      await supabase.auth.signOut();
       setErrorMessage('No tienes permiso para acceder al panel administrador');
       return;
     }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { useRequireMaster } from '../lib/useRequireMaster';
 
 export default function MasterPanel() {
   const router = useRouter();
+  const { authorized, loading } = useRequireMaster();
 
   const [listas, setListas] = useState([]);
   const [ofertas, setOfertas] = useState([]);
@@ -15,6 +17,8 @@ export default function MasterPanel() {
   };
 
   useEffect(() => {
+    if (!authorized) return;
+
     const fetchData = async () => {
       // 1. Obtener todas las listas de compra
       const { data: listasCompra, error: errorListas } = await supabase
@@ -43,7 +47,11 @@ export default function MasterPanel() {
     };
 
     fetchData();
-  }, []);
+  }, [authorized]);
+
+  if (loading || !authorized) {
+    return <div style={{ padding: '2rem' }}>Verificando acceso...</div>;
+  }
 
   return (
     <div style={styles.container}>

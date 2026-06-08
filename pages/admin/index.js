@@ -1,7 +1,13 @@
 import { useRouter } from 'next/router';
+import { useRequireMaster } from '../../lib/useRequireMaster';
 
 export default function AdminHome() {
   const router = useRouter();
+  const { authorized, loading } = useRequireMaster();
+
+  if (loading || !authorized) {
+    return <div style={{ padding: 32 }}>Verificando acceso...</div>;
+  }
 
   return (
     <div style={styles.page}>
