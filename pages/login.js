@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { validarSesion } from '../pages/utils/sesions';
 
 export default function Login() {
   const router = useRouter();
@@ -44,6 +45,8 @@ export default function Login() {
 
       localStorage.setItem('user_id', user.id);
       localStorage.setItem('user_email', user.email);
+      localStorage.setItem('login_time', Date.now().toString());
+      localStorage.setItem('last_activity', Date.now().toString());
 
       const { data: perfiles, error: perfilesError } = await supabase
         .from('perfiles')
