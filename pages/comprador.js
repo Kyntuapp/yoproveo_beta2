@@ -1,5 +1,5 @@
 // pages/comprador.js
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
@@ -36,6 +36,7 @@ export default function Comprador() {
     useState(false);
 
   const router = useRouter();
+  const scrolledToOfertaRef = useRef(null);
 
   const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
 
@@ -153,15 +154,21 @@ export default function Comprador() {
     if (!listas || listas.length === 0) return;
 
     let fechaKey = null;
+    let listIdToOpen = null;
 
-    if (router.query?.list_id) {
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (listIdParam) {
       const listaMatch = listas.find(
         (l) =>
           String(getRowId(l)) ===
-          String(router.query.list_id)
+          String(listIdParam)
       );
 
       if (listaMatch) {
+        listIdToOpen = getRowId(listaMatch);
         fechaKey = new Date(
           listaMatch.fecha_creacion
         ).toLocaleString();
@@ -188,10 +195,46 @@ export default function Comprador() {
       ]);
     }
 
+    if (listIdToOpen) {
+      setProductosConOfertasAbiertas((prev) => ({
+        ...prev,
+        [listIdToOpen]: true,
+      }));
+    }
+
     verOfertas(fechaKey);
 
     // eslint-disable-next-line
   }, [router.isReady, router.query, listas]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query?.notif !== 'ofertas') return;
+
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (!listIdParam) return;
+    if (!productosConOfertasAbiertas[listIdParam]) return;
+    if (scrolledToOfertaRef.current === listIdParam) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`oferta-${listIdParam}`);
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scrolledToOfertaRef.current = listIdParam;
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    router.isReady,
+    router.query,
+    productosConOfertasAbiertas,
+    expandedFechas,
+  ]);
 
   const handleChange = (
     index,
@@ -986,6 +1029,7 @@ const pagarOferta = async (oferta) => {
                                 <>
                                   <tr
                                     key={`producto-${rowId || idx}`}
+                                    id={rowId ? `oferta-${rowId}` : undefined}
                                     onClick={() =>
                                       toggleOfertasProducto(rowId)
                                     }
@@ -1025,12 +1069,14 @@ const pagarOferta = async (oferta) => {
                                               ).toLowerCase();
 
                                               const isPending =
-                                                estado === 'pendiente_de_pago';
+                                                estado === 'pendiente';
                                               const isWaiting =
                                                 estado ===
                                                 'en_espera_confirmacion';
                                               const isConfirm =
                                                 estado === 'confirmada';
+                                              const isPendingPayment =
+                                                estado === 'pendiente_pago';
 
                                               return (
                                                 <div
