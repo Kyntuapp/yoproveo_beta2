@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
-import { validarSesion } from '../pages/utils/sesions';
+import { validarSesion } from '../utils/sesions';
 
 export default function Login() {
   const router = useRouter();
