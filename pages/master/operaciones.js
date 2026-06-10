@@ -3,13 +3,32 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useRequireMaster } from '../../lib/useRequireMaster';
 
+const getListaId = (lista) =>
+  lista?.id ?? lista?.identificacion ?? lista?.['identificación'] ?? null;
+
+const estadoTexto = (estado) => {
+  switch ((estado || '').toLowerCase()) {
+    case 'pendiente':
+      return 'Oferta enviada';
+    case 'en_espera_confirmacion':
+      return 'Aceptada';
+    case 'pendiente_pago':
+      return 'Pendiente de pago';
+    case 'confirmada':
+      return 'Confirmada';
+    case 'rechazada':
+      return 'Rechazada';
+    default:
+      return estado || '—';
+  }
+};
+
 export default function MasterOperaciones() {
   const router = useRouter();
   const { authorized, loading } = useRequireMaster();
 
   const [listas, setListas] = useState([]);
   const [ofertas, setOfertas] = useState([]);
-  const [perfiles, setPerfiles] = useState({});
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -20,26 +39,71 @@ export default function MasterOperaciones() {
     if (!authorized) return;
 
     const fetchData = async () => {
-      const { data: listasCompra } = await supabase
+      const { data: listasCompra, error: listasError } = await supabase
         .from('listas_compras')
-        .select('*');
+        .select(
+          'id, usuario_id, comprador_email, fecha_creacion, comuna_despacho, producto, formato, marca, cantidad, precio'
+        )
+        .order('fecha_creacion', { ascending: false });
 
-      const { data: ofertasProveedor } = await supabase
-        .from('ofertas')
-        .select('*');
+      if (listasError) {
+        alert('Error al cargar listas de compra: ' + listasError.message);
+        return;
+      }
 
-      const { data: perfilesData } = await supabase
+      const { data: ofertasData, error: ofertasError } = await supabase
+        .from('ofertas_productos')
+        .select(
+          'id, lista_id, proveedor_id, producto, formato, marca, precio_ofertado, incluye_despacho, estado'
+        )
+        .order('id', { ascending: false });
+
+      if (ofertasError) {
+        alert('Error al cargar ofertas: ' + ofertasError.message);
+        return;
+      }
+
+      const { data: perfilesData, error: perfilesError } = await supabase
         .from('perfiles')
-        .select('id, correo');
+        .select('id, auth_id, tipo, email, email_contacto')
+        .in('tipo', ['comprador', 'proveedor']);
 
-      const perfilMap = {};
-      perfilesData?.forEach((perfil) => {
-        perfilMap[perfil.id] = perfil.correo;
+      if (perfilesError) {
+        alert('Error al cargar perfiles: ' + perfilesError.message);
+        return;
+      }
+
+      const proveedorPorId = {};
+      const compradorPorAuthId = {};
+
+      (perfilesData || []).forEach((perfil) => {
+        const email = (perfil.email_contacto || perfil.email || '').trim();
+
+        if (perfil.tipo === 'proveedor') {
+          proveedorPorId[perfil.id] = email || 'Desconocido';
+        }
+
+        if (perfil.tipo === 'comprador' && perfil.auth_id) {
+          compradorPorAuthId[perfil.auth_id] = email || 'Desconocido';
+        }
       });
 
-      if (listasCompra) setListas(listasCompra);
-      if (ofertasProveedor) setOfertas(ofertasProveedor);
-      if (perfilesData) setPerfiles(perfilMap);
+      const listasEnriquecidas = (listasCompra || []).map((lista) => ({
+        ...lista,
+        compradorDisplay:
+          (lista.comprador_email || '').trim() ||
+          compradorPorAuthId[lista.usuario_id] ||
+          'Desconocido',
+      }));
+
+      const ofertasEnriquecidas = (ofertasData || []).map((oferta) => ({
+        ...oferta,
+        proveedorDisplay:
+          proveedorPorId[oferta.proveedor_id] || 'Desconocido',
+      }));
+
+      setListas(listasEnriquecidas);
+      setOfertas(ofertasEnriquecidas);
     };
 
     fetchData();
@@ -74,18 +138,28 @@ export default function MasterOperaciones() {
                 <th>Fecha</th>
                 <th>Comuna</th>
                 <th>Producto</th>
-                <th>Precio</th>
+                <th>Formato</th>
+                <th>Marca</th>
+                <th>Cantidad</th>
+                <th>Precio objetivo</th>
               </tr>
             </thead>
             <tbody>
-              {listas.map((lista) => (
-                <tr key={lista.identificación}>
-                  <td>{lista.identificación}</td>
-                  <td>{perfiles[lista['ID de usuario']] || 'Desconocido'}</td>
-                  <td>{lista.fecha_creacion?.split('T')[0]}</td>
-                  <td>{lista.comuna_despacho}</td>
-                  <td>{lista.producto}</td>
-                  <td>${lista.precio_referencial}</td>
+              {listas.map((lista, index) => (
+                <tr key={getListaId(lista) ?? index}>
+                  <td>{getListaId(lista) ?? '—'}</td>
+                  <td>{lista.compradorDisplay}</td>
+                  <td>{lista.fecha_creacion?.split('T')[0] ?? '—'}</td>
+                  <td>{lista.comuna_despacho ?? '—'}</td>
+                  <td>{lista.producto ?? '—'}</td>
+                  <td>{lista.formato ?? '—'}</td>
+                  <td>{lista.marca ?? '—'}</td>
+                  <td>{lista.cantidad ?? '—'}</td>
+                  <td>
+                    {lista.precio != null && lista.precio !== ''
+                      ? `$${lista.precio}`
+                      : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -102,20 +176,29 @@ export default function MasterOperaciones() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>Lista</th>
                 <th>Proveedor</th>
                 <th>Producto</th>
-                <th>Precio</th>
+                <th>Precio ofertado</th>
                 <th>Incluye despacho</th>
+                <th>Estado</th>
               </tr>
             </thead>
             <tbody>
               {ofertas.map((oferta) => (
                 <tr key={oferta.id}>
                   <td>{oferta.id}</td>
-                  <td>{oferta.email_proveedor}</td>
-                  <td>{oferta.producto}</td>
-                  <td>${oferta.precio}</td>
+                  <td>{oferta.lista_id ?? '—'}</td>
+                  <td>{oferta.proveedorDisplay}</td>
+                  <td>{oferta.producto ?? '—'}</td>
+                  <td>
+                    {oferta.precio_ofertado != null &&
+                    oferta.precio_ofertado !== ''
+                      ? `$${oferta.precio_ofertado}`
+                      : '—'}
+                  </td>
                   <td>{oferta.incluye_despacho ? 'Sí' : 'No'}</td>
+                  <td>{estadoTexto(oferta.estado)}</td>
                 </tr>
               ))}
             </tbody>
