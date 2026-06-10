@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
 
 export default function OfertarProductos() {
@@ -22,14 +23,11 @@ export default function OfertarProductos() {
         return;
       }
 
-      const { data: perfilProv, error: perfilError } = await supabase
-        .from('perfiles')
-        .select('id, tipo')
-        .eq('auth_id', userData.user.id)
-        .eq('tipo', 'proveedor')
-        .maybeSingle();
+      const { perfil: perfilProv } = await resolveProveedorProfile(userData.user, {
+        select: 'id, tipo',
+      });
 
-      if (perfilError || !perfilProv) {
+      if (!perfilProv) {
         alert('El usuario no tiene un perfil de proveedor asociado.');
         return;
       }
