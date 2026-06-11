@@ -24,30 +24,96 @@ export default function Register() {
 
       const normalizedEmail = email.trim().toLowerCase();
 
-      // 1) Crear usuario en Auth
+      const { data: perfilesExistentes } = await supabase
+        .from('perfiles')
+        .select('auth_id, tipo')
+        .eq('email', normalizedEmail);
+
+      const authIdExistente =
+        perfilesExistentes?.find((p) => p.auth_id)?.auth_id ?? null;
+
+      const tiposExistentes = new Set(
+        (perfilesExistentes || []).map((p) => p.tipo)
+      );
+
+      const quiereCompradorNuevo =
+        isComprador && !tiposExistentes.has('comprador');
+      const quiereProveedorNuevo =
+        isProveedor && !tiposExistentes.has('proveedor');
+
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
       });
 
+      let authIdParaInsert = authIdExistente;
+
       if (error) {
-        if (error.message.toLowerCase().includes('already')) {
+        const isAlready = error.message.toLowerCase().includes('already');
+
+        if (isAlready && (quiereCompradorNuevo || quiereProveedorNuevo)) {
+          const { data: signInData, error: signInError } =
+            await supabase.auth.signInWithPassword({
+              email: normalizedEmail,
+              password,
+            });
+
+          if (signInError || !signInData?.user) {
+            setErrorMessage(
+              'Este correo ya tiene una cuenta. Verifica tu contraseña para agregar el perfil.'
+            );
+            setLoading(false);
+            return;
+          }
+
+          authIdParaInsert = authIdExistente ?? signInData.user.id;
+        } else if (isAlready) {
           setErrorMessage('Este correo ya tiene una cuenta registrada.');
+          setLoading(false);
+          return;
         } else {
           setErrorMessage('Error al crear usuario: ' + error.message);
+          setLoading(false);
+          return;
         }
+      } else {
+        const user = data?.user;
+
+        if (!user && !authIdExistente) {
+          setErrorMessage('No se pudo crear el usuario en Auth.');
+          setLoading(false);
+          return;
+        }
+
+        if (authIdExistente) {
+          authIdParaInsert = authIdExistente;
+        } else if (user?.identities?.length > 0) {
+          authIdParaInsert = user.id;
+        } else if (user) {
+          const { data: signInData, error: signInError } =
+            await supabase.auth.signInWithPassword({
+              email: normalizedEmail,
+              password,
+            });
+
+          if (signInError || !signInData?.user) {
+            setErrorMessage(
+              'No se pudo verificar la cuenta. Inicia sesión e intenta nuevamente.'
+            );
+            setLoading(false);
+            return;
+          }
+
+          authIdParaInsert = signInData.user.id;
+        }
+      }
+
+      if (!authIdParaInsert) {
+        setErrorMessage('No se pudo obtener el usuario en Auth.');
         setLoading(false);
         return;
       }
 
-      const user = data?.user;
-      if (!user) {
-        setErrorMessage('No se pudo crear el usuario en Auth.');
-        setLoading(false);
-        return;
-      }
-
-      // 2) Validar duplicados antes de insertar perfiles
       const perfilesToInsert = [];
 
       if (isComprador) {
@@ -59,12 +125,18 @@ export default function Register() {
           .maybeSingle();
 
         if (existente) {
-          setErrorMessage('Según nuestros registros este usuario ya tiene creado el perfil de comprador.');
+          setErrorMessage(
+            'Según nuestros registros este usuario ya tiene creado el perfil de comprador.'
+          );
           setLoading(false);
           return;
         }
 
-        perfilesToInsert.push({ email: normalizedEmail, tipo: 'comprador', auth_id: user.id });
+        perfilesToInsert.push({
+          email: normalizedEmail,
+          tipo: 'comprador',
+          auth_id: authIdParaInsert,
+        });
       }
 
       if (isProveedor) {
@@ -76,15 +148,20 @@ export default function Register() {
           .maybeSingle();
 
         if (existente) {
-          setErrorMessage('Según nuestros registros este usuario ya tiene creado el perfil de proveedor.');
+          setErrorMessage(
+            'Según nuestros registros este usuario ya tiene creado el perfil de proveedor.'
+          );
           setLoading(false);
           return;
         }
 
-        perfilesToInsert.push({ email: normalizedEmail, tipo: 'proveedor', auth_id: user.id });
+        perfilesToInsert.push({
+          email: normalizedEmail,
+          tipo: 'proveedor',
+          auth_id: authIdParaInsert,
+        });
       }
 
-      // 3) Insertar perfiles
       if (perfilesToInsert.length > 0) {
         const { error: perfilError } = await supabase
           .from('perfiles')
@@ -92,7 +169,9 @@ export default function Register() {
 
         if (perfilError) {
           if (perfilError.message.toLowerCase().includes('duplicate')) {
-            setErrorMessage('Según nuestros registros este usuario ya tiene creado este perfil.');
+            setErrorMessage(
+              'Según nuestros registros este usuario ya tiene creado este perfil.'
+            );
           } else {
             setErrorMessage('Error al registrar el perfil: ' + perfilError.message);
           }
