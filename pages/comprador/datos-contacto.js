@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRouter } from 'next/router';
+import { comunasChile } from '../../utils/comunasChile';
+import { regionesChile } from '../../utils/regionesChile';
 
 export default function DatosContactoComprador() {
   const router = useRouter();
@@ -8,11 +10,25 @@ export default function DatosContactoComprador() {
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [comuna, setComuna] = useState('');
+  const [mostrarComunas, setMostrarComunas] = useState(false);
   const [region, setRegion] = useState('');
   const [nombreContacto, setNombreContacto] = useState('');
   const [referenciaEntrega, setReferenciaEntrega] = useState('');
   const [authUserId, setAuthUserId] = useState('');
   const [loading, setLoading] = useState(true);
+
+ const comunasFiltradas = comunasChile.filter((c) =>
+  c
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes(
+      comuna
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    )
+);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -159,25 +175,63 @@ export default function DatosContactoComprador() {
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Comuna</label>
-            <input
-              value={comuna}
-              onChange={(e) => setComuna(e.target.value.toUpperCase())}
-              placeholder="Ej: Santiago"
-              style={styles.input}
-            />
-          </div>
+       <div style={{ width: '100%', position: 'relative', marginBottom: '18px' }}>
+        <label style={styles.label}>Comuna</label>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Región</label>
-            <input
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="Ej: Región Metropolitana"
-              style={styles.input}
-            />
+        <input
+          value={comuna}
+          onChange={(e) => {
+            setComuna(e.target.value);
+            setMostrarComunas(true);
+          }}
+          onFocus={() => setMostrarComunas(true)}
+          placeholder="Escribe tu comuna..."
+          style={styles.input}
+        />
+
+        {mostrarComunas && comuna && (
+          <div style={styles.comunasDropdown}>
+            {comunasFiltradas.slice(0, 8).map((c) => (
+              <div
+                key={c}
+                style={styles.comunaItem}
+                onClick={() => {
+                  setComuna(c);
+                  setMostrarComunas(false);
+                }}
+              >
+                {c}
+              </div>
+            ))}
+
+            {comunasFiltradas.length === 0 && (
+              <div style={styles.comunaEmpty}>
+                No se encontraron comunas
+              </div>
+            )}
           </div>
+        )}
+      </div>
+
+<div style={styles.formGroup}>
+  <label style={styles.label}>Región</label>
+
+  <select
+    value={region}
+    onChange={(e) => setRegion(e.target.value)}
+    style={styles.selectInput}
+  >
+    <option value="" style={styles.optionInput}>
+      Selecciona una región
+    </option>
+
+    {regionesChile.map((r) => (
+      <option key={r} value={r} style={styles.optionInput}>
+        {r}
+      </option>
+    ))}
+  </select>
+</div>
 
           <div style={styles.formGroup}>
             <label style={styles.label}>Referencia de entrega</label>
@@ -365,4 +419,47 @@ const styles = {
     fontSize: '18px',
     fontWeight: 700,
   },
+  comunasDropdown: {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  marginTop: '4px',
+  background: '#0d1830',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: '12px',
+  maxHeight: '220px',
+  overflowY: 'auto',
+  zIndex: 50,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+},
+
+comunaItem: {
+  padding: '12px 14px',
+  color: '#fff',
+  cursor: 'pointer',
+  borderBottom: '1px solid rgba(255,255,255,0.05)',
+},
+
+comunaEmpty: {
+  padding: '12px 14px',
+  color: 'rgba(255,255,255,0.6)',
+},
+selectInput: {
+  width: '100%',
+  padding: '13px 15px',
+  borderRadius: '12px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: '#111827',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '14px',
+  boxSizing: 'border-box',
+  cursor: 'pointer',
+},
+
+optionInput: {
+  background: '#111827',
+  color: '#ffffff',
+},
 };
