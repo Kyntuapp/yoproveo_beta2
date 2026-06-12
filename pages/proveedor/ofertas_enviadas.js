@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 
 export default function OfertasEnviadas() {
   const router = useRouter();
@@ -22,16 +23,11 @@ export default function OfertasEnviadas() {
         return;
       }
 
-      const authUserId = userData.user.id;
+      const { perfil: perfilProv } = await resolveProveedorProfile(userData.user, {
+        select: 'id, tipo',
+      });
 
-      const { data: perfilProv, error: perfilErr } = await supabase
-        .from('perfiles')
-        .select('id, tipo')
-        .eq('auth_id', authUserId)
-        .eq('tipo', 'proveedor')
-        .maybeSingle();
-
-      if (perfilErr || !perfilProv) {
+      if (!perfilProv) {
         alert('No se encontró perfil proveedor.');
         router.push('/proveedor');
         return;

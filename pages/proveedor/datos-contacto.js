@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 
 export default function DatosContactoProveedor() {
   const router = useRouter();
@@ -26,25 +27,9 @@ export default function DatosContactoProveedor() {
         return;
       }
 
-      const user = userWrap.user;
-
-      let { data: perfilData } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('auth_id', user.id)
-        .eq('tipo', 'proveedor')
-        .maybeSingle();
-
-      if (!perfilData) {
-        const { data: perfByEmail } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('email', user.email)
-          .eq('tipo', 'proveedor')
-          .maybeSingle();
-
-        perfilData = perfByEmail || null;
-      }
+      const { perfil: perfilData } = await resolveProveedorProfile(userWrap.user, {
+        select: '*',
+      });
 
       if (!perfilData) {
         alert(

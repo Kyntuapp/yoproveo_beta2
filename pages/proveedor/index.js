@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import Notificaciones from '../../components/Notificaciones';
 
 export default function ProveedorIndex() {
@@ -19,14 +20,11 @@ export default function ProveedorIndex() {
         return;
       }
 
-      const { data: perfil, error: perfilError } = await supabase
-        .from('perfiles')
-        .select('id')
-        .eq('auth_id', userData.user.id)
-        .eq('tipo', 'proveedor')
-        .maybeSingle();
+      const { perfil } = await resolveProveedorProfile(userData.user, {
+        select: 'id, auth_id, email',
+      });
 
-      if (perfilError || !perfil) {
+      if (!perfil) {
         alert('No se encontró perfil de proveedor');
         router.push('/');
         return;

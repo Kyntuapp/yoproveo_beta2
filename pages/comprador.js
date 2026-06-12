@@ -1,5 +1,5 @@
 // pages/comprador.js
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
@@ -23,6 +23,8 @@ export default function Comprador() {
   const [expandedFechas, setExpandedFechas] = useState([]);
   const [editandoFechas, setEditandoFechas] = useState([]);
   const [ofertasPorProducto, setOfertasPorProducto] = useState({});
+  const [ofertasCrudasPorProducto, setOfertasCrudasPorProducto] =
+    useState({});
   const [nuevosProductos, setNuevosProductos] = useState({});
   const [listasConOfertas, setListasConOfertas] = useState([]);
   const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
@@ -51,6 +53,7 @@ export default function Comprador() {
 );
 
   const router = useRouter();
+  const scrolledToOfertaRef = useRef(null);
 
   const RUTA_MIS_OFERTAS = '/proveedor/ofertas_enviadas';
 
@@ -168,15 +171,21 @@ export default function Comprador() {
     if (!listas || listas.length === 0) return;
 
     let fechaKey = null;
+    let listIdToOpen = null;
 
-    if (router.query?.list_id) {
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (listIdParam) {
       const listaMatch = listas.find(
         (l) =>
           String(getRowId(l)) ===
-          String(router.query.list_id)
+          String(listIdParam)
       );
 
       if (listaMatch) {
+        listIdToOpen = getRowId(listaMatch);
         fechaKey = new Date(
           listaMatch.fecha_creacion
         ).toLocaleString();
@@ -203,10 +212,46 @@ export default function Comprador() {
       ]);
     }
 
+    if (listIdToOpen) {
+      setProductosConOfertasAbiertas((prev) => ({
+        ...prev,
+        [listIdToOpen]: true,
+      }));
+    }
+
     verOfertas(fechaKey);
 
     // eslint-disable-next-line
   }, [router.isReady, router.query, listas]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query?.notif !== 'ofertas') return;
+
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (!listIdParam) return;
+    if (!productosConOfertasAbiertas[listIdParam]) return;
+    if (scrolledToOfertaRef.current === listIdParam) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`oferta-${listIdParam}`);
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scrolledToOfertaRef.current = listIdParam;
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    router.isReady,
+    router.query,
+    productosConOfertasAbiertas,
+    expandedFechas,
+  ]);
 
   const handleChange = (
     index,
@@ -386,35 +431,47 @@ export default function Comprador() {
     setEditandoFechas((prev) => prev.filter((f) => f !== fecha));
   };
 
-  const aplicarFiltrosOfertas = (ofertas) => {
-    let resultado = [...(ofertas || [])];
+  const aplicarFiltrosOfertas = useCallback(
+    (ofertas) => {
+      const resultado = [...(ofertas || [])];
 
-    if (filtroDespacho) {
-      resultado = resultado.filter((of) => of.incluye_despacho);
-    }
+      // Filtro "Solo 5 estrellas": pendiente Fase B (tabla calificaciones_proveedor).
 
-    if (filtroCincoEstrellas) {
-      resultado = resultado.filter((of) => {
-        const rating =
-          of.calificacion_proveedor ||
-          of.rating_proveedor ||
-          of.perfiles?.calificacion ||
-          0;
+      resultado.sort((a, b) => {
+        if (filtroDespacho) {
+          const keyA = a.incluye_despacho ? 0 : 1;
+          const keyB = b.incluye_despacho ? 0 : 1;
+          if (keyA !== keyB) return keyA - keyB;
+        }
 
-        return Number(rating) >= 5;
+        if (filtroMejorPrecio) {
+          return (
+            Number(a.precio_ofertado || 0) -
+            Number(b.precio_ofertado || 0)
+          );
+        }
+
+        return 0;
       });
-    }
 
-    if (filtroMejorPrecio) {
-      resultado.sort(
-        (a, b) =>
-          Number(a.precio_ofertado || 0) -
-          Number(b.precio_ofertado || 0)
+      return resultado.slice(0, 3);
+    },
+    [filtroMejorPrecio, filtroDespacho]
+  );
+
+  useEffect(() => {
+    const claves = Object.keys(ofertasCrudasPorProducto);
+    if (claves.length === 0) return;
+
+    const filtradas = {};
+    claves.forEach((clave) => {
+      filtradas[clave] = aplicarFiltrosOfertas(
+        ofertasCrudasPorProducto[clave]
       );
-    }
+    });
 
-    return resultado.slice(0, 3);
-  };
+    setOfertasPorProducto(filtradas);
+  }, [ofertasCrudasPorProducto, aplicarFiltrosOfertas]);
 
   const verOfertas = async (fecha) => {
     if (!expandedFechas.includes(fecha)) {
@@ -452,19 +509,19 @@ export default function Comprador() {
       return st !== 'rechazada';
     });
 
-    const nuevas = {};
+    const crudas = {};
 
     for (const item of productosFecha) {
       const listaId = getRowId(item);
       const ofertasDeEste = visibles.filter((o) => o.lista_id === listaId);
       const clave = `${item.producto}__${listaId}`;
 
-      nuevas[clave] = aplicarFiltrosOfertas(ofertasDeEste);
+      crudas[clave] = ofertasDeEste;
     }
 
-    setOfertasPorProducto((prev) => ({
+    setOfertasCrudasPorProducto((prev) => ({
       ...prev,
-      ...nuevas,
+      ...crudas,
     }));
 
     setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
@@ -940,10 +997,11 @@ const pagarOferta = async (oferta) => {
             <label style={styles.filterLabel}>
               <input
                 type="checkbox"
-                checked={filtroCincoEstrellas}
-                onChange={(e) => setFiltroCincoEstrellas(e.target.checked)}
+                checked={false}
+                disabled
+                readOnly
               />
-              Solo 5 estrellas
+              Solo 5 estrellas (próximamente)
             </label>
           </div>
 
@@ -1028,6 +1086,7 @@ const pagarOferta = async (oferta) => {
                                 <>
                                   <tr
                                     key={`producto-${rowId || idx}`}
+                                    id={rowId ? `oferta-${rowId}` : undefined}
                                     onClick={() =>
                                       toggleOfertasProducto(rowId)
                                     }
@@ -1067,12 +1126,14 @@ const pagarOferta = async (oferta) => {
                                               ).toLowerCase();
 
                                               const isPending =
-                                                estado === 'pendiente_de_pago';
+                                                estado === 'pendiente';
                                               const isWaiting =
                                                 estado ===
                                                 'en_espera_confirmacion';
                                               const isConfirm =
                                                 estado === 'confirmada';
+                                              const isPendingPayment =
+                                                estado === 'pendiente_pago';
 
                                               return (
                                                 <div
