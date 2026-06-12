@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { verifyMasterRequest } from '../../../lib/verifyMasterRequest';
 import { computeReportKpis } from '../../../lib/reportes/kpis';
+import { computeReportSeries } from '../../../lib/reportes/series';
 import { getPeriodRange, isValidPeriodo } from '../../../lib/reportes/periods';
 
 const CHUNK_SIZE = 100;
@@ -73,6 +74,7 @@ export default async function handler(req, res) {
     const listaIds = listas.map((l) => l.id);
     const ofertas = await fetchOfertasPorListas(listaIds);
     const kpis = computeReportKpis(listas, ofertas);
+    const series = computeReportSeries(listas, ofertas, periodo, rango);
 
     return res.status(200).json({
       periodo: rango.periodo,
@@ -83,10 +85,13 @@ export default async function handler(req, res) {
       },
       generado_en: new Date().toISOString(),
       kpis,
+      series,
       meta: {
         productos_en_scope: listas.length,
         ofertas_en_scope: ofertas.length,
         timestamp_oferta_campo: 'fecha',
+        series_bucket_ancla_listas: 'fecha_creacion',
+        series_granularidad: series.granularidad,
       },
       disclaimers: [
         'Métricas operativas MVP ancladas a la fecha de publicación de listas.',

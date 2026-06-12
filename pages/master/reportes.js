@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { useRequireMaster } from '../../lib/useRequireMaster';
+
+const ReportChartsSection = dynamic(
+  () => import('../../components/master/reportes/ReportChartsSection'),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ padding: 20, marginBottom: 28 }}>Cargando gráficos…</div>
+    ),
+  }
+);
 
 const PERIODOS = [
   { id: 'hoy', label: 'Hoy' },
@@ -268,6 +279,11 @@ export default function MasterReportes() {
             Indicadores estimados. No representan pagos confirmados hasta
             completar la integración de Mercado Pago.
           </div>
+
+          <ReportChartsSection
+            series={data.series}
+            periodoLabel={data.periodo_label}
+          />
         </>
       ) : null}
 
@@ -294,7 +310,11 @@ export default function MasterReportes() {
             Finanzas estimadas: GMV potencial e ingresos Kyntü al 3 % son{' '}
             <strong>proyecciones operativas</strong>, no ingresos reales.
           </li>
-          <li>No incluye Excel ni proyecciones de tendencia.</li>
+          <li>No incluye Excel ni proyecciones financieras futuras.</li>
+          <li>
+            Los gráficos de evolución muestran tendencia operativa por bucket;
+            no representan pagos confirmados.
+          </li>
         </ul>
         {data?.generado_en ? (
           <p style={styles.generatedAt}>
