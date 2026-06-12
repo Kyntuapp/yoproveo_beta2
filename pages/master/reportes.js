@@ -15,6 +15,16 @@ function formatNumber(value) {
   return new Intl.NumberFormat('es-CL').format(value);
 }
 
+function formatPercent(value) {
+  if (value === null || value === undefined) return '—';
+  return (
+    new Intl.NumberFormat('es-CL', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value) + ' %'
+  );
+}
+
 function formatMoney(value) {
   if (value === null || value === undefined) return '—';
   return '$' + new Intl.NumberFormat('es-CL').format(value);
@@ -203,8 +213,13 @@ export default function MasterReportes() {
 
           <KpiSection title="Conversión">
             <KpiCard
+              label="Tasa de cobertura"
+              value={formatPercent(kpis.conversion.tasa_cobertura_pct)}
+              hint="Lotes publicados que recibieron al menos una oferta"
+            />
+            <KpiCard
               label="Tasa de aceptación"
-              value={`${formatNumber(kpis.conversion.tasa_aceptacion_pct)}%`}
+              value={formatPercent(kpis.conversion.tasa_aceptacion_pct)}
               hint="Ofertas aceptadas o en flujo de compra"
             />
             <KpiCard
@@ -235,6 +250,24 @@ export default function MasterReportes() {
               value={formatMoney(kpis.valor.mejor_ahorro_registrado)}
             />
           </KpiSection>
+
+          <KpiSection title="Finanzas estimadas">
+            <KpiCard
+              label="GMV potencial"
+              value={formatMoney(kpis.finanzas_estimadas.gmv_potencial)}
+              hint="Suma de precio_ofertado en ofertas aceptadas, pendientes de pago o confirmadas"
+            />
+            <KpiCard
+              label="Ingresos Kyntü estimados"
+              value={formatMoney(kpis.finanzas_estimadas.ingresos_kyntu_estimados)}
+              hint="Fee estimado del 3 % sobre GMV potencial"
+            />
+          </KpiSection>
+
+          <div style={styles.finanzasDisclaimerBox}>
+            Indicadores estimados. No representan pagos confirmados hasta
+            completar la integración de Mercado Pago.
+          </div>
         </>
       ) : null}
 
@@ -250,10 +283,18 @@ export default function MasterReportes() {
             la mejor oferta no rechazada por producto.
           </li>
           <li>
+            La tasa de cobertura mide recepción de ofertas por lote
+            publicado, <strong>no aceptación ni pago</strong>.
+          </li>
+          <li>
             La tasa de aceptación mide intención de compra,{' '}
             <strong>no pagos confirmados</strong>.
           </li>
-          <li>No incluye Mercado Pago, comisiones, Excel ni proyecciones.</li>
+          <li>
+            Finanzas estimadas: GMV potencial e ingresos Kyntü al 3 % son{' '}
+            <strong>proyecciones operativas</strong>, no ingresos reales.
+          </li>
+          <li>No incluye Excel ni proyecciones de tendencia.</li>
         </ul>
         {data?.generado_en ? (
           <p style={styles.generatedAt}>
@@ -404,6 +445,17 @@ const styles = {
     fontSize: 12,
     color: '#7D8798',
     lineHeight: 1.4,
+  },
+  finanzasDisclaimerBox: {
+    marginBottom: 28,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#EEF4FF',
+    border: '1px solid #B8CCFF',
+    color: '#071B3A',
+    fontSize: 14,
+    lineHeight: 1.5,
+    fontWeight: 600,
   },
   disclaimerBox: {
     marginTop: 12,
