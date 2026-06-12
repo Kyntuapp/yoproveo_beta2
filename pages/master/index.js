@@ -62,6 +62,17 @@ export default function MasterHome() {
           </p>
         </button>
 
+        <button
+          style={styles.card}
+          onClick={() => router.push('/master/reportes')}
+        >
+          <div style={styles.cardIcon}>📈</div>
+          <h3 style={styles.cardTitle}>Reportes operativos</h3>
+          <p style={styles.cardText}>
+            KPIs de actividad, liquidez, conversión y ahorro potencial del marketplace.
+          </p>
+        </button>
+
         <button style={styles.cardDisabled} disabled>
           <div style={styles.cardIconDisabled}>👥</div>
           <h3 style={styles.cardTitle}>Usuarios</h3>

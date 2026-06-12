@@ -1,5 +1,5 @@
 // pages/comprador.js
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
@@ -22,6 +22,8 @@ export default function Comprador() {
   const [expandedFechas, setExpandedFechas] = useState([]);
   const [editandoFechas, setEditandoFechas] = useState([]);
   const [ofertasPorProducto, setOfertasPorProducto] = useState({});
+  const [ofertasCrudasPorProducto, setOfertasCrudasPorProducto] =
+    useState({});
   const [nuevosProductos, setNuevosProductos] = useState({});
   const [listasConOfertas, setListasConOfertas] = useState([]);
   const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
@@ -32,8 +34,6 @@ export default function Comprador() {
   // NUEVOS FILTROS
   const [filtroMejorPrecio, setFiltroMejorPrecio] = useState(true);
   const [filtroDespacho, setFiltroDespacho] = useState(false);
-  const [filtroCincoEstrellas, setFiltroCincoEstrellas] =
-    useState(false);
 
   const router = useRouter();
   const scrolledToOfertaRef = useRef(null);
@@ -414,35 +414,47 @@ export default function Comprador() {
     setEditandoFechas((prev) => prev.filter((f) => f !== fecha));
   };
 
-  const aplicarFiltrosOfertas = (ofertas) => {
-    let resultado = [...(ofertas || [])];
+  const aplicarFiltrosOfertas = useCallback(
+    (ofertas) => {
+      const resultado = [...(ofertas || [])];
 
-    if (filtroDespacho) {
-      resultado = resultado.filter((of) => of.incluye_despacho);
-    }
+      // Filtro "Solo 5 estrellas": pendiente Fase B (tabla calificaciones_proveedor).
 
-    if (filtroCincoEstrellas) {
-      resultado = resultado.filter((of) => {
-        const rating =
-          of.calificacion_proveedor ||
-          of.rating_proveedor ||
-          of.perfiles?.calificacion ||
-          0;
+      resultado.sort((a, b) => {
+        if (filtroDespacho) {
+          const keyA = a.incluye_despacho ? 0 : 1;
+          const keyB = b.incluye_despacho ? 0 : 1;
+          if (keyA !== keyB) return keyA - keyB;
+        }
 
-        return Number(rating) >= 5;
+        if (filtroMejorPrecio) {
+          return (
+            Number(a.precio_ofertado || 0) -
+            Number(b.precio_ofertado || 0)
+          );
+        }
+
+        return 0;
       });
-    }
 
-    if (filtroMejorPrecio) {
-      resultado.sort(
-        (a, b) =>
-          Number(a.precio_ofertado || 0) -
-          Number(b.precio_ofertado || 0)
+      return resultado.slice(0, 3);
+    },
+    [filtroMejorPrecio, filtroDespacho]
+  );
+
+  useEffect(() => {
+    const claves = Object.keys(ofertasCrudasPorProducto);
+    if (claves.length === 0) return;
+
+    const filtradas = {};
+    claves.forEach((clave) => {
+      filtradas[clave] = aplicarFiltrosOfertas(
+        ofertasCrudasPorProducto[clave]
       );
-    }
+    });
 
-    return resultado.slice(0, 3);
-  };
+    setOfertasPorProducto(filtradas);
+  }, [ofertasCrudasPorProducto, aplicarFiltrosOfertas]);
 
   const verOfertas = async (fecha) => {
     if (!expandedFechas.includes(fecha)) {
@@ -480,19 +492,19 @@ export default function Comprador() {
       return st !== 'rechazada';
     });
 
-    const nuevas = {};
+    const crudas = {};
 
     for (const item of productosFecha) {
       const listaId = getRowId(item);
       const ofertasDeEste = visibles.filter((o) => o.lista_id === listaId);
       const clave = `${item.producto}__${listaId}`;
 
-      nuevas[clave] = aplicarFiltrosOfertas(ofertasDeEste);
+      crudas[clave] = ofertasDeEste;
     }
 
-    setOfertasPorProducto((prev) => ({
+    setOfertasCrudasPorProducto((prev) => ({
       ...prev,
-      ...nuevas,
+      ...crudas,
     }));
 
     setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
@@ -941,10 +953,11 @@ const pagarOferta = async (oferta) => {
             <label style={styles.filterLabel}>
               <input
                 type="checkbox"
-                checked={filtroCincoEstrellas}
-                onChange={(e) => setFiltroCincoEstrellas(e.target.checked)}
+                checked={false}
+                disabled
+                readOnly
               />
-              Solo 5 estrellas
+              Solo 5 estrellas (próximamente)
             </label>
           </div>
 

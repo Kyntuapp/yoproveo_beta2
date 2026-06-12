@@ -54,6 +54,11 @@ export default function OfertarProductos() {
         return;
       }
 
+      const authUserId = userData.user.id;
+      const listasAjenas = (listasData || []).filter(
+        (item) => String(item.usuario_id || '') !== String(authUserId)
+      );
+
       setUsuarios(perfilesData || []);
 
       const compradoresPorAuth = Object.fromEntries(
@@ -66,7 +71,7 @@ export default function OfertarProductos() {
           .map((p) => [String(p.auth_id).trim().toLowerCase(), p])
       );
 
-      const enriquecida = (listasData || []).map((item) => {
+      const enriquecida = listasAjenas.map((item) => {
         const perfilComprador =
           compradoresPorAuth[
             String(item.usuario_id || '').trim().toLowerCase()
