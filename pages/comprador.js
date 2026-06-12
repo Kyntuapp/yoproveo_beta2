@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
+import { comunasChile } from '../utils/comunasChile';
 
 const filaVacia = {
   producto: '',
@@ -34,6 +35,22 @@ export default function Comprador() {
   // NUEVOS FILTROS
   const [filtroMejorPrecio, setFiltroMejorPrecio] = useState(true);
   const [filtroDespacho, setFiltroDespacho] = useState(false);
+  const [filtroCincoEstrellas, setFiltroCincoEstrellas] =
+    useState(false);
+  const [mostrarComunas, setMostrarComunas] = useState(false);
+
+ const comunasFiltradas = comunasChile.filter((c) =>
+  c
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes(
+      comunaDespacho
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+    )
+);
 
   const router = useRouter();
   const scrolledToOfertaRef = useRef(null);
@@ -799,17 +816,44 @@ const pagarOferta = async (oferta) => {
 
           <h2 style={styles.cardTitle}>Agrega productos a tu lista</h2>
 
-          <div style={styles.comunaBox}>
-            <label style={styles.label}>Comuna de despacho</label>
+           <div style={styles.comunaBox}>
+  <label style={styles.label}>Comuna de despacho</label>
 
-            <input
-              type="text"
-              value={comunaDespacho}
-              onChange={(e) => setComunaDespacho(e.target.value.toUpperCase())}
-              placeholder="Ej: Santiago"
-              style={styles.input}
-            />
-          </div>
+  <input
+    type="text"
+    value={comunaDespacho}
+    onChange={(e) => {
+      setComunaDespacho(e.target.value);
+      setMostrarComunas(true);
+    }}
+    onFocus={() => setMostrarComunas(true)}
+    placeholder="Ej: Santiago"
+    style={styles.input}
+  />
+
+  {mostrarComunas && comunaDespacho && (
+    <div style={styles.comunasDropdown}>
+      {comunasFiltradas.slice(0, 8).map((c) => (
+        <div
+          key={c}
+          style={styles.comunaItem}
+          onMouseDown={() => {
+            setComunaDespacho(c);
+            setMostrarComunas(false);
+          }}
+        >
+          {c}
+        </div>
+      ))}
+
+      {comunasFiltradas.length === 0 && (
+        <div style={styles.comunaEmpty}>
+          No se encontraron comunas
+        </div>
+      )}
+    </div>
+  )}
+</div>
 
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
@@ -1452,8 +1496,10 @@ const styles = {
   },
 
   comunaBox: {
-    marginBottom: '22px',
-  },
+  width: '100%',
+  position: 'relative',
+  marginBottom: '22px',
+},
 
   label: {
     display: 'block',
@@ -1756,5 +1802,33 @@ const styles = {
   color: '#ffd166',
   marginTop: '10px',
   fontWeight: 800,
+},
+comunasDropdown: {
+  position: 'absolute',
+  top: '100%',
+  left: 0,
+  right: 0,
+  marginTop: '6px',
+  background: '#0d1830',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: '12px',
+  maxHeight: '220px',
+  overflowY: 'auto',
+  zIndex: 9999,
+  boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+},
+
+comunaItem: {
+  padding: '12px 14px',
+  color: '#ffffff',
+  cursor: 'pointer',
+  borderBottom: '1px solid rgba(255,255,255,0.05)',
+  textAlign: 'left',
+},
+
+comunaEmpty: {
+  padding: '12px 14px',
+  color: 'rgba(255,255,255,0.6)',
+  textAlign: 'left',
 },
 };
