@@ -30,6 +30,8 @@ export default function Notificaciones({ userId, rol }) {
   };
 
   const marcarLeidaYRedirigir = async (notif) => {
+    setNotificaciones((prev) => prev.filter((n) => n.id !== notif.id));
+
     await supabase
       .from('notificaciones')
       .update({ leida: true })
