@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function Login() {
   const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setErrorMessage('');
@@ -131,13 +133,27 @@ export default function Login() {
           style={styles.input}
         />
 
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-        />
+        <div style={styles.passwordWrapper}>
+  <input
+    type={showPassword ? 'text' : 'password'}
+    placeholder="Contraseña"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    style={styles.passwordInput}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    style={styles.eyeButton}
+  >
+    {showPassword ? (
+      <EyeOff size={18} />
+    ) : (
+      <Eye size={18} />
+    )}
+  </button>
+</div>
 
         {errorMessage && (
           <div>
@@ -308,4 +324,36 @@ const styles = {
     fontSize: '14px',
     marginTop: '4px',
   },
+  passwordWrapper: {
+  position: 'relative',
+  width: '280px',
+  margin: '8px auto',
+},
+
+passwordInput: {
+  width: '100%',
+  padding: '13px 45px 13px 15px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '14px',
+  boxSizing: 'border-box',
+},
+
+eyeButton: {
+  position: 'absolute',
+  right: '12px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  background: 'transparent',
+  border: 'none',
+  color: 'rgba(255,255,255,0.7)',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+},
 };
