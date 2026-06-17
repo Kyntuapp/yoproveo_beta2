@@ -114,9 +114,15 @@ export default function Register() {
         return;
       }
 
+      if (!quiereCompradorNuevo && !quiereProveedorNuevo) {
+        setErrorMessage('Este usuario ya tiene los perfiles seleccionados.');
+        setLoading(false);
+        return;
+      }
+
       const perfilesToInsert = [];
 
-      if (isComprador) {
+      if (quiereCompradorNuevo) {
         const { data: existente } = await supabase
           .from('perfiles')
           .select('id')
@@ -139,7 +145,7 @@ export default function Register() {
         });
       }
 
-      if (isProveedor) {
+      if (quiereProveedorNuevo) {
         const { data: existente } = await supabase
           .from('perfiles')
           .select('id')
@@ -180,7 +186,11 @@ export default function Register() {
         }
       }
 
-      alert('Usuario registrado con éxito. Revisa tu correo para confirmar la cuenta.');
+      alert(
+        authIdExistente
+          ? 'Perfil agregado correctamente.'
+          : 'Usuario registrado con éxito. Revisa tu correo para confirmar la cuenta.'
+      );
       router.push('/login');
     } catch (err) {
       console.error(err);
