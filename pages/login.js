@@ -258,18 +258,19 @@ const styles = {
     textShadow: '0 3px 12px rgba(0,0,0,0.35)',
   },
 
-  input: {
-    display: 'block',
-    width: '280px',
-    padding: '13px 15px',
-    margin: '8px auto',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    outline: 'none',
-    fontSize: '14px',
-  },
+ input: {
+  display: 'block',
+  width: '280px',
+  padding: '13px 15px',
+  margin: '8px auto',
+  borderRadius: '10px',
+  border: '1px solid #d1d5db',
+  background: '#ffffff',
+  color: '#111827',
+  outline: 'none',
+  fontSize: '14px',
+  boxSizing: 'border-box',
+},
 
   error: {
     color: '#ff7b7b',
@@ -324,6 +325,7 @@ const styles = {
     fontSize: '14px',
     marginTop: '4px',
   },
+
   passwordWrapper: {
   position: 'relative',
   width: '280px',
@@ -349,7 +351,7 @@ eyeButton: {
   transform: 'translateY(-50%)',
   background: 'transparent',
   border: 'none',
-  color: 'rgba(255,255,255,0.7)',
+  color: '#9ca3af',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
