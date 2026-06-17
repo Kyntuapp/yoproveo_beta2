@@ -77,6 +77,7 @@ export default function MasterReportes() {
   const [periodo, setPeriodo] = useState('7d');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
 
   const cargarReportes = useCallback(async () => {
@@ -122,6 +123,60 @@ export default function MasterReportes() {
     }
   }, [periodo]);
 
+  const exportarExcel = useCallback(async () => {
+    setExporting(true);
+    setError('');
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const token = session?.access_token;
+
+      if (!token) {
+        setError('No hay sesión activa.');
+        return;
+      }
+
+      const response = await fetch(
+        `/api/master/reportes/export?periodo=${encodeURIComponent(periodo)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        setError(json.error || 'Error al exportar Excel.');
+        return;
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get('Content-Disposition');
+      const match = disposition?.match(/filename="([^"]+)"/);
+      const filename =
+        match?.[1] ||
+        `reportes_kyntu_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError('Error inesperado al exportar Excel.');
+    } finally {
+      setExporting(false);
+    }
+  }, [periodo]);
+
   useEffect(() => {
     if (!authorized) return;
     cargarReportes();
@@ -151,9 +206,22 @@ export default function MasterReportes() {
             proyecciones.
           </p>
         </div>
-        <button type="button" onClick={cargarReportes} style={styles.refreshButton}>
-          {loading ? 'Actualizando…' : 'Actualizar'}
-        </button>
+        <div style={styles.headerActions}>
+          <button
+            type="button"
+            onClick={exportarExcel}
+            disabled={exporting || loading || !data}
+            style={{
+              ...styles.exportButton,
+              ...(exporting || loading || !data ? styles.buttonDisabled : {}),
+            }}
+          >
+            {exporting ? 'Exportando…' : 'Exportar Excel'}
+          </button>
+          <button type="button" onClick={cargarReportes} style={styles.refreshButton}>
+            {loading ? 'Actualizando…' : 'Actualizar'}
+          </button>
+        </div>
       </div>
 
       <div style={styles.filters}>
@@ -310,7 +378,10 @@ export default function MasterReportes() {
             Finanzas estimadas: GMV potencial e ingresos Kyntü al 3 % son{' '}
             <strong>proyecciones operativas</strong>, no ingresos reales.
           </li>
-          <li>No incluye Excel ni proyecciones financieras futuras.</li>
+          <li>
+            La exportación Excel refleja el periodo seleccionado y las mismas
+            métricas operativas del dashboard.
+          </li>
           <li>
             Los gráficos de evolución muestran tendencia operativa por bucket;
             no representan pagos confirmados.
@@ -378,6 +449,20 @@ const styles = {
     maxWidth: 640,
     lineHeight: 1.5,
   },
+  headerActions: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  exportButton: {
+    padding: '10px 18px',
+    backgroundColor: '#FFFFFF',
+    color: '#071B3A',
+    border: '1px solid #DCE6FF',
+    borderRadius: 12,
+    cursor: 'pointer',
+    fontWeight: 700,
+  },
   refreshButton: {
     padding: '10px 18px',
     backgroundColor: '#0A4DFF',
@@ -386,6 +471,10 @@ const styles = {
     borderRadius: 12,
     cursor: 'pointer',
     fontWeight: 700,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
   },
   filters: {
     display: 'flex',
