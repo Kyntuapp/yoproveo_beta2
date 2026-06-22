@@ -346,6 +346,7 @@ const ofertasFiltradas = useMemo(() => {
                       <th style={styles.th}>Comprador</th>
                       <th style={styles.th}>Fecha</th>
                       <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Comentario comprador</th>
                       <th style={styles.th}>Contacto</th>
                     </tr>
                   </thead>
@@ -382,6 +383,13 @@ const ofertasFiltradas = useMemo(() => {
                               </span>
                             </td>
                             <td style={styles.td}>
+                              <div style={styles.commentBox}>
+                                {item.comentario_comprador?.trim()
+                                  ? item.comentario_comprador
+                                  : 'Sin comentarios'}
+                              </div>
+                            </td>
+                            <td style={styles.td}>
                               {puedeVerContacto ? (
                                 <button
                                   onClick={() =>
@@ -405,7 +413,7 @@ const ofertasFiltradas = useMemo(() => {
 
                           {puedeVerContacto && detalleContactoId === item.id && (
                             <tr key={`detalle-${item.id}`}>
-                              <td colSpan={11} style={styles.contactBox}>
+                              <td colSpan={12} style={styles.contactBox}>
                                 <strong>Datos de contacto del comprador</strong>
 
                                 <div style={styles.contactText}>
@@ -746,5 +754,19 @@ filterLabel: {
   fontSize: '11px',
   fontWeight: '700',
   textAlign: 'left',
+},
+commentBox: {
+  minWidth: '160px',
+  maxWidth: '240px',
+  minHeight: '38px',
+  padding: '10px',
+  borderRadius: '10px',
+  background: 'rgba(255, 255, 255, 0.08)',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  color: 'rgba(255,255,255,0.82)',
+  fontSize: '12px',
+  lineHeight: '1.4',
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
 },
 };
