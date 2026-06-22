@@ -317,7 +317,15 @@ export default function OfertarProductos() {
                       <th style={styles.th}>Fecha</th>
                       <th style={styles.th}>Días</th>
                       <th style={styles.th}>Estado</th>
-                      <th style={styles.th}>Oferta</th>
+                      <th style={styles.th}>
+                        Oferta{' '}
+                        <span
+                          title="La oferta corresponde al valor total por la cantidad solicitada por el comprador."
+                          style={styles.tooltipIcon}
+                        >
+                          ⓘ
+                        </span>
+                      </th>
                       <th style={styles.th}>Despacho</th>
                       <th style={styles.th}>Acción</th>
                     </tr>
@@ -758,4 +766,9 @@ const styles = {
   estadoDefault: {
     color: '#ffffff',
   },
+  tooltipIcon: {
+  color: '#31f7c6',
+  cursor: 'help',
+  fontWeight: 800,
+},
 };

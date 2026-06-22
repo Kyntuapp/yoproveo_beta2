@@ -31,6 +31,7 @@ export default function Comprador() {
   const [comentariosCompra, setComentariosCompra] = useState({});
   const [productosConOfertasAbiertas, setProductosConOfertasAbiertas] =
     useState({});
+  const [nombreLista, setNombreLista] = useState('');
 
   // NUEVOS FILTROS
   const [filtroMejorPrecio, setFiltroMejorPrecio] = useState(true);
@@ -308,51 +309,73 @@ export default function Comprador() {
   };
 
   // FIN PARTE 1
-    const enviarLista = async () => {
-    if (!authUserId || !comunaDespacho) {
-      alert('Debes iniciar sesión y completar la comuna.');
-      return;
-    }
+ 
+  const enviarLista = async () => {
+  if (!authUserId || !comunaDespacho || !nombreLista.trim()) {
+    alert('Debes iniciar sesión, completar el nombre de la lista y la comuna.');
+    return;
+  }
 
-    const productosValidos = productos.filter(
-      (p) => p.producto && p.formato && p.marca && p.cantidad && p.precio
-    );
+  const productosValidos = productos.filter(
+    (p) => p.producto && p.formato && p.marca && p.cantidad && p.precio
+  );
 
-    if (productosValidos.length === 0) {
-      alert('Debes agregar al menos un producto completo.');
-      return;
-    }
+  if (productosValidos.length === 0) {
+    alert('Debes agregar al menos un producto completo.');
+    return;
+  }
 
-    const fecha = new Date().toISOString();
+  const fecha = new Date().toISOString();
+  const compradorEmail = localStorage.getItem('user_email') || '';
 
-    const lista = productosValidos.map((p) => ({
-      producto: p.producto,
-      formato: p.formato,
-      marca: p.marca,
-      cantidad: Number(p.cantidad),
-      precio: Number(p.precio),
+  const { data: listaCreada, error: listaError } = await supabase
+    .from('listas')
+    .insert({
+      nombre_lista: nombreLista.trim(),
       usuario_id: authUserId,
-      comprador_email: localStorage.getItem('user_email') || '',
-      fecha_creacion: fecha,
+      comprador_email: compradorEmail,
       comuna_despacho: comunaDespacho.toUpperCase(),
-    }));
+      fecha_creacion: fecha,
+    })
+    .select()
+    .single();
 
-    const { data, error } = await supabase
-      .from('listas_compras')
-      .insert(lista)
-      .select();
+  if (listaError) {
+    alert('Error al crear la lista: ' + listaError.message);
+    return;
+  }
 
-    if (error) {
-      alert('Error al enviar la lista: ' + error.message);
-      return;
-    }
+  const lista = productosValidos.map((p) => ({
+    producto: p.producto,
+    formato: p.formato,
+    marca: p.marca,
+    cantidad: Number(p.cantidad),
+    precio: Number(p.precio),
+    usuario_id: authUserId,
+    comprador_email: compradorEmail,
+    fecha_creacion: fecha,
+    comuna_despacho: comunaDespacho.toUpperCase(),
+    nombre_lista: nombreLista.trim(),
+    lista_id: listaCreada.id,
+  }));
 
-    alert('Lista enviada correctamente');
+  const { data, error } = await supabase
+    .from('listas_compras')
+    .insert(lista)
+    .select();
 
-    setProductos([{ ...filaVacia }]);
-    setComunaDespacho('');
-    setListas((prev) => [...(data || []), ...prev]);
-  };
+  if (error) {
+    alert('Error al enviar la lista: ' + error.message);
+    return;
+  }
+
+  alert(`Lista "${nombreLista.trim()}" enviada correctamente`);
+
+  setProductos([{ ...filaVacia }]);
+  setComunaDespacho('');
+  setNombreLista('');
+  setListas((prev) => [...(data || []), ...prev]);
+};
 
   const toggleExpand = (fecha) => {
     setExpandedFechas((prev) =>
@@ -817,6 +840,16 @@ const pagarOferta = async (oferta) => {
           <h2 style={styles.cardTitle}>Agrega productos a tu lista</h2>
 
            <div style={styles.comunaBox}>
+ <label style={styles.label}>Nombre de la lista</label>
+
+<input
+  type="text"
+  value={nombreLista}
+  onChange={(e) => setNombreLista(e.target.value)}
+  placeholder="Ej: Compra semanal"
+  style={styles.input}
+/>
+
   <label style={styles.label}>Comuna de despacho</label>
 
   <input
@@ -856,6 +889,7 @@ const pagarOferta = async (oferta) => {
 </div>
 
           <div style={styles.tableWrapper}>
+
             <table style={styles.table}>
               <thead>
                 <tr>
