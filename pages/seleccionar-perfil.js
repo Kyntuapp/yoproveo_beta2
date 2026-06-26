@@ -16,13 +16,14 @@ export default function SeleccionarPerfil() {
       return;
     }
 
-    setEmail(emailGuardado);
+    const normalizedEmail = emailGuardado.trim().toLowerCase();
+    setEmail(normalizedEmail);
 
     const obtenerPerfiles = async () => {
       const { data, error } = await supabase
         .from('perfiles')
         .select('tipo')
-        .eq('email', emailGuardado);
+        .eq('email', emailGuardado.trim().toLowerCase());
 
       if (error || !data) {
         setErrorMessage('Error al obtener perfiles');

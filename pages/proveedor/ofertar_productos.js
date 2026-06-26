@@ -7,7 +7,17 @@ export default function OfertarProductos() {
   const [listas, setListas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [proveedorPerfilId, setProveedorPerfilId] = useState(null);
-  const [busqueda, setBusqueda] = useState('');
+  const [filtros, setFiltros] = useState({
+  producto: '',
+  formato: '',
+  marca: '',
+  cantidad: '',
+  precio: '',
+  comuna: '',
+  comprador: '',
+  fecha: '',
+  estado: '',
+});
   const [paginaActual, setPaginaActual] = useState(1);
   const [detalleContactoId, setDetalleContactoId] = useState(null);
   const itemsPorPagina = 20;
@@ -183,23 +193,40 @@ export default function OfertarProductos() {
   const normalizarTexto = (t) =>
     t ? t.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
 
-  const listasFiltradas = listas.filter((item) => {
-    const busq = normalizarTexto(busqueda);
-    if (!busq) return true;
+  const manejarCambioFiltro = (campo, valor) => {
+  setFiltros((prev) => ({
+    ...prev,
+    [campo]: valor.toUpperCase(),
+  }));
+  setPaginaActual(1);
+  };
 
-    const campos = [
-      item.producto,
-      item.formato,
-      item.marca,
-      item.cantidad?.toString(),
-      item.precio?.toString(),
-      item.comuna_despacho,
-      item.comprador_email,
-      item.fecha_creacion,
-    ];
+ const listasFiltradas = listas.filter((item) => {
+  const valores = {
+    producto: item.producto,
+    formato: item.formato,
+    marca: item.marca,
+    cantidad: item.cantidad?.toString(),
+    precio: item.precio?.toString(),
+    comuna: item.comuna_despacho,
+    comprador: item.comprador_email,
+    fecha: item.fecha_creacion,
+    estado:
+  item.estado === 'cerrada'
+    ? 'Cerrada'
+    : item.ya_oferto
+    ? 'Oferta enviada'
+    : 'Recibiendo ofertas',
+  };
 
-    return campos.some((c) => normalizarTexto(c || '').includes(busq));
+  return Object.entries(filtros).every(([campo, valor]) => {
+    if (!valor) return true;
+
+    return normalizarTexto(valores[campo] || '').includes(
+      normalizarTexto(valor)
+    );
   });
+});
 
   const totalPaginas = Math.ceil(listasFiltradas.length / itemsPorPagina);
   const inicio = (paginaActual - 1) * itemsPorPagina;
@@ -288,16 +315,88 @@ export default function OfertarProductos() {
 
           <h2 style={styles.cardTitle}>Listas de compra activas</h2>
 
-          <input
-            type="text"
-            placeholder="BUSCAR EN TODOS LOS CAMPOS"
-            value={busqueda}
-            onChange={(e) => {
-              setBusqueda(e.target.value.toUpperCase());
-              setPaginaActual(1);
-            }}
-            style={styles.searchInput}
-          />
+          <div style={styles.filtersGrid}>
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Producto</label>
+    <input
+      value={filtros.producto}
+      onChange={(e) => manejarCambioFiltro('producto', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Formato</label>
+    <input
+      value={filtros.formato}
+      onChange={(e) => manejarCambioFiltro('formato', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Marca</label>
+    <input
+      value={filtros.marca}
+      onChange={(e) => manejarCambioFiltro('marca', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Cantidad</label>
+    <input
+      value={filtros.cantidad}
+      onChange={(e) => manejarCambioFiltro('cantidad', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Precio</label>
+    <input
+      value={filtros.precio}
+      onChange={(e) => manejarCambioFiltro('precio', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Comuna</label>
+    <input
+      value={filtros.comuna}
+      onChange={(e) => manejarCambioFiltro('comuna', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Comprador</label>
+    <input
+      value={filtros.comprador}
+      onChange={(e) => manejarCambioFiltro('comprador', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Fecha</label>
+    <input
+      value={filtros.fecha}
+      onChange={(e) => manejarCambioFiltro('fecha', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Estado</label>
+    <input
+      value={filtros.estado}
+      onChange={(e) => manejarCambioFiltro('estado', e.target.value)}
+      style={styles.filterInput}
+    />
+  </div>
+</div>
 
           {listasFiltradas.length === 0 ? (
             <p style={styles.emptyText}>No hay listas disponibles.</p>
@@ -317,7 +416,15 @@ export default function OfertarProductos() {
                       <th style={styles.th}>Fecha</th>
                       <th style={styles.th}>Días</th>
                       <th style={styles.th}>Estado</th>
-                      <th style={styles.th}>Oferta</th>
+                      <th style={styles.th}>
+                        Oferta{' '}
+                        <span
+                          title="La oferta corresponde al valor total por la cantidad solicitada por el comprador."
+                          style={styles.tooltipIcon}
+                        >
+                          ⓘ
+                        </span>
+                      </th>
                       <th style={styles.th}>Despacho</th>
                       <th style={styles.th}>Acción</th>
                     </tr>
@@ -758,4 +865,58 @@ const styles = {
   estadoDefault: {
     color: '#ffffff',
   },
+  tooltipIcon: {
+  color: '#31f7c6',
+  cursor: 'help',
+  fontWeight: 800,
+},
+filtersGrid: {
+  width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+  gap: '10px',
+  marginBottom: '24px',
+},
+
+filterInput: {
+  padding: '11px 12px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+},filtersGrid: {
+  width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+  gap: '10px',
+  marginBottom: '24px',
+},
+
+filterInput: {
+  padding: '11px 12px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+},
+filterGroup: {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+},
+
+filterLabel: {
+  color: 'rgba(255,255,255,0.75)',
+  fontSize: '11px',
+  fontWeight: '700',
+  textAlign: 'left',
+},
 };

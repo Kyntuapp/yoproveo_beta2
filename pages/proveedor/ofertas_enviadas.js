@@ -9,7 +9,17 @@ export default function OfertasEnviadas() {
 
   const [ofertas, setOfertas] = useState([]);
   const [paginaActual, setPaginaActual] = useState(1);
-  const [busqueda, setBusqueda] = useState('');
+  const [filtros, setFiltros] = useState({
+  producto: '',
+  formato: '',
+  marca: '',
+  cantidad: '',
+  precioObjetivo: '',
+  oferta: '',
+  comuna: '',
+  comprador: '',
+  estado: '',
+});
   const [detalleContactoId, setDetalleContactoId] = useState(null);
   const itemsPorPagina = 20;
 
@@ -165,6 +175,14 @@ export default function OfertasEnviadas() {
           .replace(/[\u0300-\u036f]/g, '')
       : '';
 
+  const manejarCambioFiltro = (campo, valor) => {
+  setFiltros((prev) => ({
+    ...prev,
+    [campo]: valor.toUpperCase(),
+  }));
+  setPaginaActual(1);
+};
+
   const formatearNumero = (num) =>
     num === '' || num === null || num === undefined
       ? ''
@@ -200,30 +218,29 @@ export default function OfertasEnviadas() {
     }
   };
 
-  const ofertasFiltradas = useMemo(() => {
-    const busq = normalizarTexto(busqueda);
+const ofertasFiltradas = useMemo(() => {
+  return ofertas.filter((item) => {
+    const valores = {
+      producto: item.producto,
+      formato: item.formato,
+      marca: item.marca,
+      cantidad: item.cantidad?.toString(),
+      precioObjetivo: item.precio_objetivo?.toString(),
+      oferta: item.precio_ofertado?.toString(),
+      comuna: item.comuna,
+      comprador: item.comprador_email,
+      estado: estadoTexto(item.estado),
+    };
 
-    if (!busq) return ofertas;
+    return Object.entries(filtros).every(([campo, valor]) => {
+      if (!valor) return true;
 
-    return ofertas.filter((item) => {
-      const campos = [
-        item.producto,
-        item.formato,
-        item.marca,
-        item.cantidad?.toString(),
-        item.precio_objetivo?.toString(),
-        item.precio_ofertado?.toString(),
-        item.comuna,
-        item.comprador_email,
-        item.comprador_telefono,
-        item.comprador_direccion,
-        item.fecha_creacion,
-        estadoTexto(item.estado),
-      ];
-
-      return campos.some((c) => normalizarTexto(c || '').includes(busq));
+      return normalizarTexto(valores[campo] || '').includes(
+        normalizarTexto(valor)
+      );
     });
-  }, [ofertas, busqueda]);
+  });
+}, [ofertas, filtros]);
 
   const totalPaginas = Math.ceil(ofertasFiltradas.length / itemsPorPagina);
   const inicio = (paginaActual - 1) * itemsPorPagina;
@@ -264,16 +281,52 @@ export default function OfertasEnviadas() {
 
           <h2 style={styles.cardTitle}>Historial de ofertas</h2>
 
-          <input
-            type="text"
-            placeholder="BUSCAR EN TODOS LOS CAMPOS"
-            value={busqueda}
-            onChange={(e) => {
-              setBusqueda(e.target.value.toUpperCase());
-              setPaginaActual(1);
-            }}
-            style={styles.searchInput}
-          />
+          <div style={styles.filtersGrid}>
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Producto</label>
+    <input value={filtros.producto} onChange={(e) => manejarCambioFiltro('producto', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Formato</label>
+    <input value={filtros.formato} onChange={(e) => manejarCambioFiltro('formato', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Marca</label>
+    <input value={filtros.marca} onChange={(e) => manejarCambioFiltro('marca', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Cantidad</label>
+    <input value={filtros.cantidad} onChange={(e) => manejarCambioFiltro('cantidad', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Precio Obj.</label>
+    <input value={filtros.precioObjetivo} onChange={(e) => manejarCambioFiltro('precioObjetivo', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Tu Oferta</label>
+    <input value={filtros.oferta} onChange={(e) => manejarCambioFiltro('oferta', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Comuna</label>
+    <input value={filtros.comuna} onChange={(e) => manejarCambioFiltro('comuna', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Comprador</label>
+    <input value={filtros.comprador} onChange={(e) => manejarCambioFiltro('comprador', e.target.value)} style={styles.filterInput} />
+  </div>
+
+  <div style={styles.filterGroup}>
+    <label style={styles.filterLabel}>Estado</label>
+    <input value={filtros.estado} onChange={(e) => manejarCambioFiltro('estado', e.target.value)} style={styles.filterInput} />
+  </div>
+</div>
 
           {ofertasFiltradas.length === 0 ? (
             <p style={styles.emptyText}>No has enviado ofertas todavía.</p>
@@ -293,6 +346,7 @@ export default function OfertasEnviadas() {
                       <th style={styles.th}>Comprador</th>
                       <th style={styles.th}>Fecha</th>
                       <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Comentario comprador</th>
                       <th style={styles.th}>Contacto</th>
                     </tr>
                   </thead>
@@ -329,6 +383,13 @@ export default function OfertasEnviadas() {
                               </span>
                             </td>
                             <td style={styles.td}>
+                              <div style={styles.commentBox}>
+                                {item.comentario_comprador?.trim()
+                                  ? item.comentario_comprador
+                                  : 'Sin comentarios'}
+                              </div>
+                            </td>
+                            <td style={styles.td}>
                               {puedeVerContacto ? (
                                 <button
                                   onClick={() =>
@@ -352,7 +413,7 @@ export default function OfertasEnviadas() {
 
                           {puedeVerContacto && detalleContactoId === item.id && (
                             <tr key={`detalle-${item.id}`}>
-                              <td colSpan={11} style={styles.contactBox}>
+                              <td colSpan={12} style={styles.contactBox}>
                                 <strong>Datos de contacto del comprador</strong>
 
                                 <div style={styles.contactText}>
@@ -645,4 +706,67 @@ const styles = {
   estadoDefault: {
     color: '#ffffff',
   },
+filtersGrid: {
+  width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+  gap: '10px',
+  marginBottom: '24px',
+},
+
+filterInput: {
+  padding: '11px 12px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+},filtersGrid: {
+  width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+  gap: '10px',
+  marginBottom: '24px',
+},
+
+filterInput: {
+  padding: '11px 12px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+},
+filterGroup: {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+},
+
+filterLabel: {
+  color: 'rgba(255,255,255,0.75)',
+  fontSize: '11px',
+  fontWeight: '700',
+  textAlign: 'left',
+},
+commentBox: {
+  minWidth: '160px',
+  maxWidth: '240px',
+  minHeight: '38px',
+  padding: '10px',
+  borderRadius: '10px',
+  background: 'rgba(255, 255, 255, 0.08)',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  color: 'rgba(255,255,255,0.82)',
+  fontSize: '12px',
+  lineHeight: '1.4',
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
+},
 };
