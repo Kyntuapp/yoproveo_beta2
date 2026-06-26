@@ -311,8 +311,8 @@ export default function Comprador() {
   // FIN PARTE 1
  
   const enviarLista = async () => {
-  if (!authUserId || !comunaDespacho || !nombreLista.trim()) {
-    alert('Debes iniciar sesión, completar el nombre de la lista y la comuna.');
+  if (!authUserId || !comunaDespacho) {
+    alert('Debes iniciar sesión y completar la comuna.');
     return;
   }
 
@@ -1047,17 +1047,21 @@ const pagarOferta = async (oferta) => {
             Object.entries(groupByFecha).map(([fecha, productos]) => {
               const expanded = expandedFechas.includes(fecha);
               const editando = editandoFechas.includes(fecha);
+              const nombreListaHistorial =
+                productos[0]?.nombre_lista?.trim() || '';
 
               return (
                 <div key={fecha} style={styles.listBox}>
                   <div style={styles.listHeader}>
                     <div>
                       <h3 style={styles.listTitle}>
-                        Lista enviada el {fecha}
+                        {nombreListaHistorial || `Lista del ${fecha}`}
                       </h3>
 
                       <p style={styles.listSubtitle}>
-                        {productos.length} productos
+                        {nombreListaHistorial
+                          ? `Enviada el ${fecha} · ${productos.length} productos`
+                          : `${productos.length} productos`}
                       </p>
                     </div>
 
