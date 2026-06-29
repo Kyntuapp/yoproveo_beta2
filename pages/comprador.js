@@ -1,9 +1,10 @@
 // pages/comprador.js
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
 import { comunasChile } from '../utils/comunasChile';
+import KyntuModal, { createModalState } from '../pages/KyntuModal';
 
 const filaVacia = {
   producto: '',
@@ -39,6 +40,19 @@ export default function Comprador() {
   const [filtroCincoEstrellas, setFiltroCincoEstrellas] =
     useState(false);
   const [mostrarComunas, setMostrarComunas] = useState(false);
+  const [modal, setModal] = useState(createModalState());
+
+const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onConfirm }) => {
+  setModal({
+    ...createModalState(),
+    open: true,
+    type,
+    title,
+    message,
+    confirmText,
+    onConfirm: onConfirm || (() => setModal(createModalState())),
+  });
+};
 
  const comunasFiltradas = comunasChile.filter((c) =>
   c
@@ -575,6 +589,17 @@ export default function Comprador() {
     await verOfertas(fecha);
   };
 
+  const showError = (message, title = 'Error') => {
+  setModal({
+    ...createModalState(),
+    open: true,
+    type: 'error',
+    title,
+    message,
+    onConfirm: () => setModal(createModalState()),
+  });
+};
+
  const confirmarOferta = async (oferta, fecha) => {
   const { error: ganadorError } = await supabase
     .from('ofertas_productos')
@@ -611,8 +636,7 @@ export default function Comprador() {
     return;
   }
 
-  alert('Compra confirmada. Ahora puedes realizar el pago.');
-  await verOfertas(fecha);
+  await pagarOferta(oferta);
 };
 
 const pagarOferta = async (oferta) => {
@@ -634,16 +658,20 @@ const pagarOferta = async (oferta) => {
     return;
   }
 
-  if (!proveedor.banco || !proveedor.tipo_cuenta || !proveedor.numero_cuenta) {
-    alert('El proveedor aún no ha ingresado sus datos bancarios.');
-    return;
-  }
+ /*  if (!proveedor.banco || !proveedor.tipo_cuenta || !proveedor.numero_cuenta) {
+    showModal({
+      type: 'warning',
+      title: 'Datos bancarios pendientes',
+      message: 'El proveedor aún no ha ingresado sus datos bancarios.',
+    });
+    return; 
+  } */
 
   const montoOferta = Number(oferta.precio_ofertado);
   const comisionKyntu = Math.round(montoOferta * 0.1);
   const totalPagado = montoOferta + comisionKyntu;
 
-  const { data: pagoCreado, error: pagoError } = await supabase
+  /* const { data: pagoCreado, error: pagoError } = await supabase
     .from('pagos')
     .insert({
       oferta_id: oferta.id,
@@ -657,11 +685,52 @@ const pagarOferta = async (oferta) => {
     .single();
 
   if (pagoError) {
-    alert('Error creando registro de pago: ' + pagoError.message);
+    showError('Error creando registro de pago: ' + pagoError.message);
+return;
+  } */
+
+    let pagoCreado = null;
+
+const { data: pagosExistentes, error: pagoExistenteError } = await supabase
+  .from('pagos')
+  .select('*')
+  .eq('oferta_id', oferta.id)
+  .eq('estado_pago', 'pendiente')
+  .order('id', { ascending: false })
+  .limit(1);
+
+if (pagoExistenteError) {
+  showError('Error buscando pago existente: ' + pagoExistenteError.message);
+  return;
+}
+
+const pagoExistente = pagosExistentes?.[0] || null;
+
+if (pagoExistente) {
+  pagoCreado = pagoExistente;
+} else {
+  const { data: nuevoPago, error: pagoError } = await supabase
+    .from('pagos')
+    .insert({
+      oferta_id: oferta.id,
+      proveedor_id: oferta.proveedor_id,
+      monto_oferta: montoOferta,
+      comision_kyntu: comisionKyntu,
+      total_pagado: totalPagado,
+      estado_pago: 'pendiente',
+    })
+    .select()
+    .single();
+
+  if (pagoError) {
+    showError('Error creando registro de pago: ' + pagoError.message);
     return;
   }
 
-  const response = await fetch('/api/create-payment', {
+  pagoCreado = nuevoPago;
+}
+
+  const response = await fetch('/api/pagos/iniciar', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -677,11 +746,11 @@ const pagarOferta = async (oferta) => {
 
   const data = await response.json();
 
-  if (data.init_point) {
-    window.open(data.init_point, '_blank');
-  } else {
-    alert('No se pudo crear el pago.');
-  }
+if (data.checkout_url) {
+  router.push(data.checkout_url);
+} else {
+  alert('No se pudo iniciar el pago.');
+}
 };
 
   // FIN PARTE 2
@@ -1121,7 +1190,7 @@ const pagarOferta = async (oferta) => {
                                 productosConOfertasAbiertas[rowId];
 
                               return (
-                                <>
+                                <React.Fragment key={`producto-fragment-${rowId || idx}`}>
                                   <tr
                                     key={`producto-${rowId || idx}`}
                                     id={rowId ? `oferta-${rowId}` : undefined}
@@ -1349,7 +1418,7 @@ const pagarOferta = async (oferta) => {
                                                           styles.confirmedText
                                                         }
                                                       >
-                                                        ✅ Compra confirmada
+                                                        💳 Pago recibido por Kyntü
                                                       </p>
 
                                                       <div
@@ -1408,7 +1477,7 @@ const pagarOferta = async (oferta) => {
                                       </td>
                                     </tr>
                                   )}
-                                </>
+                                 </React.Fragment>
                               );
                             })}
                           </tbody>
@@ -1422,6 +1491,7 @@ const pagarOferta = async (oferta) => {
           )}
         </section>
       </main>
+      <KyntuModal {...modal} />
     </div>
   );
 }

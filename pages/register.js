@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function Register() {
   const [isProveedor, setIsProveedor] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
     setErrorMessage('');
@@ -202,7 +204,14 @@ export default function Register() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Registro</h1>
+      <div style={styles.card}>
+        <img
+  src="/icono_1.png"
+  alt="Kyntü"
+  style={styles.logo}
+/>
+
+<h1 style={styles.title}>Registro</h1>
 
       <input
         type="email"
@@ -211,13 +220,27 @@ export default function Register() {
         onChange={(e) => setEmail(e.target.value)}
         style={styles.input}
       />
-      <input
-        type="password"
-        placeholder="Contraseña"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={styles.input}
-      />
+   <div style={styles.passwordContainer}>
+  <input
+    type={showPassword ? "text" : "password"}
+    placeholder="Contraseña"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    style={styles.passwordInput}
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword((v) => !v)}
+    style={styles.eyeButton}
+  >
+    {showPassword ? (
+      <EyeOff size={20} strokeWidth={2} />
+    ) : (
+      <Eye size={20} strokeWidth={2} />
+    )}
+  </button>
+</div>
 
       <div style={styles.checkboxContainer}>
         <label>
@@ -248,37 +271,128 @@ export default function Register() {
           Volver
         </button>
       </div>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: { textAlign: 'center', paddingTop: '80px' },
-  title: { fontSize: '24px', marginBottom: '20px' },
+  container: {
+    minHeight: '100vh',
+    background: '#f7f9fc',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 20px',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    color: '#061b41',
+  },
+  title: {
+    fontSize: '34px',
+    fontWeight: 900,
+    marginBottom: '28px',
+    color: '#061b41',
+  },
   input: {
     display: 'block',
+    width: '100%',
+    maxWidth: '340px',
     margin: '10px auto',
-    padding: '10px',
-    width: '250px',
-    borderRadius: '5px',
-    border: '1px solid #ccc',
+    padding: '14px 16px',
+    borderRadius: '12px',
+    border: '1px solid #dbe4f0',
+    background: '#ffffff',
+    color: '#061b41',
+    fontSize: '15px',
+    outline: 'none',
+    boxSizing: 'border-box',
   },
-  checkboxContainer: { display: 'flex', justifyContent: 'center', margin: '10px 0' },
-  error: { color: 'red', fontSize: '14px', margin: '10px 0' },
-  buttonGroup: { marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '10px' },
+  checkboxContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '22px',
+    margin: '18px 0 12px',
+    color: '#061b41',
+    fontWeight: 700,
+  },
+  error: {
+    color: '#ef4444',
+    fontSize: '14px',
+    fontWeight: 700,
+    margin: '12px 0',
+    textAlign: 'center',
+  },
+  buttonGroup: {
+    marginTop: '18px',
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+  },
   button: {
-    backgroundColor: '#0070f3',
+    background: '#176BFF',
     color: '#fff',
     border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
+    padding: '13px 24px',
+    borderRadius: '12px',
     cursor: 'pointer',
+    fontWeight: 900,
+    boxShadow: '0 14px 28px rgba(23,107,255,0.24)',
   },
   secondaryButton: {
-    backgroundColor: '#ccc',
+    background: '#e5e7eb',
+    color: '#061b41',
     border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
+    padding: '13px 24px',
+    borderRadius: '12px',
     cursor: 'pointer',
+    fontWeight: 900,
   },
+  card: {
+  width: '100%',
+  maxWidth: '430px',
+  background: '#ffffff',
+  border: '1px solid #e5ebf5',
+  borderRadius: '28px',
+  padding: '38px 34px',
+  boxShadow: '0 30px 90px rgba(20, 55, 120, 0.12)',
+  textAlign: 'center',
+},
+logo: {
+  width: '270px',
+  display: 'block',
+  margin: '-49px auto -75px',
+},
+passwordContainer: {
+  position: 'relative',
+  width: '100%',
+  maxWidth: '340px',
+  margin: '10px auto',
+},
+
+passwordInput: {
+  width: '100%',
+  padding: '14px 48px 14px 16px',
+  borderRadius: '12px',
+  border: '1px solid #dbe4f0',
+  background: '#fff',
+  color: '#061b41',
+  fontSize: '15px',
+  boxSizing: 'border-box',
+},
+
+eyeButton: {
+  position: 'absolute',
+  top: '50%',
+  right: '14px',
+  transform: 'translateY(-50%)',
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  color: '#6b7280',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+},
 };
