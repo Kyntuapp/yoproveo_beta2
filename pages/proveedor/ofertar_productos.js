@@ -660,7 +660,7 @@ const styles = {
   content: {
     position: 'relative',
     zIndex: 3,
-    maxWidth: '1280px',
+    maxWidth: '1440px',
     margin: '0 auto',
   },
 
@@ -670,7 +670,7 @@ const styles = {
     border: '1px solid rgba(255, 255, 255, 0.12)',
     borderRadius: '28px',
     boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
-    padding: '34px',
+    padding: '26px',
     boxSizing: 'border-box',
     backdropFilter: 'blur(10px)',
     display: 'flex',
@@ -679,40 +679,27 @@ const styles = {
   },
 
   logo: {
-    width: '220px',
-    marginBottom: '-18px',
+    width: '190px',
+    marginBottom: '-14px',
     filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
   },
 
   cardTitle: {
     color: '#ffffff',
-    fontSize: '28px',
-    margin: '0 0 24px',
+    fontSize: '26px',
+    margin: '0 0 22px',
     fontWeight: 800,
-    textAlign: 'center',
-  },
-
-  searchInput: {
-    width: 'min(420px, 100%)',
-    padding: '13px 15px',
-    marginBottom: '24px',
-    borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    outline: 'none',
-    fontSize: '14px',
-    textTransform: 'uppercase',
     textAlign: 'center',
   },
 
   tableWrapper: {
     width: '100%',
-    overflowX: 'auto',
+    overflowX: 'visible',
   },
 
   table: {
     width: '100%',
+    tableLayout: 'fixed',
     borderCollapse: 'separate',
     borderSpacing: '0 10px',
     textAlign: 'center',
@@ -720,25 +707,26 @@ const styles = {
 
   th: {
     color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: '12px',
-    padding: '8px',
+    fontSize: '11px',
+    padding: '7px 5px',
     textAlign: 'center',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
   },
 
   td: {
     color: '#ffffff',
-    padding: '9px 8px',
+    padding: '9px 5px',
     textAlign: 'center',
     background: 'rgba(255, 255, 255, 0.045)',
     borderTop: '1px solid rgba(255, 255, 255, 0.08)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    fontSize: '13px',
+    fontSize: '12px',
+    wordBreak: 'break-word',
   },
 
   offerInput: {
-    width: '90px',
-    padding: '10px 12px',
+    width: '70px',
+    padding: '9px 8px',
     borderRadius: '10px',
     border: '1px solid rgba(255, 255, 255, 0.18)',
     background: 'rgba(255, 255, 255, 0.08)',
@@ -757,11 +745,11 @@ const styles = {
     background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
     color: '#fff',
     border: 'none',
-    padding: '10px 16px',
+    padding: '9px 12px',
     borderRadius: '11px',
     cursor: 'pointer',
     fontWeight: 700,
-    fontSize: '13px',
+    fontSize: '12px',
     boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
     whiteSpace: 'nowrap',
   },
@@ -770,7 +758,7 @@ const styles = {
     background: 'rgba(255, 255, 255, 0.08)',
     color: '#ffffff',
     border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '10px 14px',
+    padding: '9px 12px',
     borderRadius: '11px',
     cursor: 'pointer',
     fontWeight: 700,
@@ -865,58 +853,43 @@ const styles = {
   estadoDefault: {
     color: '#ffffff',
   },
+
   tooltipIcon: {
-  color: '#31f7c6',
-  cursor: 'help',
-  fontWeight: 800,
-},
-filtersGrid: {
-  width: '100%',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-  gap: '10px',
-  marginBottom: '24px',
-},
+    color: '#31f7c6',
+    cursor: 'help',
+    fontWeight: 800,
+  },
 
-filterInput: {
-  padding: '11px 12px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
-  outline: 'none',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  textAlign: 'center',
-},filtersGrid: {
-  width: '100%',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-  gap: '10px',
-  marginBottom: '24px',
-},
+  filtersGrid: {
+    width: '100%',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))',
+    gap: '9px',
+    marginBottom: '22px',
+  },
 
-filterInput: {
-  padding: '11px 12px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
-  outline: 'none',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  textAlign: 'center',
-},
-filterGroup: {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-},
+  filterGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
 
-filterLabel: {
-  color: 'rgba(255,255,255,0.75)',
-  fontSize: '11px',
-  fontWeight: '700',
-  textAlign: 'left',
-},
+  filterLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: '11px',
+    fontWeight: 700,
+    textAlign: 'left',
+  },
+
+  filterInput: {
+    padding: '10px 10px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.18)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
+    outline: 'none',
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
 };
