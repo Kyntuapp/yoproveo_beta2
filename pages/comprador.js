@@ -359,19 +359,55 @@ const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onC
     return;
   }
 
-  const lista = productosValidos.map((p) => ({
-    producto: p.producto,
-    formato: p.formato,
-    marca: p.marca,
-    cantidad: Number(p.cantidad),
-    precio: Number(p.precio),
-    usuario_id: authUserId,
-    comprador_email: compradorEmail,
-    fecha_creacion: fecha,
-    comuna_despacho: comunaDespacho.toUpperCase(),
-    nombre_lista: nombreLista.trim(),
-    lista_id: listaCreada.id,
-  }));
+ const productosAgrupados = Object.values(
+  productosValidos.reduce((acc, p) => {
+    const key = `${p.producto}-${p.marca}`;
+
+    if (!acc[key]) {
+      acc[key] = {
+        producto: p.producto,
+        marca: p.marca,
+        formatos_detalle: [],
+      };
+    }
+
+    acc[key].formatos_detalle.push({
+      formato: p.formato,
+      cantidad: Number(p.cantidad),
+      precio: Number(p.precio),
+    });
+
+    return acc;
+  }, {})
+);
+
+const lista = productosAgrupados.map((p) => ({
+  producto: p.producto,
+  marca: p.marca,
+
+  formato: p.formatos_detalle
+    .map(f => f.formato)
+    .join(", "),
+
+  formatos_detalle: p.formatos_detalle,
+
+  cantidad: p.formatos_detalle.reduce(
+    (t, f) => t + f.cantidad,
+    0
+  ),
+
+  precio: p.formatos_detalle.reduce(
+    (t, f) => t + f.precio,
+    0
+  ),
+
+  usuario_id: authUserId,
+  comprador_email: compradorEmail,
+  fecha_creacion: fecha,
+  comuna_despacho: comunaDespacho.toUpperCase(),
+  nombre_lista: nombreLista.trim(),
+  lista_id: listaCreada.id,
+}));
 
   const { data, error } = await supabase
     .from('listas_compras')
@@ -382,13 +418,18 @@ const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onC
     alert('Error al enviar la lista: ' + error.message);
     return;
   }
-
-  alert(`Lista "${nombreLista.trim()}" enviada correctamente`);
-
+  
   setProductos([{ ...filaVacia }]);
   setComunaDespacho('');
   setNombreLista('');
   setListas((prev) => [...(data || []), ...prev]);
+
+  showModal({
+  type: 'success',
+  title: 'Lista enviada',
+  message: `Lista "${nombreLista.trim()}" enviada correctamente.`,
+  confirmText: 'Aceptar',
+});
 };
 
   const toggleExpand = (fecha) => {
@@ -658,36 +699,12 @@ const pagarOferta = async (oferta) => {
     return;
   }
 
- /*  if (!proveedor.banco || !proveedor.tipo_cuenta || !proveedor.numero_cuenta) {
-    showModal({
-      type: 'warning',
-      title: 'Datos bancarios pendientes',
-      message: 'El proveedor aún no ha ingresado sus datos bancarios.',
-    });
-    return; 
-  } */
-
   const montoOferta = Number(oferta.precio_ofertado);
-  const comisionKyntu = Math.round(montoOferta * 0.1);
+  const COMISION_KYNTU = 0.05;
+  const IVA = 0.19;
+
+  const comisionKyntu = Math.round(montoOferta * COMISION_KYNTU * IVA);
   const totalPagado = montoOferta + comisionKyntu;
-
-  /* const { data: pagoCreado, error: pagoError } = await supabase
-    .from('pagos')
-    .insert({
-      oferta_id: oferta.id,
-      proveedor_id: oferta.proveedor_id,
-      monto_oferta: montoOferta,
-      comision_kyntu: comisionKyntu,
-      total_pagado: totalPagado,
-      estado_pago: 'pendiente',
-    })
-    .select()
-    .single();
-
-  if (pagoError) {
-    showError('Error creando registro de pago: ' + pagoError.message);
-return;
-  } */
 
     let pagoCreado = null;
 

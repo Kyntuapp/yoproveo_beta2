@@ -303,12 +303,12 @@ const ofertasFiltradas = useMemo(() => {
   </div>
 
   <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Precio Obj.</label>
+    <label style={styles.filterLabel}>Precio objetivo</label>
     <input value={filtros.precioObjetivo} onChange={(e) => manejarCambioFiltro('precioObjetivo', e.target.value)} style={styles.filterInput} />
   </div>
 
   <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Tu Oferta</label>
+    <label style={styles.filterLabel}>Tu oferta</label>
     <input value={filtros.oferta} onChange={(e) => manejarCambioFiltro('oferta', e.target.value)} style={styles.filterInput} />
   </div>
 
