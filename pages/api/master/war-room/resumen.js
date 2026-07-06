@@ -1,5 +1,8 @@
 import { verifyMasterRequest } from '../../../../lib/verifyMasterRequest';
-import { fetchWarRoomResumen } from '../../../../lib/war-room/fetchWarRoomResumen';
+import {
+  fetchWarRoomResumen,
+  resolvePeriodoFromQuery,
+} from '../../../../lib/war-room/fetchWarRoomResumen';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,7 +16,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const payload = await fetchWarRoomResumen();
+    const periodoMedicion = resolvePeriodoFromQuery(req.query);
+    const payload = await fetchWarRoomResumen({ periodoMedicion });
     return res.status(200).json(payload);
   } catch (err) {
     console.error('Error en /api/master/war-room/resumen:', err);

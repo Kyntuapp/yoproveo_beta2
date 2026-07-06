@@ -238,6 +238,24 @@ function TimelineBar({ timeline }) {
 
   return (
     <div style={{ overflow: 'hidden' }}>
+      {timeline.periodo_medicion_aplicado ? (
+        <p
+          style={{
+            margin: '0 0 12px',
+            padding: '10px 12px',
+            borderRadius: 8,
+            backgroundColor: '#EFF6FF',
+            color: '#1E40AF',
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.5,
+          }}
+        >
+          La evaluación actual usa el periodo de medición seleccionado, no el calendario
+          completo del piloto.
+        </p>
+      ) : null}
+
       {timeline.pre_inicio ? (
         <p
           style={{

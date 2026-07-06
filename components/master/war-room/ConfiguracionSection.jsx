@@ -3,7 +3,7 @@ import { formatDateDMY } from './format';
 import { Card, SectionHeader } from './shared';
 import { layout } from './theme';
 
-export default function ConfiguracionSection({ data }) {
+export default function ConfiguracionSection({ data, warRoomControls }) {
   const config = data.configuracion;
 
   if (!config) {
@@ -50,18 +50,32 @@ export default function ConfiguracionSection({ data }) {
       <Card title="A. General" style={{ marginBottom: 16 }}>
         <InfoGrid
           rows={[
+            ['Código', general.codigo],
             ['Nombre del piloto', general.nombre],
+            ['Tipo', general.tipo],
             ['Estado', general.estado],
+            ['Encuesta activa', general.activo],
             ['Fecha inicio', formatDateDMY(general.fecha_inicio)],
             ['Fecha término', formatDateDMY(general.fecha_termino)],
             ['Modo medición', general.modo_medicion],
             ['Fecha inicio medición', formatDateDMY(general.fecha_inicio_medicion)],
             [
+              'Operación desde',
+              formatDateDMY(general.operacional_desde),
+            ],
+            [
+              'Operación hasta',
+              formatDateDMY(general.operacional_hasta),
+            ],
+            ['Criterio operacional', general.operacional_criterio],
+            [
               'Meta tiempo primera oferta (horas)',
               general.meta_tiempo_primera_oferta_horas ??
                 general.tiempo_meta_primera_oferta_horas,
             ],
+            ['Meta listas publicadas', general.objetivo_listas],
             ['Meta productos publicados', general.objetivo_productos],
+            ['Meta ofertas', general.objetivo_ofertas ?? '—'],
             ['Meta cobertura productos (%)', general.meta_cobertura_productos],
             ['Meta tasa cierre productos (%)', general.meta_tasa_cierre_productos],
             [
@@ -85,17 +99,114 @@ export default function ConfiguracionSection({ data }) {
         />
       </Card>
 
-      <Card title="C. Encuestas" style={{ marginBottom: 16 }}>
+      <Card title="C. Periodo de medición" style={{ marginBottom: 16 }}>
+        <p
+          style={{
+            margin: '0 0 14px',
+            fontSize: 13,
+            color: '#64748B',
+            lineHeight: 1.5,
+          }}
+        >
+          Rango temporal local (sin persistencia en BD) para evaluar indicadores con los
+          datos del periodo seleccionado.
+        </p>
+        {warRoomControls ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
+              Fecha inicio
+              <input
+                type="date"
+                value={warRoomControls.periodoDraft.desde}
+                onChange={(e) =>
+                  warRoomControls.setPeriodoDraft((prev) => ({
+                    ...prev,
+                    desde: e.target.value,
+                  }))
+                }
+                disabled={warRoomControls.loading}
+                style={{
+                  display: 'block',
+                  marginTop: 6,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #CBD5E1',
+                  fontSize: 13,
+                  width: '100%',
+                  maxWidth: 280,
+                }}
+              />
+            </label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
+              Fecha término
+              <input
+                type="date"
+                value={warRoomControls.periodoDraft.hasta}
+                onChange={(e) =>
+                  warRoomControls.setPeriodoDraft((prev) => ({
+                    ...prev,
+                    hasta: e.target.value,
+                  }))
+                }
+                disabled={warRoomControls.loading}
+                style={{
+                  display: 'block',
+                  marginTop: 6,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #CBD5E1',
+                  fontSize: 13,
+                  width: '100%',
+                  maxWidth: 280,
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={warRoomControls.onApplyPeriodo}
+              disabled={warRoomControls.loading}
+              style={{
+                alignSelf: 'flex-start',
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: 'none',
+                backgroundColor: '#0A4DFF',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: warRoomControls.loading ? 'wait' : 'pointer',
+                opacity: warRoomControls.loading ? 0.7 : 1,
+              }}
+            >
+              Aplicar periodo de medición
+            </button>
+            {warRoomControls.periodoAplicado ? (
+              <p style={{ margin: 0, fontSize: 13, color: '#059669', fontWeight: 600 }}>
+                Periodo de medición aplicado:{' '}
+                {formatDateDMY(warRoomControls.periodoAplicado.desde)}{' '}
+                a {formatDateDMY(warRoomControls.periodoAplicado.hasta)}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: '#64748B', fontSize: 13 }}>
+            Controles no disponibles.
+          </p>
+        )}
+      </Card>
+
+      <Card title="D. Encuestas" style={{ marginBottom: 16 }}>
         <InfoGrid
           rows={[
             ['Estado encuesta', encuestas.estado_encuesta],
+            ['Código piloto encuesta', encuestas.piloto_codigo],
             ['Modo medición', encuestas.modo_medicion],
             ['Fecha inicio medición', formatDateDMY(encuestas.fecha_inicio_medicion)],
           ]}
         />
       </Card>
 
-      <Card title="D. Indicadores visibles" style={{ marginBottom: 16 }}>
+      <Card title="E. Indicadores visibles" style={{ marginBottom: 16 }}>
         {indicadores_visibles?.length ? (
           <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, fontSize: 13 }}>
             {indicadores_visibles.map((nombre) => (
@@ -107,7 +218,7 @@ export default function ConfiguracionSection({ data }) {
         )}
       </Card>
 
-      <Card icon={SECTION_ICONS.export_resumen} title="E. Exportaciones">
+      <Card icon={SECTION_ICONS.export_resumen} title="F. Exportaciones">
         <p
           style={{
             margin: '0 0 8px',
