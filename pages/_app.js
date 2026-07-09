@@ -6,6 +6,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { validarSesion } from '../utils/sesions';
+import EncuestaGate from '../components/encuesta/EncuestaGate';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -55,6 +56,7 @@ function MyApp({ Component, pageProps }) {
       </Head>
 
       <Component {...pageProps} />
+      <EncuestaGate />
     </>
   );
 }
