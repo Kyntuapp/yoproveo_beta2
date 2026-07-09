@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
 import { comunasChile } from '../utils/comunasChile';
 import KyntuModal, { createModalState } from '../pages/KyntuModal';
+import ModalCalificacion from './ModalCalificacion';
 
 const filaVacia = {
   producto: '',
@@ -53,6 +54,13 @@ const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onC
     onConfirm: onConfirm || (() => setModal(createModalState())),
   });
 };
+
+const [ratingModal, setRatingModal] = useState({
+  open: false,
+  oferta: null,
+  estrellas: 5,
+  comentario: '',
+});
 
  const comunasFiltradas = comunasChile.filter((c) =>
   c
@@ -418,7 +426,7 @@ const lista = productosAgrupados.map((p) => ({
     alert('Error al enviar la lista: ' + error.message);
     return;
   }
-  
+
   setProductos([{ ...filaVacia }]);
   setComunaDespacho('');
   setNombreLista('');
@@ -771,6 +779,61 @@ if (data.checkout_url) {
 };
 
   // FIN PARTE 2
+
+const confirmarRecepcion = async (oferta) => {
+  const { error } = await supabase
+    .from('ofertas_productos')
+    .update({ estado: 'recepcion_conforme' })
+    .eq('id', oferta.id);
+
+  if (error) {
+    showError('Error al confirmar recepción: ' + error.message);
+    return;
+  }
+
+  setRatingModal({
+    open: true,
+    oferta,
+    estrellas: 5,
+    comentario: '',
+  });
+};
+
+const guardarCalificacion = async () => {
+  const oferta = ratingModal.oferta;
+
+  if (!oferta) return;
+
+  const { error } = await supabase
+    .from('calificaciones_proveedor')
+    .insert({
+      oferta_id: oferta.id,
+      proveedor_id: oferta.proveedor_id,
+      comprador_id: usuarioId,
+      estrellas: ratingModal.estrellas,
+      comentario: ratingModal.comentario,
+    });
+
+  if (error) {
+    showError('Error al guardar calificación: ' + error.message);
+    return;
+  }
+
+  setRatingModal({
+    open: false,
+    oferta: null,
+    estrellas: 5,
+    comentario: '',
+  });
+
+  showModal({
+    type: 'success',
+    title: 'Calificación enviada',
+    message: 'Gracias por calificar al proveedor.',
+    confirmText: 'Aceptar',
+  });
+};
+
     const rechazarOferta = async (oferta, producto, fecha) => {
     const { error } = await supabase
       .from('ofertas_productos')
@@ -1251,13 +1314,21 @@ if (data.checkout_url) {
 
                                               const isPending =
                                                 estado === 'pendiente';
+
                                               const isWaiting =
-                                                estado ===
-                                                'en_espera_confirmacion';
-                                              const isConfirm =
-                                                estado === 'confirmada';
+                                                estado === 'en_espera_confirmacion';
+
                                               const isPendingPayment =
                                                 estado === 'pendiente_pago';
+
+                                              const isPaymentReceived  =
+                                                estado === 'pago_recibido';
+
+                                              const isReceptionConfirmed =
+                                                estado === 'recepcion_conforme';
+
+                                              const isProviderPaid =
+                                                estado === 'pagada';
 
                                               return (
                                                 <div
@@ -1278,21 +1349,13 @@ if (data.checkout_url) {
                                                   </p>
 
                                                   {isPending && (
-                                                    <div
-                                                      style={styles.offerActions}
-                                                    >
+                                                    <div style={styles.offerActions}>
                                                       <button
                                                         onClick={(e) => {
                                                           e.stopPropagation();
-                                                          aceptarOferta(
-                                                            of,
-                                                            item,
-                                                            fecha
-                                                          );
+                                                          aceptarOferta(of, item, fecha);
                                                         }}
-                                                        style={
-                                                          styles.mainButtonSmall
-                                                        }
+                                                        style={styles.mainButtonSmall}
                                                       >
                                                         Aceptar
                                                       </button>
@@ -1300,15 +1363,9 @@ if (data.checkout_url) {
                                                       <button
                                                         onClick={(e) => {
                                                           e.stopPropagation();
-                                                          rechazarOferta(
-                                                            of,
-                                                            item,
-                                                            fecha
-                                                          );
+                                                          rechazarOferta(of, item, fecha);
                                                         }}
-                                                        style={
-                                                          styles.deleteButton
-                                                        }
+                                                        style={styles.deleteButton}
                                                       >
                                                         Rechazar
                                                       </button>
@@ -1317,76 +1374,42 @@ if (data.checkout_url) {
 
                                                   {isWaiting && (
                                                     <>
-                                                      <div
-                                                        style={styles.contactBox}
-                                                      >
-                                                        <p
-                                                          style={
-                                                            styles.contactText
-                                                          }
-                                                        >
-                                                          <strong>
-                                                            Proveedor:
-                                                          </strong>{' '}
-                                                          {of.perfiles
-                                                            ?.email_contacto ||
-                                                            of.perfiles
-                                                              ?.email ||
+                                                      <div style={styles.contactBox}>
+                                                        <p style={styles.contactText}>
+                                                          <strong>Proveedor:</strong>{' '}
+                                                          {of.perfiles?.email_contacto ||
+                                                            of.perfiles?.email ||
                                                             'No disponible'}
                                                         </p>
 
-                                                        <p
-                                                          style={
-                                                            styles.contactText
-                                                          }
-                                                        >
-                                                          <strong>
-                                                            Teléfono:
-                                                          </strong>{' '}
-                                                          {of.perfiles
-                                                            ?.telefono_contacto ||
+                                                        <p style={styles.contactText}>
+                                                          <strong>Teléfono:</strong>{' '}
+                                                          {of.perfiles?.telefono_contacto ||
                                                             'No disponible'}
                                                         </p>
                                                       </div>
 
-                                                      <textarea
+                                                      <input
+                                                        type="text"
                                                         placeholder="Comentario para el proveedor"
-                                                        value={
-                                                          comentariosCompra[
-                                                            of.id
-                                                          ] || ''
-                                                        }
-                                                        onClick={(e) =>
-                                                          e.stopPropagation()
-                                                        }
+                                                        value={comentariosCompra[of.id] || ''}
+                                                        onClick={(e) => e.stopPropagation()}
                                                         onChange={(e) =>
-                                                          setComentariosCompra(
-                                                            (prev) => ({
-                                                              ...prev,
-                                                              [of.id]:
-                                                                e.target.value,
-                                                            })
-                                                          )
+                                                          setComentariosCompra((prev) => ({
+                                                            ...prev,
+                                                            [of.id]: e.target.value,
+                                                          }))
                                                         }
-                                                        style={styles.textArea}
+                                                        style={styles.input}
                                                       />
 
-                                                      <div
-                                                        style={
-                                                          styles.offerActions
-                                                        }
-                                                      >
+                                                      <div style={styles.offerActions}>
                                                         <button
                                                           onClick={(e) => {
                                                             e.stopPropagation();
-                                                            confirmarOferta(
-                                                              of,
-                                                              fecha
-                                                            );
+                                                            confirmarOferta(of, fecha);
                                                           }}
-                                                          style={
-                                                            styles.mainButtonSmall
-                                                          }
+                                                          style={styles.mainButtonSmall}
                                                         >
                                                           Confirmar compra
                                                         </button>
@@ -1394,15 +1417,9 @@ if (data.checkout_url) {
                                                         <button
                                                           onClick={(e) => {
                                                             e.stopPropagation();
-                                                            rechazarOferta(
-                                                              of,
-                                                              item,
-                                                              fecha
-                                                            );
+                                                            rechazarOferta(of, item, fecha);
                                                           }}
-                                                          style={
-                                                            styles.deleteButton
-                                                          }
+                                                          style={styles.deleteButton}
                                                         >
                                                           Rechazar
                                                         </button>
@@ -1428,62 +1445,72 @@ if (data.checkout_url) {
                                                     </>
                                                   )}
 
-                                                  {isConfirm && (
+                                                  {isPaymentReceived  && (
                                                     <>
-                                                      <p
-                                                        style={
-                                                          styles.confirmedText
-                                                        }
-                                                      >
-                                                        💳 Pago recibido por Kyntü
+                                                      <p style={styles.confirmedText}>
+                                                        💳 Pago recibido correctamente.
                                                       </p>
 
-                                                      <div
-                                                        style={styles.contactBox}
-                                                      >
-                                                        <p
-                                                          style={
-                                                            styles.contactText
-                                                          }
-                                                        >
-                                                          <strong>
-                                                            Proveedor:
-                                                          </strong>{' '}
-                                                          {of.perfiles
-                                                            ?.email_contacto ||
-                                                            of.perfiles
-                                                              ?.email ||
+                                                      <div style={styles.contactBox}>
+                                                        <p style={styles.contactText}>
+                                                          <strong>Proveedor:</strong>{' '}
+                                                          {of.perfiles?.email_contacto ||
+                                                            of.perfiles?.email ||
                                                             'No disponible'}
                                                         </p>
 
-                                                        <p
-                                                          style={
-                                                            styles.contactText
-                                                          }
-                                                        >
-                                                          <strong>
-                                                            Teléfono:
-                                                          </strong>{' '}
-                                                          {of.perfiles
-                                                            ?.telefono_contacto ||
+                                                        <p style={styles.contactText}>
+                                                          <strong>Teléfono:</strong>{' '}
+                                                          {of.perfiles?.telefono_contacto ||
                                                             'No disponible'}
                                                         </p>
 
                                                         {of.comentario_comprador && (
-                                                          <p
-                                                            style={
-                                                              styles.contactText
-                                                            }
-                                                          >
-                                                            <strong>
-                                                              Comentario:
-                                                            </strong>{' '}
-                                                            {
-                                                              of.comentario_comprador
-                                                            }
+                                                          <p style={styles.contactText}>
+                                                            <strong>Comentario:</strong>{' '}
+                                                            {of.comentario_comprador}
                                                           </p>
                                                         )}
                                                       </div>
+
+                                                      <p style={styles.contactText}>
+                                                        Una vez que recibas el pedido, presiona
+                                                        <strong> "Recibí conforme"</strong>.
+                                                      </p>
+
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          confirmarRecepcion(of);
+                                                        }}
+                                                        style={styles.mainButtonSmall}
+                                                      >
+                                                        Recibí conforme
+                                                      </button>
+                                                    </>
+                                                  )}
+
+                                                  {isReceptionConfirmed && (
+                                                    <>
+                                                      <p style={styles.confirmedText}>
+                                                        ✅ Recepción conforme registrada.
+                                                      </p>
+
+                                                      <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+
+                                                        setRatingModal({
+                                                          open: true,
+                                                          oferta: of,
+                                                          estrellas: 5,
+                                                          comentario: '',
+                                                        });
+                                                      }}
+                                                      style={styles.mainButtonSmall}
+                                                    >
+                                                      Calificar proveedor
+                                                    </button>
                                                     </>
                                                   )}
                                                 </div>
@@ -1508,6 +1535,32 @@ if (data.checkout_url) {
           )}
         </section>
       </main>
+      <ModalCalificacion
+  open={ratingModal.open}
+  estrellas={ratingModal.estrellas}
+  comentario={ratingModal.comentario}
+  onClose={() =>
+    setRatingModal({
+      open: false,
+      oferta: null,
+      estrellas: 5,
+      comentario: '',
+    })
+  }
+  onGuardar={guardarCalificacion}
+  onEstrellasChange={(estrellas) =>
+    setRatingModal((prev) => ({
+      ...prev,
+      estrellas,
+    }))
+  }
+  onComentarioChange={(comentario) =>
+    setRatingModal((prev) => ({
+      ...prev,
+      comentario,
+    }))
+  }
+/>
       <KyntuModal {...modal} />
     </div>
   );

@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
   await supabase
     .from('ofertas_productos')
-    .update({ estado: 'confirmada' })
+    .update({ estado: 'pago_recibido' })
     .eq('id', pago.oferta_id);
 
   return res.status(200).json({ ok: true });
