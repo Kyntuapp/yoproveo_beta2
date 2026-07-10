@@ -81,26 +81,28 @@ export default function OfertarProductos() {
           .map((p) => [String(p.auth_id).trim().toLowerCase(), p])
       );
 
-      const enriquecida = listasAjenas.map((item) => {
-        const perfilComprador =
-          compradoresPorAuth[
-            String(item.usuario_id || '').trim().toLowerCase()
-          ] || null;
+      const enriquecida = listasAjenas
+        .map((item) => {
+          const perfilComprador =
+            compradoresPorAuth[
+              String(item.usuario_id || '').trim().toLowerCase()
+            ] || null;
 
-        const ofertaExistente = (ofertasData || []).find(
-          (o) => o.lista_id === item.id
-        );
+          const ofertaExistente = (ofertasData || []).find(
+            (o) => o.lista_id === item.id
+          );
 
-        return {
-          ...item,
-          comprador_email:
-            item.comprador_email || perfilComprador?.email || 'Desconocido',
-          oferta: ofertaExistente ? ofertaExistente.precio_ofertado : '',
-          incluye_despacho: false,
-          ya_oferto: !!ofertaExistente,
-          estado_oferta: ofertaExistente ? ofertaExistente.estado : null,
-        };
-      });
+          return {
+            ...item,
+            comprador_email:
+              item.comprador_email || perfilComprador?.email || 'Desconocido',
+            oferta: ofertaExistente ? ofertaExistente.precio_ofertado : '',
+            incluye_despacho: false,
+            ya_oferto: !!ofertaExistente,
+            estado_oferta: ofertaExistente ? ofertaExistente.estado : null,
+          };
+        })
+        .filter((item) => !item.ya_oferto);
 
       setListas(enriquecida);
     };
@@ -153,6 +155,34 @@ export default function OfertarProductos() {
       return;
     }
 
+    if (producto.ya_oferto) {
+      alert(
+        'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
+      );
+      setListas((prev) => prev.filter((item) => item.id !== producto.id));
+      return;
+    }
+
+    const { data: ofertaDuplicada, error: dupError } = await supabase
+      .from('ofertas_productos')
+      .select('id')
+      .eq('proveedor_id', proveedorPerfilId)
+      .eq('lista_id', producto.id)
+      .maybeSingle();
+
+    if (dupError) {
+      alert('Error al verificar ofertas existentes: ' + dupError.message);
+      return;
+    }
+
+    if (ofertaDuplicada) {
+      alert(
+        'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
+      );
+      setListas((prev) => prev.filter((item) => item.id !== producto.id));
+      return;
+    }
+
     const { error } = await supabase.from('ofertas_productos').insert({
       lista_id: producto.id,
       proveedor_id: proveedorPerfilId,
@@ -165,7 +195,18 @@ export default function OfertarProductos() {
     });
 
     if (error) {
-      alert('Error al enviar oferta: ' + error.message);
+      const esDuplicada =
+        error.code === '23505' ||
+        (error.message || '').toLowerCase().includes('unique');
+
+      if (esDuplicada) {
+        alert(
+          'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
+        );
+        setListas((prev) => prev.filter((item) => item.id !== producto.id));
+      } else {
+        alert('Error al enviar oferta: ' + error.message);
+      }
     } else {
       await supabase.from('notificaciones').insert([
         {
@@ -178,11 +219,7 @@ export default function OfertarProductos() {
         },
       ]);
 
-      const actualizada = [...listas];
-      actualizada[index].ya_oferto = true;
-      actualizada[index].oferta = ofertaLimpia;
-      actualizada[index].estado_oferta = 'pendiente';
-      setListas(actualizada);
+      setListas((prev) => prev.filter((item) => item.id !== producto.id));
 
       alert('Oferta enviada correctamente.');
     }
@@ -202,6 +239,8 @@ export default function OfertarProductos() {
   };
 
  const listasFiltradas = listas.filter((item) => {
+  if (item.ya_oferto) return false;
+
   const valores = {
     producto: item.producto,
     formato: item.formato,
