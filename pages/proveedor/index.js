@@ -68,6 +68,13 @@ export default function ProveedorIndex() {
           <button onClick={irDatosContacto} style={styles.secondaryButton}>
             Actualizar datos
           </button>
+
+            <button
+            onClick={() => router.push('/proveedor/DashboardProveedor')}
+            style={styles.secondaryButton}
+          >
+            Dashboard
+          </button>
         </div>
 
         <div style={styles.centerTitle}>

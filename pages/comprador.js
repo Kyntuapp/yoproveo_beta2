@@ -963,6 +963,13 @@ const guardarCalificacion = async () => {
           >
             Actualizar datos
           </button>
+
+          <button
+            onClick={() => router.push('/comprador/DashboardComprador')}
+            style={styles.secondaryButton}
+          >
+            Dashboard
+          </button>
         </div>
 
         <div style={styles.centerTitle}>
