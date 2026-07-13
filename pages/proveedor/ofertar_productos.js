@@ -49,6 +49,38 @@ export default function OfertarProductos() {
         .select('*')
         .order('fecha_creacion', { ascending: false });
 
+        const listaIds = Array.from(
+  new Set(
+    (listasData || [])
+      .map((item) => item.lista_id)
+      .filter(Boolean)
+  )
+);
+
+let estadoPorLista = {};
+
+if (listaIds.length > 0) {
+  const { data: cabecerasData, error: cabecerasError } =
+    await supabase
+      .from('listas')
+      .select('id, estado')
+      .in('id', listaIds);
+
+  if (cabecerasError) {
+    console.error(
+      'Error cargando estados de listas:',
+      cabecerasError
+    );
+  }
+
+  estadoPorLista = Object.fromEntries(
+    (cabecerasData || []).map((lista) => [
+      lista.id,
+      lista.estado,
+    ])
+  );
+}
+
       const { data: perfilesData, error: perfilesError } = await supabase
         .from('perfiles')
         .select('*');
@@ -65,9 +97,21 @@ export default function OfertarProductos() {
       }
 
       const authUserId = userData.user.id;
-      const listasAjenas = (listasData || []).filter(
-        (item) => String(item.usuario_id || '') !== String(authUserId)
-      );
+     const listasAjenas = (listasData || []).filter(
+  (item) => {
+    const perteneceAOtroUsuario =
+      String(item.usuario_id || '') !==
+      String(authUserId);
+
+    // Los registros antiguos sin lista_id siguen visibles.
+    const estaPublicada =
+      !item.lista_id ||
+      estadoPorLista[item.lista_id] ===
+        'publicada';
+
+    return perteneceAOtroUsuario && estaPublicada;
+  }
+);
 
       setUsuarios(perfilesData || []);
 
@@ -249,7 +293,9 @@ export default function OfertarProductos() {
     precio: item.precio?.toString(),
     comuna: item.comuna_despacho,
     comprador: item.comprador_email,
-    fecha: item.fecha_creacion,
+    fecha: item.fecha_creacion
+  ? new Date(item.fecha_creacion).toISOString().split("T")[0]
+  : "",
     estado:
   item.estado === 'cerrada'
     ? 'Cerrada'
@@ -419,13 +465,19 @@ export default function OfertarProductos() {
   </div>
 
   <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Fecha</label>
-    <input
-      value={filtros.fecha}
-      onChange={(e) => manejarCambioFiltro('fecha', e.target.value)}
-      style={styles.filterInput}
-    />
-  </div>
+  <label style={styles.filterLabel}>Fecha</label>
+  <input
+    type="date"
+    value={filtros.fecha}
+    onChange={(e) =>
+      setFiltros((prev) => ({
+        ...prev,
+        fecha: e.target.value,
+      }))
+    }
+    style={styles.filterInput}
+  />
+</div>
 
   <div style={styles.filterGroup}>
     <label style={styles.filterLabel}>Estado</label>
@@ -921,14 +973,16 @@ const styles = {
   },
 
   filterInput: {
-    padding: '10px 10px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    outline: 'none',
-    fontSize: '12px',
-    textTransform: 'uppercase',
-    textAlign: 'center',
-  },
+  padding: '10px 10px',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)',
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#ffffff',
+  outline: 'none',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+  cursor: 'pointer',
+  colorScheme: 'dark',
+},
 };

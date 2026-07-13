@@ -98,8 +98,7 @@ const [ratingModal, setRatingModal] = useState({
     }, {});
   }, [listas]);
 
-  useEffect(() => {
-    const fetchData = async () => {
+   const fetchData = async () => {
       const { data: userData, error: userError } =
         await supabase.auth.getUser();
 
@@ -172,18 +171,75 @@ const [ratingModal, setRatingModal] = useState({
         setStock(stockData);
       }
 
-      const { data: listasData } = await supabase
-        .from('listas_compras')
-        .select('*')
-        .eq('usuario_id', userData.user.id)
-        .order('fecha_creacion', {
-          ascending: false,
-        });
+      const { data: listasData, error: listasError } = await supabase
+  .from('listas_compras')
+  .select('*')
+  .eq('usuario_id', userData.user.id)
+  .order('fecha_creacion', {
+    ascending: false,
+  });
 
-      if (listasData) {
-        setListas(listasData);
-      }
+if (listasError) {
+  console.error('Error cargando listas de compra:', listasError);
+  return;
+}
+
+const listaIds = Array.from(
+  new Set(
+    (listasData || [])
+      .map((item) => item.lista_id)
+      .filter(Boolean)
+  )
+);
+
+let cabecerasPorId = {};
+
+if (listaIds.length > 0) {
+  const { data: cabecerasData, error: cabecerasError } =
+    await supabase
+      .from('listas')
+      .select('id, nombre_lista, estado')
+      .in('id', listaIds);
+
+  if (cabecerasError) {
+    console.error(
+      'Error cargando estados de listas:',
+      cabecerasError
+    );
+  }
+
+  cabecerasPorId = Object.fromEntries(
+    (cabecerasData || []).map((lista) => [
+      lista.id,
+      lista,
+    ])
+  );
+}
+
+const listasEnriquecidas = (listasData || []).map(
+  (item) => {
+    const cabecera = cabecerasPorId[item.lista_id];
+
+    return {
+      ...item,
+
+      // Las listas antiguas sin cabecera siguen tratándose como publicadas para no desaparecer.
+      estado_lista:
+        cabecera?.estado || 'publicada',
+
+      nombre_lista:
+        item.nombre_lista ||
+        cabecera?.nombre_lista ||
+        '',
     };
+  }
+);
+
+setListas(listasEnriquecidas);
+    };
+
+  useEffect(() => {
+   
 
     fetchData();
   }, [router]);
@@ -358,6 +414,7 @@ const [ratingModal, setRatingModal] = useState({
       comprador_email: compradorEmail,
       comuna_despacho: comunaDespacho.toUpperCase(),
       fecha_creacion: fecha,
+      estado: 'publicada',
     })
     .select()
     .single();
@@ -438,6 +495,202 @@ const lista = productosAgrupados.map((p) => ({
   message: `Lista "${nombreLista.trim()}" enviada correctamente.`,
   confirmText: 'Aceptar',
 });
+};
+
+const guardarLista = async () => {
+  if (!authUserId) {
+    showError('Debes iniciar sesión para guardar una lista.');
+    return;
+  }
+
+  if (!nombreLista.trim()) {
+    showError('Debes ingresar un nombre para guardar la lista.');
+    return;
+  }
+
+  const productosValidos = productos.filter(
+    (p) =>
+      p.producto ||
+      p.formato ||
+      p.marca ||
+      p.cantidad ||
+      p.precio
+  );
+
+  if (productosValidos.length === 0) {
+    showError('Debes agregar al menos un producto antes de guardar.');
+    return;
+  }
+
+  const productosIncompletos = productosValidos.some(
+    (p) =>
+      !p.producto ||
+      !p.formato ||
+      !p.marca ||
+      !p.cantidad ||
+      !p.precio
+  );
+
+  if (productosIncompletos) {
+    showError(
+      'Completa todos los campos de los productos antes de guardar la lista.'
+    );
+    return;
+  }
+
+  const fecha = new Date().toISOString();
+  const compradorEmail =
+    localStorage.getItem('user_email') || '';
+
+  const { data: listaCreada, error: listaError } =
+    await supabase
+      .from('listas')
+      .insert({
+        nombre_lista: nombreLista.trim(),
+        usuario_id: authUserId,
+        comprador_email: compradorEmail,
+        comuna_despacho: comunaDespacho
+          ? comunaDespacho.toUpperCase()
+          : '',
+        fecha_creacion: fecha,
+        estado: 'borrador',
+      })
+      .select()
+      .single();
+
+  if (listaError) {
+    showError(
+      'Error al guardar la lista: ' + listaError.message
+    );
+    return;
+  }
+
+  const productosAgrupados = Object.values(
+    productosValidos.reduce((acc, p) => {
+      const key = `${p.producto}-${p.marca}`;
+
+      if (!acc[key]) {
+        acc[key] = {
+          producto: p.producto,
+          marca: p.marca,
+          formatos_detalle: [],
+        };
+      }
+
+      acc[key].formatos_detalle.push({
+        formato: p.formato,
+        cantidad: Number(p.cantidad),
+        precio: Number(p.precio),
+      });
+
+      return acc;
+    }, {})
+  );
+
+  const listaProductos = productosAgrupados.map((p) => ({
+    producto: p.producto,
+    marca: p.marca,
+
+    formato: p.formatos_detalle
+      .map((f) => f.formato)
+      .join(', '),
+
+    formatos_detalle: p.formatos_detalle,
+
+    cantidad: p.formatos_detalle.reduce(
+      (total, formato) =>
+        total + formato.cantidad,
+      0
+    ),
+
+    precio: p.formatos_detalle.reduce(
+      (total, formato) =>
+        total + formato.precio,
+      0
+    ),
+
+    usuario_id: authUserId,
+    comprador_email: compradorEmail,
+    fecha_creacion: fecha,
+    comuna_despacho: comunaDespacho
+      ? comunaDespacho.toUpperCase()
+      : '',
+    nombre_lista: nombreLista.trim(),
+    lista_id: listaCreada.id,
+  }));
+
+  const { error: productosError } = await supabase
+    .from('listas_compras')
+    .insert(listaProductos);
+
+  if (productosError) {
+    await supabase
+      .from('listas')
+      .delete()
+      .eq('id', listaCreada.id);
+
+    showError(
+      'Error al guardar los productos: ' +
+        productosError.message
+    );
+    return;
+  }
+
+  setProductos([{ ...filaVacia }]);
+  setComunaDespacho('');
+  setNombreLista('');
+
+  await fetchData();
+
+  showModal({
+    type: 'success',
+    title: 'Lista guardada',
+    message: `La lista "${nombreLista.trim()}" quedó guardada como borrador.`,
+    confirmText: 'Aceptar',
+  });
+};
+
+const publicarLista = async (listaId) => {
+  if (!listaId) {
+    showError(
+      'No se encontró el identificador de la lista.'
+    );
+    return;
+  }
+
+  const { error } = await supabase
+    .from('listas')
+    .update({
+      estado: 'publicada',
+    })
+    .eq('id', listaId);
+
+  if (error) {
+    showError(
+      'No se pudo publicar la lista: ' +
+        error.message
+    );
+    return;
+  }
+
+  setListas((prev) =>
+    prev.map((producto) =>
+      producto.lista_id === listaId
+        ? {
+            ...producto,
+            estado_lista: 'publicada',
+          }
+        : producto
+    )
+  );
+
+  showModal({
+    type: 'success',
+    title: 'Lista publicada',
+    message:
+      'La lista ya está disponible para los proveedores.',
+    confirmText: 'Aceptar',
+  });
 };
 
   const toggleExpand = (fecha) => {
@@ -1155,11 +1408,19 @@ const guardarCalificacion = async () => {
             <button onClick={enviarLista} style={styles.mainButton}>
               Enviar lista
             </button>
+
+            <button
+              type="button"
+              onClick={guardarLista}
+              style={styles.secondaryButton}
+            >
+              Guardar lista
+            </button>
           </div>
         </section>
 
         <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Mis listas enviadas</h2>
+          <h2 style={styles.cardTitle}>Mis listas</h2>
 
           <div style={styles.filtersBox}>
             <p style={styles.filtersTitle}>
@@ -1206,6 +1467,11 @@ const guardarCalificacion = async () => {
               const nombreListaHistorial =
                 productos[0]?.nombre_lista?.trim() || '';
 
+              const listaId = productos[0]?.lista_id;
+
+              const esBorrador =
+                productos[0]?.estado_lista === 'borrador';
+
               return (
                 <div key={fecha} style={styles.listBox}>
                   <div style={styles.listHeader}>
@@ -1213,6 +1479,16 @@ const guardarCalificacion = async () => {
                       <h3 style={styles.listTitle}>
                         {nombreListaHistorial || `Lista del ${fecha}`}
                       </h3>
+
+                      <span
+                          style={
+                            esBorrador
+                              ? styles.draftBadge
+                              : styles.publishedBadge
+                          }
+                        >
+                          {esBorrador ? 'Borrador' : 'Publicada'}
+                        </span>
 
                       <p style={styles.listSubtitle}>
                         {nombreListaHistorial
@@ -1236,12 +1512,24 @@ const guardarCalificacion = async () => {
                         {editando ? 'Cerrar edición' : 'Editar'}
                       </button>
 
-                      <button
-                        onClick={() => verOfertas(fecha)}
-                        style={styles.mainButtonSmall}
-                      >
-                        Ver ofertas
-                      </button>
+                      {esBorrador && (
+                          <button
+                            type="button"
+                            onClick={() => publicarLista(listaId)}
+                            style={styles.mainButtonSmall}
+                          >
+                            Publicar lista
+                          </button>
+                        )}
+
+                      {!esBorrador && (
+                        <button
+                          onClick={() => verOfertas(fecha)}
+                          style={styles.mainButtonSmall}
+                        >
+                          Ver ofertas
+                        </button>
+                      )}
 
                       <button
                         onClick={() => eliminarLista(fecha)}
@@ -2015,5 +2303,28 @@ comunaEmpty: {
   padding: '12px 14px',
   color: 'rgba(255,255,255,0.6)',
   textAlign: 'left',
+},
+draftBadge: {
+  display: 'inline-block',
+  marginTop: '8px',
+  padding: '6px 10px',
+  borderRadius: '999px',
+  background: 'rgba(255, 209, 102, 0.14)',
+  border: '1px solid rgba(255, 209, 102, 0.30)',
+  color: '#ffd166',
+  fontSize: '11px',
+  fontWeight: 800,
+},
+
+publishedBadge: {
+  display: 'inline-block',
+  marginTop: '8px',
+  padding: '6px 10px',
+  borderRadius: '999px',
+  background: 'rgba(49, 247, 198, 0.12)',
+  border: '1px solid rgba(49, 247, 198, 0.28)',
+  color: '#31f7c6',
+  fontSize: '11px',
+  fontWeight: 800,
 },
 };
