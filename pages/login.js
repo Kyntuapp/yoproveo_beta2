@@ -10,14 +10,12 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showReset, setShowReset] = useState(false);
+  const [loading, setLoading] = useState(false); 
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setErrorMessage('');
     setInfoMessage('');
-    setShowReset(false);
     setLoading(true);
 
     try {
@@ -37,7 +35,6 @@ export default function Login() {
       if (error || !data?.user) {
         console.warn('Error de login:', error);
         setErrorMessage('Correo o contraseña incorrectos');
-        setShowReset(true);
         setLoading(false);
         return;
       }
@@ -72,7 +69,6 @@ export default function Login() {
     } catch (err) {
       console.error(err);
       setErrorMessage('Ocurrió un error inesperado.');
-      setShowReset(true);
     } finally {
       setLoading(false);
     }
@@ -101,8 +97,7 @@ export default function Login() {
     } else {
       setInfoMessage(
         'Te enviamos un correo con el enlace para restablecer tu contraseña.'
-      );
-      setShowReset(false);
+      );    
     }
   };
 
@@ -118,7 +113,7 @@ export default function Login() {
 
       <div style={styles.card}>
         <img
-          src="/icono_1.png"
+          src="/icono_2.png"
           alt="Kyntü"
           style={styles.logo}
         />
@@ -156,19 +151,16 @@ export default function Login() {
 </div>
 
         {errorMessage && (
-          <div>
             <p style={styles.error}>{errorMessage}</p>
+          )}
 
-            {showReset && (
-              <button
-                onClick={handleResetPassword}
-                style={styles.linkButton}
-              >
-                Recuperar contraseña
-              </button>
-            )}
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            style={styles.linkButton}
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
 
         {infoMessage && (
           <p style={styles.info}>{infoMessage}</p>
@@ -199,8 +191,10 @@ const styles = {
   page: {
     minHeight: '100vh',
     width: '100%',
+    padding: '28px',
+    boxSizing: 'border-box',
     background:
-      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+      'linear-gradient(135deg, #f7f9ff 0%, #eef4ff 48%, #f8fbff 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -213,149 +207,191 @@ const styles = {
     position: 'absolute',
     inset: 0,
     background:
-      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
+      'radial-gradient(circle at 12% 20%, rgba(36, 94, 255, 0.16), transparent 32%), radial-gradient(circle at 88% 78%, rgba(12, 193, 201, 0.14), transparent 28%)',
+    pointerEvents: 'none',
     zIndex: 1,
   },
 
   watermark: {
     position: 'absolute',
-    top: '35px',
-    left: '45px',
-    width: '260px',
-    opacity: 0.08,
-    zIndex: 2,
-    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    top: '34px',
+    left: '42px',
+    width: '220px',
+    opacity: 0.13,
     pointerEvents: 'none',
+    zIndex: 2,
   },
 
   card: {
-    width: 'min(760px, 90%)',
-    minHeight: '500px',
-    background: 'rgba(5, 12, 29, 0.86)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    borderRadius: '28px',
-    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
+    position: 'relative',
     zIndex: 3,
+    width: 'min(500px, 100%)',
+    minHeight: '520px',
+    padding: '42px 38px',
+    boxSizing: 'border-box',
+    background: '#ffffff',
+    border: '1px solid #e2e8f2',
+    borderRadius: '26px',
+    boxShadow: '0 24px 70px rgba(15, 42, 86, 0.14)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '38px 32px',
-    backdropFilter: 'blur(10px)',
+    textAlign: 'center',
   },
 
   logo: {
-    width: '500px',
-    marginBottom: '-70px',
-    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+    width: '150px',
+    height: '150px',
+    objectFit: 'contain',
+    marginBottom: '22px',
+    filter: 'drop-shadow(0 12px 24px rgba(30, 91, 255, 0.18))',
   },
 
   title: {
-    fontSize: '38px',
-    color: '#ffffff',
     margin: '0 0 26px',
+    color: '#071b3d',
+    fontSize: '34px',
+    lineHeight: 1.15,
     fontWeight: 800,
-    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+    textAlign: 'center',
   },
 
- input: {
-  display: 'block',
-  width: '280px',
-  padding: '13px 15px',
-  margin: '8px auto',
-  borderRadius: '10px',
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  color: '#111827',
-  outline: 'none',
-  fontSize: '14px',
-  boxSizing: 'border-box',
-},
+  input: {
+    display: 'block',
+    width: '100%',
+    maxWidth: '340px',
+    height: '50px',
+    padding: '0 16px',
+    margin: '0 auto 14px',
+    boxSizing: 'border-box',
+    border: '1px solid #d6deeb',
+    borderRadius: '12px',
+    background: '#f8faff',
+    color: '#071b3d',
+    outline: 'none',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+  },
+
+  passwordWrapper: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '340px',
+    margin: '0 auto 14px',
+  },
+
+  passwordInput: {
+    display: 'block',
+    width: '100%',
+    height: '50px',
+    padding: '0 48px 0 16px',
+    boxSizing: 'border-box',
+    border: '1px solid #d6deeb',
+    borderRadius: '12px',
+    background: '#f8faff',
+    color: '#071b3d',
+    outline: 'none',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+  },
+
+  eyeButton: {
+    position: 'absolute',
+    top: '50%',
+    right: '15px',
+    transform: 'translateY(-50%)',
+    padding: '4px',
+    background: 'transparent',
+    border: 'none',
+    color: '#71809a',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   error: {
-    color: '#ff7b7b',
-    fontSize: '14px',
-    margin: '12px 0 4px',
+    width: '100%',
+    maxWidth: '340px',
+    margin: '4px auto 0',
+    padding: '11px 13px',
+    boxSizing: 'border-box',
+    background: '#fff1f0',
+    border: '1px solid #ffd2cf',
+    borderRadius: '10px',
+    color: '#b42318',
+    fontSize: '13px',
+    lineHeight: 1.45,
     textAlign: 'center',
   },
 
   info: {
-    color: '#31f7c6',
-    fontSize: '14px',
-    margin: '12px 0 4px',
+    width: '100%',
+    maxWidth: '340px',
+    margin: '12px auto 0',
+    padding: '11px 13px',
+    boxSizing: 'border-box',
+    background: '#ecfdf8',
+    border: '1px solid #b8efe3',
+    borderRadius: '10px',
+    color: '#087f72',
+    fontSize: '13px',
+    lineHeight: 1.45,
     textAlign: 'center',
   },
 
+  linkButton: {
+    marginTop: '4px',
+    padding: '4px 8px',
+    background: 'transparent',
+    border: 'none',
+    color: '#1e5bff',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+    fontWeight: 600,
+  },
+
   buttonGroup: {
+    width: '100%',
+    maxWidth: '340px',
     marginTop: '22px',
     display: 'flex',
-    justifyContent: 'center',
-    gap: '14px',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
   },
 
   button: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#fff',
+    width: '100%',
+    minHeight: '50px',
+    padding: '13px 22px',
+    boxSizing: 'border-box',
+    background: 'linear-gradient(135deg, #1e5bff 0%, #1677ff 100%)',
+    color: '#ffffff',
     border: 'none',
-    padding: '13px 32px',
     borderRadius: '12px',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontFamily: 'inherit',
     fontSize: '14px',
-    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+    fontWeight: 800,
+    boxShadow: '0 11px 25px rgba(30, 91, 255, 0.24)',
   },
 
   secondaryButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '13px 32px',
+    width: '100%',
+    minHeight: '50px',
+    padding: '13px 22px',
+    boxSizing: 'border-box',
+    background: '#ffffff',
+    color: '#071b3d',
+    border: '1px solid #d6deeb',
     borderRadius: '12px',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontFamily: 'inherit',
     fontSize: '14px',
+    fontWeight: 800,
   },
-
-  linkButton: {
-    background: 'none',
-    border: 'none',
-    color: '#31f7c6',
-    textDecoration: 'underline',
-    cursor: 'pointer',
-    fontSize: '14px',
-    marginTop: '4px',
-  },
-
-  passwordWrapper: {
-  position: 'relative',
-  width: '280px',
-  margin: '8px auto',
-},
-
-passwordInput: {
-  width: '100%',
-  padding: '13px 45px 13px 15px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
-  outline: 'none',
-  fontSize: '14px',
-  boxSizing: 'border-box',
-},
-
-eyeButton: {
-  position: 'absolute',
-  right: '12px',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  background: 'transparent',
-  border: 'none',
-  color: '#9ca3af',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-},
 };
