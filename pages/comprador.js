@@ -866,30 +866,64 @@ const publicarLista = async (listaId) => {
     setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
   };
 
-  const aceptarOferta = async (oferta, producto, fecha) => {
-    const { error } = await supabase
-      .from('ofertas_productos')
-      .update({ estado: 'en_espera_confirmacion' })
-      .eq('id', oferta.id);
+  const aceptarOferta = async (oferta) => {
+  const comentario = comentariosCompra[oferta.id]?.trim() || '';
 
-    if (error) {
-      alert('Error al aceptar la oferta: ' + error.message);
-      return;
-    }
+  const { error: ofertaError } = await supabase
+    .from('ofertas_productos')
+    .update({
+      estado: 'pendiente_pago',
+      comentario_comprador: comentario,
+    })
+    .eq('id', oferta.id);
 
-    await supabase.from('notificaciones').insert([
+  if (ofertaError) {
+    showError(
+      'Error al aceptar la oferta: ' + ofertaError.message
+    );
+    return;
+  }
+
+  const { error: rechazadasError } = await supabase
+    .from('ofertas_productos')
+    .update({
+      estado: 'rechazada',
+    })
+    .eq('lista_id', oferta.lista_id)
+    .neq('id', oferta.id);
+
+  if (rechazadasError) {
+    showError(
+      'Error al rechazar las otras ofertas: ' +
+        rechazadasError.message
+    );
+    return;
+  }
+
+  const { error: notificacionError } = await supabase
+    .from('notificaciones')
+    .insert([
       {
         usuario_id: oferta.proveedor_id,
         rol: 'proveedor',
-        titulo: 'Oferta aceptada',
-        mensaje: `Tu oferta para ${oferta.producto} fue aceptada.`,
+        titulo: 'Compra pendiente de pago',
+        mensaje: comentario
+          ? `El comprador aceptó tu oferta para ${oferta.producto}. Mensaje: ${comentario}`
+          : `El comprador aceptó tu oferta para ${oferta.producto}. El pago está en proceso.`,
         ruta: RUTA_MIS_OFERTAS,
         leida: false,
       },
     ]);
 
-    await verOfertas(fecha);
-  };
+  if (notificacionError) {
+    console.error(
+      'Error creando notificación:',
+      notificacionError
+    );
+  }
+
+  await pagarOferta(oferta);
+};
 
   const showError = (message, title = 'Error') => {
   setModal({
@@ -902,7 +936,7 @@ const publicarLista = async (listaId) => {
   });
 };
 
- const confirmarOferta = async (oferta, fecha) => {
+ /* const confirmarOferta = async (oferta, fecha) => {
   const { error: ganadorError } = await supabase
     .from('ofertas_productos')
     .update({
@@ -939,7 +973,7 @@ const publicarLista = async (listaId) => {
   }
 
   await pagarOferta(oferta);
-};
+}; */
 
 const pagarOferta = async (oferta) => {
   const { data: proveedor, error } = await supabase
@@ -1644,30 +1678,54 @@ const guardarCalificacion = async () => {
                                                   </p>
 
                                                   {isPending && (
-                                                    <div style={styles.offerActions}>
-                                                      <button
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          aceptarOferta(of, item, fecha);
-                                                        }}
-                                                        style={styles.mainButtonSmall}
-                                                      >
-                                                        Aceptar
-                                                      </button>
+                                                    <>
+                                                      <div style={styles.messageBox}>
+                                                        <label style={styles.messageLabel}>
+                                                          Mensaje para el proveedor
+                                                        </label>
 
-                                                      <button
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          rechazarOferta(of, item, fecha);
-                                                        }}
-                                                        style={styles.deleteButton}
-                                                      >
-                                                        Rechazar
-                                                      </button>
-                                                    </div>
+                                                        <input
+                                                          type="text"
+                                                          placeholder="Escribe un mensaje antes de aceptar la compra"
+                                                          value={comentariosCompra[of.id] || ''}
+                                                          onClick={(e) => e.stopPropagation()}
+                                                          onChange={(e) =>
+                                                            setComentariosCompra((prev) => ({
+                                                              ...prev,
+                                                              [of.id]: e.target.value,
+                                                            }))
+                                                          }
+                                                          style={styles.input}
+                                                        />
+                                                      </div>
+
+                                                      <div style={styles.offerActions}>
+                                                        <button
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            aceptarOferta(of);
+                                                          }}
+                                                          style={styles.mainButtonSmall}
+                                                        >
+                                                          Aceptar y pagar
+                                                        </button>
+
+                                                        <button
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            rechazarOferta(of, item, fecha);
+                                                          }}
+                                                          style={styles.deleteButton}
+                                                        >
+                                                          Rechazar
+                                                        </button>
+                                                      </div>
+                                                    </>
                                                   )}
 
-                                                  {isWaiting && (
+                                                  {/* {isWaiting && (
                                                     <>
                                                       <div style={styles.contactBox}>
                                                         <p style={styles.contactText}>
@@ -1720,7 +1778,7 @@ const guardarCalificacion = async () => {
                                                         </button>
                                                       </div>
                                                     </>
-                                                  )}
+                                                  )} */}
 
                                                   {isPendingPayment && (
                                                     <>
@@ -2326,5 +2384,19 @@ publishedBadge: {
   color: '#31f7c6',
   fontSize: '11px',
   fontWeight: 800,
+},
+messageBox: {
+  marginTop: '14px',
+  paddingTop: '14px',
+  borderTop: '1px solid rgba(255,255,255,0.10)',
+},
+
+messageLabel: {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(255,255,255,0.82)',
+  fontSize: '12px',
+  fontWeight: 700,
+  textAlign: 'left',
 },
 };
