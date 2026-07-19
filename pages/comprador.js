@@ -42,6 +42,7 @@ export default function Comprador() {
     useState(false);
   const [mostrarComunas, setMostrarComunas] = useState(false);
   const [modal, setModal] = useState(createModalState());
+  const [filtroDespacho24, setFiltroDespacho24] = useState(false);
 
 const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onConfirm }) => {
   setModal({
@@ -770,33 +771,63 @@ const publicarLista = async (listaId) => {
     setEditandoFechas((prev) => prev.filter((f) => f !== fecha));
   };
 
-  const aplicarFiltrosOfertas = useCallback(
-    (ofertas) => {
-      const resultado = [...(ofertas || [])];
+ const aplicarFiltrosOfertas = useCallback(
+  (ofertas) => {
+    const resultado = [...(ofertas || [])];
 
-      // Filtro "Solo 5 estrellas": pendiente Fase B (tabla calificaciones_proveedor).
+    resultado.sort((a, b) => {
+      if (filtroDespacho24) {
+        const tiene24A =
+          a.incluye_despacho &&
+          Number(a.tiempo_despacho_horas) === 24;
 
-      resultado.sort((a, b) => {
-        if (filtroDespacho) {
-          const keyA = a.incluye_despacho ? 0 : 1;
-          const keyB = b.incluye_despacho ? 0 : 1;
-          if (keyA !== keyB) return keyA - keyB;
+        const tiene24B =
+          b.incluye_despacho &&
+          Number(b.tiempo_despacho_horas) === 24;
+
+        if (tiene24A !== tiene24B) {
+          return tiene24A ? -1 : 1;
         }
+      }
 
-        if (filtroMejorPrecio) {
-          return (
-            Number(a.precio_ofertado || 0) -
-            Number(b.precio_ofertado || 0)
-          );
+      if (filtroDespacho) {
+        const incluyeA = Boolean(a.incluye_despacho);
+        const incluyeB = Boolean(b.incluye_despacho);
+
+        if (incluyeA !== incluyeB) {
+          return incluyeA ? -1 : 1;
         }
+      }
 
-        return 0;
-      });
+      if (filtroCincoEstrellas) {
+        const estrellasA = a.promedio_estrellas;
+        const estrellasB = b.promedio_estrellas;
 
-      return resultado.slice(0, 3);
-    },
-    [filtroMejorPrecio, filtroDespacho]
-  );
+        if (estrellasA !== estrellasB) {
+          return estrellasB - estrellasA;
+        }
+      }
+
+      if (filtroMejorPrecio) {
+        const precioA = Number(a.precio_ofertado || 0);
+        const precioB = Number(b.precio_ofertado || 0);
+
+        if (precioA !== precioB) {
+          return precioA - precioB;
+        }
+      }
+
+      return 0;
+    });
+
+    return resultado.slice(0, 3);
+  },
+  [
+    filtroMejorPrecio,
+    filtroDespacho,
+    filtroDespacho24,
+  ]
+);
 
   useEffect(() => {
     const claves = Object.keys(ofertasCrudasPorProducto);
@@ -848,11 +879,41 @@ const publicarLista = async (listaId) => {
       return st !== 'rechazada';
     });
 
+    const proveedorIds = [
+      ...new Set(visibles.map((o) => o.proveedor_id)),
+    ];
+
+    const { data: calificaciones } = await supabase
+      .from("calificaciones_proveedor")
+      .select("proveedor_id, estrellas")
+      .in("proveedor_id", proveedorIds);
+
+
+
+    const promedioProveedor = {};
+
+    proveedorIds.forEach((id) => {
+      const notas = (calificaciones || [])
+        .filter((c) => c.proveedor_id === id)
+        .map((c) => Number(c.estrellas));
+
+      promedioProveedor[id] =
+        notas.length > 0
+          ? notas.reduce((a, b) => a + b, 0) / notas.length
+          : 0;
+    });
+
     const crudas = {};
 
     for (const item of productosFecha) {
       const listaId = getRowId(item);
-      const ofertasDeEste = visibles.filter((o) => o.lista_id === listaId);
+      const ofertasDeEste = visibles
+        .filter((o) => o.lista_id === listaId)
+        .map((o) => ({
+          ...o,
+          promedio_estrellas:
+            promedioProveedor[o.proveedor_id] || 0,
+        }));
       const clave = `${item.producto}__${listaId}`;
 
       crudas[clave] = ofertasDeEste;
@@ -1482,11 +1543,21 @@ const guardarCalificacion = async () => {
             <label style={styles.filterLabel}>
               <input
                 type="checkbox"
-                checked={false}
-                disabled
-                readOnly
+                checked={filtroDespacho24}
+                onChange={(e) => setFiltroDespacho24(e.target.checked)}
               />
-              Solo 5 estrellas (próximamente)
+              Despacho en 24 horas
+            </label>
+
+            <label style={styles.filterLabel}>
+              <input
+                type="checkbox"
+                checked={filtroCincoEstrellas}
+                onChange={(e) =>
+                  setFiltroCincoEstrellas(e.target.checked)
+                }
+              />
+              Solo 5 estrellas
             </label>
           </div>
 
@@ -1673,8 +1744,12 @@ const guardarCalificacion = async () => {
 
                                                   <p style={styles.offerMeta}>
                                                     {of.incluye_despacho
-                                                      ? '🚚 Incluye despacho'
-                                                      : '❌ Sin despacho'}
+                                                      ? `Incluye despacho · ${
+                                                          of.tiempo_despacho_horas
+                                                            ? `${of.tiempo_despacho_horas} horas`
+                                                            : 'plazo no informado'
+                                                        }`
+                                                      : 'Sin despacho'}
                                                   </p>
 
                                                   {isPending && (

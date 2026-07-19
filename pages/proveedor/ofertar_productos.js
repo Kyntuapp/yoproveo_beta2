@@ -142,6 +142,7 @@ if (listaIds.length > 0) {
               item.comprador_email || perfilComprador?.email || 'Desconocido',
             oferta: ofertaExistente ? ofertaExistente.precio_ofertado : '',
             incluye_despacho: false,
+            tiempo_despacho_horas: '',
             ya_oferto: !!ofertaExistente,
             estado_oferta: ofertaExistente ? ofertaExistente.estado : null,
           };
@@ -169,11 +170,34 @@ if (listaIds.length > 0) {
     setListas(actualizada);
   };
 
-  const manejarDespacho = (index, valor) => {
-    const actualizada = [...listas];
-    actualizada[index].incluye_despacho = valor;
-    setListas(actualizada);
-  };
+  const manejarDespacho = (itemId, valor) => {
+  setListas((prev) =>
+    prev.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            incluye_despacho: valor,
+            tiempo_despacho_horas: valor
+              ? item.tiempo_despacho_horas
+              : "",
+          }
+        : item
+    )
+  );
+};
+
+  const manejarTiempoDespacho = (itemId, valor) => {
+  setListas((prev) =>
+    prev.map((item) =>
+      item.id === itemId
+        ? {
+            ...item,
+            tiempo_despacho_horas: valor,
+          }
+        : item
+    )
+  );
+};
 
   const ofertarProducto = async (index) => {
     if (!proveedorPerfilId) {
@@ -190,6 +214,14 @@ if (listaIds.length > 0) {
       alert('Por favor ingresa un valor numérico válido en la oferta.');
       return;
     }
+
+    if (
+  producto.incluye_despacho &&
+  !producto.tiempo_despacho_horas
+) {
+  alert('Selecciona el tiempo de despacho.');
+  return;
+}
 
     if (
       producto.estado === 'cerrada' ||
@@ -235,6 +267,9 @@ if (listaIds.length > 0) {
       marca: producto.marca,
       precio_ofertado: ofertaLimpia,
       incluye_despacho: producto.incluye_despacho,
+      tiempo_despacho_horas: producto.incluye_despacho
+        ? Number(producto.tiempo_despacho_horas)
+        : null,
       estado: 'pendiente',
     });
 
@@ -516,7 +551,7 @@ if (listaIds.length > 0) {
                           ⓘ
                         </span>
                       </th>
-                      <th style={styles.th}>Despacho</th>
+                      <th style={{ ...styles.th, width: '130px' }}>Despacho</th>
                       <th style={styles.th}>Acción</th>
                     </tr>
                   </thead>
@@ -578,21 +613,59 @@ if (listaIds.length > 0) {
                             </td>
                             <td style={styles.td}>
                               {!item.ya_oferto && item.estado !== 'cerrada' ? (
-                                <input
-                                  type="checkbox"
-                                  checked={item.incluye_despacho}
-                                  onChange={(e) =>
-                                    manejarDespacho(
-                                      inicio + index,
-                                      e.target.checked
-                                    )
-                                  }
-                                  style={styles.checkbox}
-                                />
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '7px',
+                                  }}
+                                >
+                                  <label
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      cursor: 'pointer',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(item.incluye_despacho)}
+                                      onChange={(e) =>
+                                        manejarDespacho(item.id, e.target.checked)
+                                      }
+                                      style={styles.checkbox}
+                                    />
+
+                                    {item.incluye_despacho ? 'Sí' : 'No'}
+                                  </label>
+
+                                  {item.incluye_despacho && (
+                                    <select
+                                      value={item.tiempo_despacho_horas || ''}
+                                      onChange={(e) =>
+                                        manejarTiempoDespacho(
+                                          item.id,
+                                          e.target.value
+                                        )
+                                      }
+                                      style={styles.deliverySelect}
+                                    >
+                                      <option value="">Plazo</option>
+                                      <option value="24">24 h</option>
+                                      <option value="48">48 h</option>
+                                      <option value="72">72 h</option>
+                                      <option value="96">72+ h</option>
+                                    </select>
+                                  )}
+                                </div>
                               ) : (
-                                '-'
+                                'No'
                               )}
                             </td>
+                            
                             <td style={styles.td}>
                               {esConfirmada ? (
                                 <button
@@ -816,7 +889,7 @@ const styles = {
   },
 
   offerInput: {
-    width: '70px',
+    width: '60px',
     padding: '9px 8px',
     borderRadius: '10px',
     border: '1px solid rgba(255, 255, 255, 0.18)',
@@ -832,11 +905,27 @@ const styles = {
     cursor: 'pointer',
   },
 
+deliverySelect: {
+  width: '88px',
+  height: '30px',
+  padding: '2px 7px',
+  borderRadius: '8px',
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  color: '#1e293b',
+  fontSize: '11px',
+  fontWeight: 600,
+  textAlign: 'center',
+  outline: 'none',
+  cursor: 'pointer',
+  colorScheme: 'light',
+},
+
   mainButtonSmall: {
     background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
     color: '#fff',
     border: 'none',
-    padding: '9px 12px',
+    padding: '9px 9px',
     borderRadius: '11px',
     cursor: 'pointer',
     fontWeight: 700,
