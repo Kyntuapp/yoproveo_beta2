@@ -12,6 +12,7 @@ export default function Register() {
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const handleRegister = async () => {
     setErrorMessage('');
@@ -20,6 +21,14 @@ export default function Register() {
     try {
       if (!email || !password || (!isComprador && !isProveedor)) {
         setErrorMessage('Completa todos los campos y selecciona al menos un perfil.');
+        setLoading(false);
+        return;
+      }
+
+      if (!acceptTerms) {
+        setErrorMessage(
+          'Debes aceptar los Términos y Condiciones y la Política de Privacidad.'
+        );
         setLoading(false);
         return;
       }
@@ -261,6 +270,36 @@ export default function Register() {
         </label>
       </div>
 
+      <div style={styles.termsContainer}>
+        <label style={styles.termsLabel}>
+          <input
+            type="checkbox"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+          />
+
+          <span>
+            He leído y acepto los{' '}
+            <a
+              href="/terminos"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.termsLink}
+            >
+              Términos y Condiciones
+            </a>{' '}
+            y la{' '}
+            <a
+              href="/privacidad"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Política de Privacidad
+            </a>.
+          </span>
+        </label>
+      </div>
+
       {errorMessage && <p style={styles.error}>{errorMessage}</p>}
 
       <div style={styles.buttonGroup}>
@@ -395,4 +434,23 @@ eyeButton: {
   justifyContent: 'center',
   padding: 0,
 },
+termsContainer: {
+  marginTop: 12,
+  marginBottom: 8,
+  textAlign: "left",
+},
+
+termsLabel: {
+  display: "flex",
+  alignItems: "flex-start",
+  gap: "10px",
+  fontSize: "14px",
+  color: "#4b5563",
+  lineHeight: "1.5",
+},
+termsLink: {
+  color: "#176BFF",
+  fontWeight: 700,
+  textDecoration: "none",
+}
 };

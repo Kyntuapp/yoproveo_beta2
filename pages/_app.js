@@ -11,6 +11,17 @@ import EncuestaGate from '../components/encuesta/EncuestaGate';
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
 
+  const rutasPublicas = [
+    '/',
+    '/login',
+    '/register',
+    '/reset-password',
+    '/terminos',
+    '/privacidad',
+  ];
+
+  const esRutaPublica = rutasPublicas.includes(router.pathname);
+
   useEffect(() => {
     const actualizarActividad = () => {
       localStorage.setItem('last_activity', Date.now().toString());
@@ -30,9 +41,7 @@ function MyApp({ Component, pageProps }) {
   }, []);
 
   useEffect(() => {
-    const rutasPublicas = ['/', '/login', '/register', '/reset-password'];
-
-    if (rutasPublicas.includes(router.pathname)) return;
+    if (esRutaPublica) return;
 
     validarSesion(supabase, router);
 
@@ -41,14 +50,18 @@ function MyApp({ Component, pageProps }) {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [esRutaPublica, router]);
 
   return (
     <>
       <Head>
         <link rel="icon" href="/icono_2.png" sizes="any" type="image/png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
           rel="stylesheet"
@@ -56,9 +69,11 @@ function MyApp({ Component, pageProps }) {
       </Head>
 
       <Component {...pageProps} />
-      <EncuestaGate />
+
+      {!esRutaPublica && <EncuestaGate />}
     </>
   );
 }
 
 export default MyApp;
+
