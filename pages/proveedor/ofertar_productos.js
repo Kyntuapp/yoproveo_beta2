@@ -71,6 +71,7 @@ if (listaIds.length > 0) {
       'Error cargando estados de listas:',
       cabecerasError
     );
+    return;
   }
 
   estadoPorLista = Object.fromEntries(
