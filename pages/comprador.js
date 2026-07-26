@@ -1,4 +1,3 @@
-// pages/comprador.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
@@ -1288,73 +1287,73 @@ const guardarCalificacion = async () => {
       : Number(valor).toLocaleString('es-CL');
 
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow}></div>
+    <div className="kyntu-page" style={styles.page}>
+      <div className="kyntu-backgroundGlow" style={styles.backgroundGlow}></div>
 
       <img
         src="/yoproveo_logo_mvp.png"
         alt=""
-        style={styles.watermark}
+        className="kyntu-watermark" style={styles.watermark}
       />
 
-      <div style={styles.topBar}>
-        <div style={styles.leftActions}>
+      <div className="kyntu-topBar" style={styles.topBar}>
+        <div className="kyntu-leftActions" style={styles.leftActions}>
           {tienePerfilProveedor && (
-            <button onClick={cambiarPerfil} style={styles.secondaryButton}>
+            <button onClick={cambiarPerfil} className="kyntu-secondaryButton" style={styles.secondaryButton}>
               Cambiar perfil
             </button>
           )}
 
           <button
             onClick={() => router.push('/comprador/datos-contacto')}
-            style={styles.secondaryButton}
+            className="kyntu-secondaryButton" style={styles.secondaryButton}
           >
             Actualizar datos
           </button>
 
           <button
             onClick={() => router.push('/comprador/DashboardComprador')}
-            style={styles.secondaryButton}
+            className="kyntu-secondaryButton" style={styles.secondaryButton}
           >
             Dashboard
           </button>
         </div>
 
-        <div style={styles.centerTitle}>
-          <h1 style={styles.title}>Panel del Comprador</h1>
+        <div className="kyntu-centerTitle" style={styles.centerTitle}>
+          <h1 className="kyntu-title" style={styles.title}>Panel del Comprador</h1>
         </div>
 
-        <div style={styles.rightActions}>
+        <div className="kyntu-rightActions" style={styles.rightActions}>
           <Notificaciones userId={authUserId} rol="comprador" />
 
-          <button onClick={cerrarSesion} style={styles.logoutButton}>
+          <button onClick={cerrarSesion} className="kyntu-logoutButton" style={styles.logoutButton}>
             Cerrar sesión
           </button>
         </div>
       </div>
 
-      <main style={styles.content}>
-        <section style={styles.card}>
+      <main className="kyntu-content" style={styles.content}>
+        <section className="kyntu-card" style={styles.card}>
           <img
             src="/icono_1.png"
             alt="Kyntü"
-            style={styles.logo}
+            className="kyntu-logo" style={styles.logo}
           />
 
-          <h2 style={styles.cardTitle}>Agrega productos a tu lista</h2>
+          <h2 className="kyntu-cardTitle" style={styles.cardTitle}>Agrega productos a tu lista</h2>
 
-           <div style={styles.comunaBox}>
- <label style={styles.label}>Nombre de la lista</label>
+           <div className="kyntu-comunaBox" style={styles.comunaBox}>
+ <label className="kyntu-label" style={styles.label}>Nombre de la lista</label>
 
 <input
   type="text"
   value={nombreLista}
   onChange={(e) => setNombreLista(e.target.value)}
   placeholder="Ej: Compra semanal"
-  style={styles.input}
+  className="kyntu-input" style={styles.input}
 />
 
-  <label style={styles.label}>Comuna de despacho</label>
+  <label className="kyntu-label" style={styles.label}>Comuna de despacho</label>
 
   <input
     type="text"
@@ -1365,15 +1364,15 @@ const guardarCalificacion = async () => {
     }}
     onFocus={() => setMostrarComunas(true)}
     placeholder="Ej: Santiago"
-    style={styles.input}
+    className="kyntu-input" style={styles.input}
   />
 
   {mostrarComunas && comunaDespacho && (
-    <div style={styles.comunasDropdown}>
+    <div className="kyntu-comunasDropdown" style={styles.comunasDropdown}>
       {comunasFiltradas.slice(0, 8).map((c) => (
         <div
           key={c}
-          style={styles.comunaItem}
+          className="kyntu-comunaItem" style={styles.comunaItem}
           onMouseDown={() => {
             setComunaDespacho(c);
             setMostrarComunas(false);
@@ -1384,7 +1383,7 @@ const guardarCalificacion = async () => {
       ))}
 
       {comunasFiltradas.length === 0 && (
-        <div style={styles.comunaEmpty}>
+        <div className="kyntu-comunaEmpty" style={styles.comunaEmpty}>
           No se encontraron comunas
         </div>
       )}
@@ -1392,29 +1391,29 @@ const guardarCalificacion = async () => {
   )}
 </div>
 
-          <div style={styles.tableWrapper}>
+          <div className="kyntu-tableWrapper" style={styles.tableWrapper}>
 
-            <table style={styles.table}>
+            <table className="kyntu-table" style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Producto</th>
-                  <th style={styles.th}>Formato</th>
-                  <th style={styles.th}>Marca</th>
-                  <th style={styles.th}>Cantidad</th>
-                  <th style={styles.th}>Precio</th>
+                  <th className="kyntu-th" style={styles.th}>Producto</th>
+                  <th className="kyntu-th" style={styles.th}>Formato</th>
+                  <th className="kyntu-th" style={styles.th}>Marca</th>
+                  <th className="kyntu-th" style={styles.th}>Cantidad</th>
+                  <th className="kyntu-th" style={styles.th}>Precio</th>
                 </tr>
               </thead>
 
               <tbody>
                 {productos.map((item, i) => (
                   <tr key={i}>
-                    <td style={styles.td}>
+                    <td className="kyntu-td" style={styles.td}>
                       <select
                         value={item.producto}
                         onChange={(e) =>
                           handleChange(i, 'producto', e.target.value)
                         }
-                        style={styles.select}
+                        className="kyntu-select" style={styles.select}
                       >
                         <option value="">Selecciona</option>
 
@@ -1428,14 +1427,14 @@ const guardarCalificacion = async () => {
                       </select>
                     </td>
 
-                    <td style={styles.td}>
+                    <td className="kyntu-td" style={styles.td}>
                       <select
                         value={item.formato}
                         onChange={(e) =>
                           handleChange(i, 'formato', e.target.value)
                         }
                         disabled={!item.producto}
-                        style={styles.select}
+                        className="kyntu-select" style={styles.select}
                       >
                         <option value="">Selecciona</option>
 
@@ -1447,14 +1446,14 @@ const guardarCalificacion = async () => {
                       </select>
                     </td>
 
-                    <td style={styles.td}>
+                    <td className="kyntu-td" style={styles.td}>
                       <select
                         value={item.marca}
                         onChange={(e) =>
                           handleChange(i, 'marca', e.target.value)
                         }
                         disabled={!item.formato}
-                        style={styles.select}
+                        className="kyntu-select" style={styles.select}
                       >
                         <option value="">Selecciona</option>
 
@@ -1468,25 +1467,25 @@ const guardarCalificacion = async () => {
                       </select>
                     </td>
 
-                    <td style={styles.td}>
+                    <td className="kyntu-td" style={styles.td}>
                       <input
                         type="number"
                         value={item.cantidad}
                         onChange={(e) =>
                           handleChange(i, 'cantidad', e.target.value)
                         }
-                        style={styles.quantityInput}
+                        className="kyntu-quantityInput" style={styles.quantityInput}
                       />
                     </td>
 
-                    <td style={styles.td}>
+                    <td className="kyntu-td" style={styles.td}>
                       <input
                         type="number"
                         value={item.precio}
                         onChange={(e) =>
                           handleChange(i, 'precio', e.target.value)
                         }
-                        style={styles.quantityInput}
+                        className="kyntu-quantityInput" style={styles.quantityInput}
                       />
                     </td>
                   </tr>
@@ -1495,34 +1494,34 @@ const guardarCalificacion = async () => {
             </table>
           </div>
 
-          <div style={styles.actionRow}>
-            <button onClick={agregarFila} style={styles.secondaryButton}>
+          <div className="kyntu-actionRow" style={styles.actionRow}>
+            <button onClick={agregarFila} className="kyntu-secondaryButton" style={styles.secondaryButton}>
               Agregar otro producto
             </button>
 
-            <button onClick={enviarLista} style={styles.mainButton}>
+            <button onClick={enviarLista} className="kyntu-mainButton" style={styles.mainButton}>
               Enviar lista
             </button>
 
             <button
               type="button"
               onClick={guardarLista}
-              style={styles.secondaryButton}
+              className="kyntu-secondaryButton" style={styles.secondaryButton}
             >
               Guardar lista
             </button>
           </div>
         </section>
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Mis listas</h2>
+        <section className="kyntu-card" style={styles.card}>
+          <h2 className="kyntu-cardTitle" style={styles.cardTitle}>Mis listas</h2>
 
-          <div style={styles.filtersBox}>
-            <p style={styles.filtersTitle}>
+          <div className="kyntu-filtersBox" style={styles.filtersBox}>
+            <p className="kyntu-filtersTitle" style={styles.filtersTitle}>
               Mostrar mejores ofertas según:
             </p>
 
-            <label style={styles.filterLabel}>
+            <label className="kyntu-filterLabel" style={styles.filterLabel}>
               <input
                 type="checkbox"
                 checked={filtroMejorPrecio}
@@ -1531,7 +1530,7 @@ const guardarCalificacion = async () => {
               Mejor precio
             </label>
 
-            <label style={styles.filterLabel}>
+            <label className="kyntu-filterLabel" style={styles.filterLabel}>
               <input
                 type="checkbox"
                 checked={filtroDespacho}
@@ -1540,7 +1539,7 @@ const guardarCalificacion = async () => {
               Incluye despacho
             </label>
 
-            <label style={styles.filterLabel}>
+            <label className="kyntu-filterLabel" style={styles.filterLabel}>
               <input
                 type="checkbox"
                 checked={filtroDespacho24}
@@ -1549,7 +1548,7 @@ const guardarCalificacion = async () => {
               Despacho en 24 horas
             </label>
 
-            <label style={styles.filterLabel}>
+            <label className="kyntu-filterLabel" style={styles.filterLabel}>
               <input
                 type="checkbox"
                 checked={filtroCincoEstrellas}
@@ -1562,7 +1561,7 @@ const guardarCalificacion = async () => {
           </div>
 
           {Object.keys(groupByFecha).length === 0 ? (
-            <p style={styles.emptyText}>
+            <p className="kyntu-emptyText" style={styles.emptyText}>
               Aún no has enviado listas de compra.
             </p>
           ) : (
@@ -1578,10 +1577,10 @@ const guardarCalificacion = async () => {
                 productos[0]?.estado_lista === 'borrador';
 
               return (
-                <div key={fecha} style={styles.listBox}>
-                  <div style={styles.listHeader}>
+                <div key={fecha} className="kyntu-listBox" style={styles.listBox}>
+                  <div className="kyntu-listHeader" style={styles.listHeader}>
                     <div>
-                      <h3 style={styles.listTitle}>
+                      <h3 className="kyntu-listTitle" style={styles.listTitle}>
                         {nombreListaHistorial || `Lista del ${fecha}`}
                       </h3>
 
@@ -1595,24 +1594,24 @@ const guardarCalificacion = async () => {
                           {esBorrador ? 'Borrador' : 'Publicada'}
                         </span>
 
-                      <p style={styles.listSubtitle}>
+                      <p className="kyntu-listSubtitle" style={styles.listSubtitle}>
                         {nombreListaHistorial
                           ? `Enviada el ${fecha} · ${productos.length} productos`
                           : `${productos.length} productos`}
                       </p>
                     </div>
 
-                    <div style={styles.listActions}>
+                    <div className="kyntu-listActions" style={styles.listActions}>
                       <button
                         onClick={() => toggleExpand(fecha)}
-                        style={styles.smallButton}
+                        className="kyntu-smallButton" style={styles.smallButton}
                       >
                         {expanded ? 'Ocultar' : 'Ver'}
                       </button>
 
                       <button
                         onClick={() => toggleEdit(fecha)}
-                        style={styles.smallButton}
+                        className="kyntu-smallButton" style={styles.smallButton}
                       >
                         {editando ? 'Cerrar edición' : 'Editar'}
                       </button>
@@ -1621,7 +1620,7 @@ const guardarCalificacion = async () => {
                           <button
                             type="button"
                             onClick={() => publicarLista(listaId)}
-                            style={styles.mainButtonSmall}
+                            className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                           >
                             Publicar lista
                           </button>
@@ -1630,7 +1629,7 @@ const guardarCalificacion = async () => {
                       {!esBorrador && (
                         <button
                           onClick={() => verOfertas(fecha)}
-                          style={styles.mainButtonSmall}
+                          className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                         >
                           Ver ofertas
                         </button>
@@ -1638,7 +1637,7 @@ const guardarCalificacion = async () => {
 
                       <button
                         onClick={() => eliminarLista(fecha)}
-                        style={styles.deleteButton}
+                        className="kyntu-deleteButton" style={styles.deleteButton}
                       >
                         Eliminar
                       </button>
@@ -1648,16 +1647,16 @@ const guardarCalificacion = async () => {
                   {/* FIN PARTE 3 */}
                                     {expanded && (
                     <>
-                      <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
+                      <div className="kyntu-tableWrapper" style={styles.tableWrapper}>
+                        <table className="kyntu-table" style={styles.table}>
                           <thead>
                             <tr>
-                              <th style={styles.th}>Producto</th>
-                              <th style={styles.th}>Formato</th>
-                              <th style={styles.th}>Marca</th>
-                              <th style={styles.th}>Cantidad</th>
-                              <th style={styles.th}>Precio</th>
-                              <th style={styles.th}>Ofertas</th>
+                              <th className="kyntu-th" style={styles.th}>Producto</th>
+                              <th className="kyntu-th" style={styles.th}>Formato</th>
+                              <th className="kyntu-th" style={styles.th}>Marca</th>
+                              <th className="kyntu-th" style={styles.th}>Cantidad</th>
+                              <th className="kyntu-th" style={styles.th}>Precio</th>
+                              <th className="kyntu-th" style={styles.th}>Ofertas</th>
                             </tr>
                           </thead>
 
@@ -1677,22 +1676,22 @@ const guardarCalificacion = async () => {
                                     onClick={() =>
                                       toggleOfertasProducto(rowId)
                                     }
-                                    style={styles.clickableRow}
+                                    className="kyntu-clickableRow" style={styles.clickableRow}
                                   >
-                                    <td style={styles.td}>{item.producto}</td>
-                                    <td style={styles.td}>{item.formato}</td>
-                                    <td style={styles.td}>{item.marca}</td>
-                                    <td style={styles.td}>{item.cantidad}</td>
-                                    <td style={styles.td}>
+                                    <td className="kyntu-td" style={styles.td}>{item.producto}</td>
+                                    <td className="kyntu-td" style={styles.td}>{item.formato}</td>
+                                    <td className="kyntu-td" style={styles.td}>{item.marca}</td>
+                                    <td className="kyntu-td" style={styles.td}>{item.cantidad}</td>
+                                    <td className="kyntu-td" style={styles.td}>
                                       ${formatearPrecio(item.precio)}
                                     </td>
-                                    <td style={styles.td}>
-                                      <span style={styles.offerCount}>
+                                    <td className="kyntu-td" style={styles.td}>
+                                      <span className="kyntu-offerCount" style={styles.offerCount}>
                                         {ofertas.length > 0
                                           ? 'Ver ofertas'
                                           : 'Sin ofertas'}
                                       </span>
-                                      <span style={styles.arrow}>
+                                      <span className="kyntu-arrow" style={styles.arrow}>
                                         {abierto ? '▲' : '▼'}
                                       </span>
                                     </td>
@@ -1700,13 +1699,13 @@ const guardarCalificacion = async () => {
 
                                   {abierto && (
                                     <tr key={`ofertas-${rowId || idx}`}>
-                                      <td colSpan={6} style={styles.offersRow}>
+                                      <td colSpan={6} className="kyntu-offersRow" style={styles.offersRow}>
                                         {ofertas.length === 0 ? (
-                                          <p style={styles.waitingOffer}>
+                                          <p className="kyntu-waitingOffer" style={styles.waitingOffer}>
                                             Aún no has recibido ofertas por este producto.
                                           </p>
                                         ) : (
-                                          <div style={styles.offersGrid}>
+                                          <div className="kyntu-offersGrid" style={styles.offersGrid}>
                                             {ofertas.map((of, i) => {
                                               const estado = (
                                                 of.estado || ''
@@ -1733,16 +1732,16 @@ const guardarCalificacion = async () => {
                                               return (
                                                 <div
                                                   key={i}
-                                                  style={styles.offerCard}
+                                                  className="kyntu-offerCard" style={styles.offerCard}
                                                 >
-                                                  <p style={styles.offerPrice}>
+                                                  <p className="kyntu-offerPrice" style={styles.offerPrice}>
                                                     $
                                                     {formatearPrecio(
                                                       of.precio_ofertado
                                                     )}
                                                   </p>
 
-                                                  <p style={styles.offerMeta}>
+                                                  <p className="kyntu-offerMeta" style={styles.offerMeta}>
                                                     {of.incluye_despacho
                                                       ? `Incluye despacho · ${
                                                           of.tiempo_despacho_horas
@@ -1754,8 +1753,8 @@ const guardarCalificacion = async () => {
 
                                                   {isPending && (
                                                     <>
-                                                      <div style={styles.messageBox}>
-                                                        <label style={styles.messageLabel}>
+                                                      <div className="kyntu-messageBox" style={styles.messageBox}>
+                                                        <label className="kyntu-messageLabel" style={styles.messageLabel}>
                                                           Mensaje para el proveedor
                                                         </label>
 
@@ -1770,18 +1769,18 @@ const guardarCalificacion = async () => {
                                                               [of.id]: e.target.value,
                                                             }))
                                                           }
-                                                          style={styles.input}
+                                                          className="kyntu-input" style={styles.input}
                                                         />
                                                       </div>
 
-                                                      <div style={styles.offerActions}>
+                                                      <div className="kyntu-offerActions" style={styles.offerActions}>
                                                         <button
                                                           type="button"
                                                           onClick={(e) => {
                                                             e.stopPropagation();
                                                             aceptarOferta(of);
                                                           }}
-                                                          style={styles.mainButtonSmall}
+                                                          className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                         >
                                                           Aceptar y pagar
                                                         </button>
@@ -1792,7 +1791,7 @@ const guardarCalificacion = async () => {
                                                             e.stopPropagation();
                                                             rechazarOferta(of, item, fecha);
                                                           }}
-                                                          style={styles.deleteButton}
+                                                          className="kyntu-deleteButton" style={styles.deleteButton}
                                                         >
                                                           Rechazar
                                                         </button>
@@ -1802,15 +1801,15 @@ const guardarCalificacion = async () => {
 
                                                   {/* {isWaiting && (
                                                     <>
-                                                      <div style={styles.contactBox}>
-                                                        <p style={styles.contactText}>
+                                                      <div className="kyntu-contactBox" style={styles.contactBox}>
+                                                        <p className="kyntu-contactText" style={styles.contactText}>
                                                           <strong>Proveedor:</strong>{' '}
                                                           {of.perfiles?.email_contacto ||
                                                             of.perfiles?.email ||
                                                             'No disponible'}
                                                         </p>
 
-                                                        <p style={styles.contactText}>
+                                                        <p className="kyntu-contactText" style={styles.contactText}>
                                                           <strong>Teléfono:</strong>{' '}
                                                           {of.perfiles?.telefono_contacto ||
                                                             'No disponible'}
@@ -1828,16 +1827,16 @@ const guardarCalificacion = async () => {
                                                             [of.id]: e.target.value,
                                                           }))
                                                         }
-                                                        style={styles.input}
+                                                        className="kyntu-input" style={styles.input}
                                                       />
 
-                                                      <div style={styles.offerActions}>
+                                                      <div className="kyntu-offerActions" style={styles.offerActions}>
                                                         <button
                                                           onClick={(e) => {
                                                             e.stopPropagation();
                                                             confirmarOferta(of, fecha);
                                                           }}
-                                                          style={styles.mainButtonSmall}
+                                                          className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                         >
                                                           Confirmar compra
                                                         </button>
@@ -1847,7 +1846,7 @@ const guardarCalificacion = async () => {
                                                             e.stopPropagation();
                                                             rechazarOferta(of, item, fecha);
                                                           }}
-                                                          style={styles.deleteButton}
+                                                          className="kyntu-deleteButton" style={styles.deleteButton}
                                                         >
                                                           Rechazar
                                                         </button>
@@ -1857,7 +1856,7 @@ const guardarCalificacion = async () => {
 
                                                   {isPendingPayment && (
                                                     <>
-                                                      <p style={styles.pendingPaymentText}>
+                                                      <p className="kyntu-pendingPaymentText" style={styles.pendingPaymentText}>
                                                         ⏳ Pago pendiente
                                                       </p>
 
@@ -1866,7 +1865,7 @@ const guardarCalificacion = async () => {
                                                           e.stopPropagation();
                                                           pagarOferta(of);
                                                         }}
-                                                        style={styles.mainButtonSmall}
+                                                        className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                       >
                                                         Pagar
                                                       </button>
@@ -1875,33 +1874,33 @@ const guardarCalificacion = async () => {
 
                                                   {isPaymentReceived  && (
                                                     <>
-                                                      <p style={styles.confirmedText}>
+                                                      <p className="kyntu-confirmedText" style={styles.confirmedText}>
                                                         💳 Pago recibido correctamente.
                                                       </p>
 
-                                                      <div style={styles.contactBox}>
-                                                        <p style={styles.contactText}>
+                                                      <div className="kyntu-contactBox" style={styles.contactBox}>
+                                                        <p className="kyntu-contactText" style={styles.contactText}>
                                                           <strong>Proveedor:</strong>{' '}
                                                           {of.perfiles?.email_contacto ||
                                                             of.perfiles?.email ||
                                                             'No disponible'}
                                                         </p>
 
-                                                        <p style={styles.contactText}>
+                                                        <p className="kyntu-contactText" style={styles.contactText}>
                                                           <strong>Teléfono:</strong>{' '}
                                                           {of.perfiles?.telefono_contacto ||
                                                             'No disponible'}
                                                         </p>
 
                                                         {of.comentario_comprador && (
-                                                          <p style={styles.contactText}>
+                                                          <p className="kyntu-contactText" style={styles.contactText}>
                                                             <strong>Comentario:</strong>{' '}
                                                             {of.comentario_comprador}
                                                           </p>
                                                         )}
                                                       </div>
 
-                                                      <p style={styles.contactText}>
+                                                      <p className="kyntu-contactText" style={styles.contactText}>
                                                         Una vez que recibas el pedido, presiona
                                                         <strong> "Recibí conforme"</strong>.
                                                       </p>
@@ -1911,7 +1910,7 @@ const guardarCalificacion = async () => {
                                                           e.stopPropagation();
                                                           confirmarRecepcion(of);
                                                         }}
-                                                        style={styles.mainButtonSmall}
+                                                        className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                       >
                                                         Recibí conforme
                                                       </button>
@@ -1920,7 +1919,7 @@ const guardarCalificacion = async () => {
 
                                                   {isReceptionConfirmed && (
                                                     <>
-                                                      <p style={styles.confirmedText}>
+                                                      <p className="kyntu-confirmedText" style={styles.confirmedText}>
                                                         ✅ Recepción conforme registrada.
                                                       </p>
 
@@ -1935,7 +1934,7 @@ const guardarCalificacion = async () => {
                                                           comentario: '',
                                                         });
                                                       }}
-                                                      style={styles.mainButtonSmall}
+                                                      className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                     >
                                                       Calificar proveedor
                                                     </button>
@@ -1963,6 +1962,308 @@ const guardarCalificacion = async () => {
           )}
         </section>
       </main>
+
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html,
+        body {
+          margin: 0;
+          min-width: 320px;
+          background: #f4f8fd;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+          font: inherit;
+        }
+
+        button {
+          transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease,
+            background 0.2s ease;
+        }
+
+        button:hover {
+          transform: translateY(-1px);
+        }
+
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+          outline: 3px solid rgba(23, 107, 255, 0.2);
+          outline-offset: 2px;
+        }
+
+        .kyntu-tableWrapper {
+          scrollbar-width: thin;
+          scrollbar-color: #b9c9df transparent;
+        }
+
+        .kyntu-tableWrapper::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .kyntu-tableWrapper::-webkit-scrollbar-thumb {
+          border-radius: 999px;
+          background: #b9c9df;
+        }
+
+        .kyntu-comunaItem:hover {
+          background: #edf4ff !important;
+          color: #176bff !important;
+        }
+
+        .kyntu-clickableRow:hover td {
+          background: #f1f6fd !important;
+        }
+
+        @media (max-width: 1120px) {
+          .kyntu-topBar {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+
+          .kyntu-leftActions,
+          .kyntu-rightActions {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+
+          .kyntu-centerTitle {
+            grid-row: 1 !important;
+          }
+
+          .kyntu-content {
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 820px) {
+          .kyntu-page {
+            padding: 16px !important;
+          }
+
+          .kyntu-topBar {
+            padding: 18px !important;
+            border-radius: 22px !important;
+          }
+
+          .kyntu-title {
+            font-size: 28px !important;
+          }
+
+          .kyntu-card {
+            padding: 24px 18px !important;
+            border-radius: 22px !important;
+          }
+
+          .kyntu-cardTitle {
+            font-size: 22px !important;
+          }
+
+          .kyntu-comunaBox {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .kyntu-actionRow,
+          .kyntu-listActions,
+          .kyntu-offerActions {
+            width: 100% !important;
+          }
+
+          .kyntu-actionRow > button,
+          .kyntu-listActions > button,
+          .kyntu-offerActions > button {
+            flex: 1 1 160px !important;
+          }
+
+          .kyntu-listHeader {
+            align-items: flex-start !important;
+          }
+
+          .kyntu-listHeader > div:first-child {
+            width: 100% !important;
+          }
+
+          .kyntu-offersGrid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .kyntu-offerCard {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+          }
+
+          .kyntu-filtersBox {
+            justify-content: flex-start !important;
+          }
+
+          .kyntu-filtersTitle {
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .kyntu-page {
+            padding: 10px !important;
+          }
+
+          .kyntu-watermark {
+            width: 210px !important;
+            top: 8px !important;
+            left: -28px !important;
+          }
+
+          .kyntu-topBar {
+            padding: 15px !important;
+            gap: 13px !important;
+            border-radius: 18px !important;
+          }
+
+          .kyntu-leftActions,
+          .kyntu-rightActions {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+
+          .kyntu-leftActions > button,
+          .kyntu-rightActions > button {
+            width: 100% !important;
+          }
+
+          .kyntu-title {
+            font-size: 24px !important;
+          }
+
+          .kyntu-content {
+            gap: 16px !important;
+          }
+
+          .kyntu-card {
+            padding: 20px 14px !important;
+            border-radius: 18px !important;
+          }
+
+          .kyntu-logo {
+            width: 190px !important;
+            margin-top: -42px !important;
+            margin-bottom: -42px !important;
+          }
+
+          .kyntu-cardTitle {
+            font-size: 20px !important;
+          }
+
+          .kyntu-input,
+          .kyntu-select,
+          .kyntu-quantityInput {
+            width: 100% !important;
+            min-width: 120px !important;
+          }
+
+          .kyntu-table {
+            min-width: 720px !important;
+          }
+
+          .kyntu-actionRow {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+
+          .kyntu-actionRow > button {
+            width: 100% !important;
+          }
+
+          .kyntu-filtersBox {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .kyntu-filterLabel {
+            width: 100% !important;
+            min-height: 44px !important;
+            padding: 10px 12px !important;
+            border-radius: 12px !important;
+            background: #f6f9fd !important;
+            border: 1px solid #e1e9f4 !important;
+          }
+
+          .kyntu-listBox {
+            padding: 16px 12px !important;
+            border-radius: 16px !important;
+          }
+
+          .kyntu-listActions {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+          }
+
+          .kyntu-listActions > button {
+            width: 100% !important;
+          }
+
+          .kyntu-offersGrid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .kyntu-offerPrice {
+            font-size: 22px !important;
+          }
+
+          .kyntu-contactBox,
+          .kyntu-messageBox {
+            padding: 12px !important;
+          }
+        }
+
+        @media (max-width: 390px) {
+          .kyntu-listActions {
+            grid-template-columns: 1fr !important;
+          }
+
+          .kyntu-title {
+            font-size: 22px !important;
+          }
+
+          .kyntu-cardTitle {
+            font-size: 19px !important;
+          }
+
+          .kyntu-secondaryButton,
+          .kyntu-mainButton,
+          .kyntu-mainButtonSmall,
+          .kyntu-smallButton,
+          .kyntu-deleteButton,
+          .kyntu-logoutButton {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            scroll-behavior: auto !important;
+            transition: none !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+      `}</style>
+
       <ModalCalificacion
   open={ratingModal.open}
   estrellas={ratingModal.estrellas}
@@ -1997,152 +2298,179 @@ const guardarCalificacion = async () => {
 const styles = {
   page: {
     minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
+    minHeight: '100dvh',
     position: 'relative',
     overflowX: 'hidden',
     overflowY: 'auto',
     padding: '24px',
     boxSizing: 'border-box',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    background:
+      'radial-gradient(circle at 10% 8%, rgba(23,107,255,0.12), transparent 30%), radial-gradient(circle at 90% 82%, rgba(0,194,168,0.10), transparent 28%), linear-gradient(145deg, #f8fbff 0%, #eef5ff 48%, #f8fcfb 100%)',
   },
 
   backgroundGlow: {
-    position: 'absolute',
+    position: 'fixed',
     inset: 0,
+    pointerEvents: 'none',
     background:
-      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
-    zIndex: 1,
+      'radial-gradient(circle at 18% 18%, rgba(23,107,255,0.08), transparent 34%), radial-gradient(circle at 82% 76%, rgba(0,194,168,0.07), transparent 30%)',
+    zIndex: 0,
   },
 
   watermark: {
-    position: 'absolute',
-    top: '35px',
-    left: '45px',
-    width: '260px',
-    opacity: 0.08,
-    zIndex: 1,
-    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
+    position: 'fixed',
+    top: '24px',
+    left: '32px',
+    width: '250px',
+    opacity: 0.035,
+    zIndex: 0,
     pointerEvents: 'none',
+    userSelect: 'none',
   },
 
   topBar: {
     position: 'relative',
-    zIndex: 20,
+    zIndex: 2,
+    width: '100%',
+    maxWidth: '1440px',
+    margin: '0 auto 24px',
     display: 'grid',
     gridTemplateColumns: '1fr auto 1fr',
     alignItems: 'center',
-    marginBottom: '32px',
+    gap: '20px',
+    padding: '18px 22px',
+    borderRadius: '24px',
+    background: 'rgba(255,255,255,0.94)',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 20px 55px rgba(28,69,128,0.11)',
+    backdropFilter: 'blur(18px)',
   },
 
   leftActions: {
     display: 'flex',
-    gap: '10px',
+    alignItems: 'center',
     justifyContent: 'flex-start',
+    gap: '10px',
+    flexWrap: 'wrap',
   },
 
   centerTitle: {
-    display: 'flex',
-    justifyContent: 'center',
+    minWidth: 0,
+    textAlign: 'center',
   },
 
   rightActions: {
     display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    position: 'relative',
-    zIndex: 30,
+    justifyContent: 'flex-end',
+    gap: '10px',
+    flexWrap: 'wrap',
   },
 
   title: {
-    color: '#ffffff',
-    fontSize: '38px',
-    fontWeight: 800,
     margin: 0,
-    textAlign: 'center',
-    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+    color: '#061b41',
+    fontSize: 'clamp(26px, 3vw, 36px)',
+    lineHeight: 1.15,
+    fontWeight: 900,
+    letterSpacing: '-0.035em',
   },
 
   content: {
     position: 'relative',
-    zIndex: 3,
-    maxWidth: '1100px',
+    zIndex: 2,
+    width: '100%',
+    maxWidth: '1440px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '28px',
+    gap: '24px',
   },
 
   card: {
     width: '100%',
-    background: 'rgba(5, 12, 29, 0.86)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '28px',
-    boxShadow: '0 28px 80px rgba(0,0,0,0.35)',
-    padding: '34px',
-    boxSizing: 'border-box',
-    backdropFilter: 'blur(10px)',
+    padding: '32px',
+    borderRadius: '26px',
+    background: 'rgba(255,255,255,0.96)',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 24px 65px rgba(28,69,128,0.10)',
     overflow: 'visible',
   },
 
   logo: {
-    width: '220px',
     display: 'block',
-    margin: '0 auto -20px',
-    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+    width: '230px',
+    maxWidth: '75%',
+    height: 'auto',
+    margin: '-52px auto -52px',
+    objectFit: 'contain',
   },
 
   cardTitle: {
-    color: '#ffffff',
-    fontSize: '28px',
-    marginBottom: '24px',
-    fontWeight: 800,
+    margin: '0 0 24px',
+    color: '#061b41',
+    fontSize: '26px',
+    lineHeight: 1.25,
     textAlign: 'center',
+    fontWeight: 900,
+    letterSpacing: '-0.025em',
   },
 
   comunaBox: {
-  width: '100%',
-  position: 'relative',
-  marginBottom: '22px',
-},
+    position: 'relative',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    gap: '12px 18px',
+    maxWidth: '880px',
+    margin: '0 auto 24px',
+    padding: '20px',
+    borderRadius: '18px',
+    background: '#f7faff',
+    border: '1px solid #e0e9f5',
+  },
 
   label: {
     display: 'block',
-    color: '#ffffff',
-    fontWeight: 700,
-    marginBottom: '8px',
+    color: '#28466c',
+    fontSize: '13px',
+    fontWeight: 800,
+    marginBottom: '7px',
   },
 
   input: {
     width: '100%',
-    padding: '13px 15px',
+    minHeight: '44px',
+    padding: '11px 13px',
     borderRadius: '12px',
-    border: '1px solid rgba(255,255,255,0.18)',
-    background: 'rgba(255,255,255,0.08)',
-    color: '#ffffff',
+    border: '1px solid #ccd9ea',
+    background: '#ffffff',
+    color: '#132b4f',
     outline: 'none',
     boxSizing: 'border-box',
   },
 
   select: {
     width: '100%',
-    minWidth: '140px',
-    padding: '11px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255,255,255,0.18)',
-    background: '#10192b',
-    color: '#ffffff',
+    minWidth: '150px',
+    minHeight: '42px',
+    padding: '10px 12px',
+    borderRadius: '11px',
+    border: '1px solid #ccd9ea',
+    background: '#ffffff',
+    color: '#132b4f',
     outline: 'none',
   },
 
   quantityInput: {
-    width: '90px',
-    padding: '10px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255,255,255,0.18)',
-    background: 'rgba(255,255,255,0.08)',
-    color: '#ffffff',
+    width: '105px',
+    minHeight: '42px',
+    padding: '10px 11px',
+    borderRadius: '11px',
+    border: '1px solid #ccd9ea',
+    background: '#ffffff',
+    color: '#132b4f',
     outline: 'none',
     textAlign: 'center',
   },
@@ -2150,114 +2478,140 @@ const styles = {
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
+    borderRadius: '16px',
+    border: '1px solid #e1e9f4',
+    background: '#ffffff',
   },
 
   table: {
     width: '100%',
-    borderCollapse: 'separate',
-    borderSpacing: '0 10px',
+    minWidth: '760px',
+    borderCollapse: 'collapse',
+    borderSpacing: 0,
   },
 
   th: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: '13px',
-    padding: '8px',
+    padding: '13px 12px',
+    color: '#52627a',
+    background: '#f4f7fb',
+    borderBottom: '1px solid #dfe8f3',
+    fontSize: '12px',
+    fontWeight: 900,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    whiteSpace: 'nowrap',
   },
 
   td: {
-    color: '#ffffff',
-    padding: '10px 8px',
+    padding: '12px',
+    color: '#243a5a',
+    background: '#ffffff',
+    borderBottom: '1px solid #e7edf5',
     textAlign: 'center',
-    background: 'rgba(255,255,255,0.045)',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    verticalAlign: 'middle',
   },
 
   actionRow: {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: '12px',
     flexWrap: 'wrap',
-    marginTop: '18px',
+    marginTop: '20px',
   },
 
   mainButton: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#fff',
+    minHeight: '44px',
+    padding: '12px 24px',
     border: 'none',
-    padding: '13px 28px',
     borderRadius: '12px',
+    background: 'linear-gradient(135deg, #176BFF, #438CFF)',
+    color: '#ffffff',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: '14px',
-    boxShadow: '0 10px 24px rgba(23,107,255,0.32)',
+    boxShadow: '0 12px 24px rgba(23,107,255,0.24)',
   },
 
   mainButtonSmall: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#fff',
+    minHeight: '40px',
+    padding: '10px 15px',
     border: 'none',
-    padding: '10px 14px',
-    borderRadius: '10px',
+    borderRadius: '11px',
+    background: 'linear-gradient(135deg, #176BFF, #438CFF)',
+    color: '#ffffff',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: '12px',
+    boxShadow: '0 9px 18px rgba(23,107,255,0.18)',
   },
 
   secondaryButton: {
-    background: 'rgba(255,255,255,0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255,255,255,0.18)',
-    padding: '12px 20px',
+    minHeight: '42px',
+    padding: '11px 17px',
     borderRadius: '12px',
+    background: '#ffffff',
+    color: '#315174',
+    border: '1px solid #d6e1ef',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
+    fontSize: '13px',
   },
 
   logoutButton: {
-    background: 'rgba(255,80,80,0.14)',
-    color: '#ffffff',
-    border: '1px solid rgba(255,80,80,0.25)',
-    padding: '12px 20px',
+    minHeight: '42px',
+    padding: '11px 17px',
     borderRadius: '12px',
+    background: '#fff3f2',
+    color: '#c1342d',
+    border: '1px solid #ffd7d4',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
+    fontSize: '13px',
   },
 
   smallButton: {
-    background: 'rgba(255,255,255,0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255,255,255,0.18)',
-    padding: '10px 14px',
+    minHeight: '39px',
+    padding: '9px 14px',
     borderRadius: '10px',
+    background: '#f5f8fc',
+    color: '#315174',
+    border: '1px solid #dbe5f1',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: '12px',
   },
 
   deleteButton: {
-    background: 'rgba(255,80,80,0.14)',
-    color: '#ffffff',
-    border: '1px solid rgba(255,80,80,0.25)',
-    padding: '10px 14px',
+    minHeight: '39px',
+    padding: '9px 14px',
     borderRadius: '10px',
+    background: '#fff3f2',
+    color: '#c1342d',
+    border: '1px solid #ffd7d4',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: '12px',
   },
 
   emptyText: {
-    color: 'rgba(255,255,255,0.72)',
+    margin: '16px 0 0',
+    padding: '24px',
+    borderRadius: '16px',
+    color: '#6a7a91',
+    background: '#f7f9fc',
+    border: '1px dashed #cad6e5',
     textAlign: 'center',
   },
 
   listBox: {
-    marginBottom: '24px',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '20px',
+    marginTop: '16px',
     padding: '20px',
-    background: 'rgba(255,255,255,0.03)',
+    borderRadius: '20px',
+    background: '#ffffff',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 12px 30px rgba(28,69,128,0.06)',
   },
 
   listHeader: {
@@ -2270,46 +2624,55 @@ const styles = {
   },
 
   listTitle: {
-    color: '#ffffff',
     margin: 0,
+    color: '#061b41',
+    fontSize: '19px',
+    lineHeight: 1.3,
+    fontWeight: 900,
   },
 
   listSubtitle: {
-    color: 'rgba(255,255,255,0.65)',
-    margin: '4px 0 0',
+    margin: '6px 0 0',
+    color: '#718096',
+    fontSize: '13px',
+    lineHeight: 1.5,
   },
 
   listActions: {
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
 
   filtersBox: {
     marginBottom: '22px',
     padding: '16px',
     borderRadius: '16px',
-    background: 'rgba(255,255,255,0.045)',
-    border: '1px solid rgba(255,255,255,0.10)',
+    background: '#f7faff',
+    border: '1px solid #e0e9f5',
     display: 'flex',
-    gap: '16px',
+    gap: '12px 18px',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   filtersTitle: {
-    color: '#ffffff',
-    fontWeight: 800,
     margin: 0,
+    color: '#17375e',
+    fontWeight: 900,
+    fontSize: '13px',
   },
 
   filterLabel: {
-    color: 'rgba(255,255,255,0.82)',
     display: 'flex',
-    gap: '6px',
+    gap: '8px',
     alignItems: 'center',
+    color: '#52627a',
     fontWeight: 700,
+    fontSize: '13px',
+    cursor: 'pointer',
   },
 
   clickableRow: {
@@ -2317,161 +2680,161 @@ const styles = {
   },
 
   offerCount: {
-    color: '#31f7c6',
-    fontWeight: 800,
+    color: '#176bff',
+    fontWeight: 900,
   },
 
   arrow: {
     marginLeft: '8px',
-    color: '#31f7c6',
-    fontWeight: 800,
+    color: '#176bff',
+    fontWeight: 900,
   },
 
   offersRow: {
     padding: '18px',
-    background: 'rgba(255,255,255,0.025)',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    background: '#f7faff',
+    borderBottom: '1px solid #e1e9f4',
   },
 
   offersGrid: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '14px',
     marginTop: '10px',
   },
 
   offerCard: {
-    padding: '16px',
-    borderRadius: '16px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    minWidth: '240px',
-    maxWidth: '280px',
-    flex: '0 0 auto',
+    minWidth: 0,
+    padding: '18px',
+    borderRadius: '17px',
+    background: '#ffffff',
+    border: '1px solid #dfe8f3',
+    boxShadow: '0 12px 26px rgba(28,69,128,0.07)',
   },
 
   offerPrice: {
-    color: '#31f7c6',
-    fontSize: '24px',
-    fontWeight: 800,
     margin: 0,
+    color: '#176bff',
+    fontSize: '25px',
+    lineHeight: 1.2,
+    fontWeight: 900,
   },
 
   offerMeta: {
-    color: 'rgba(255,255,255,0.72)',
-    marginTop: '4px',
+    margin: '6px 0 0',
+    color: '#6d7d92',
+    fontSize: '13px',
+    lineHeight: 1.5,
   },
 
   offerActions: {
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap',
-    marginTop: '12px',
+    marginTop: '14px',
   },
 
   contactBox: {
-    marginTop: '10px',
-    borderTop: '1px dashed rgba(255,255,255,0.18)',
-    paddingTop: '10px',
+    marginTop: '13px',
+    padding: '13px',
+    borderRadius: '12px',
+    background: '#f6f9fd',
+    border: '1px solid #e1e9f4',
   },
 
   contactText: {
-    color: 'rgba(255,255,255,0.82)',
     margin: '6px 0',
-  },
-
-  textArea: {
-    width: '100%',
-    minHeight: '70px',
-    marginTop: '10px',
-    padding: '12px',
-    borderRadius: '12px',
-    border: '1px solid rgba(255,255,255,0.18)',
-    background: 'rgba(255,255,255,0.08)',
-    color: '#ffffff',
-    resize: 'vertical',
-    boxSizing: 'border-box',
+    color: '#52627a',
+    fontSize: '13px',
+    lineHeight: 1.55,
+    overflowWrap: 'anywhere',
   },
 
   confirmedText: {
-    color: '#31f7c6',
-    marginTop: '10px',
-    fontWeight: 800,
+    marginTop: '12px',
+    color: '#07846f',
+    fontWeight: 900,
   },
 
   waitingOffer: {
     margin: 0,
+    color: '#718096',
     fontStyle: 'italic',
-    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
   },
+
   pendingPaymentText: {
-  color: '#ffd166',
-  marginTop: '10px',
-  fontWeight: 800,
-},
-comunasDropdown: {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  right: 0,
-  marginTop: '6px',
-  background: '#0d1830',
-  border: '1px solid rgba(255,255,255,0.15)',
-  borderRadius: '12px',
-  maxHeight: '220px',
-  overflowY: 'auto',
-  zIndex: 9999,
-  boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
-},
+    marginTop: '12px',
+    color: '#a86a00',
+    fontWeight: 900,
+  },
 
-comunaItem: {
-  padding: '12px 14px',
-  color: '#ffffff',
-  cursor: 'pointer',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-  textAlign: 'left',
-},
+  comunasDropdown: {
+    position: 'absolute',
+    top: 'calc(100% - 10px)',
+    left: 'calc(50% + 9px)',
+    right: 0,
+    maxHeight: '230px',
+    overflowY: 'auto',
+    zIndex: 9999,
+    borderRadius: '13px',
+    background: '#ffffff',
+    border: '1px solid #d7e2ef',
+    boxShadow: '0 18px 38px rgba(28,69,128,0.16)',
+  },
 
-comunaEmpty: {
-  padding: '12px 14px',
-  color: 'rgba(255,255,255,0.6)',
-  textAlign: 'left',
-},
-draftBadge: {
-  display: 'inline-block',
-  marginTop: '8px',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: 'rgba(255, 209, 102, 0.14)',
-  border: '1px solid rgba(255, 209, 102, 0.30)',
-  color: '#ffd166',
-  fontSize: '11px',
-  fontWeight: 800,
-},
+  comunaItem: {
+    padding: '11px 13px',
+    color: '#2c4567',
+    cursor: 'pointer',
+    borderBottom: '1px solid #edf1f6',
+    textAlign: 'left',
+  },
 
-publishedBadge: {
-  display: 'inline-block',
-  marginTop: '8px',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: 'rgba(49, 247, 198, 0.12)',
-  border: '1px solid rgba(49, 247, 198, 0.28)',
-  color: '#31f7c6',
-  fontSize: '11px',
-  fontWeight: 800,
-},
-messageBox: {
-  marginTop: '14px',
-  paddingTop: '14px',
-  borderTop: '1px solid rgba(255,255,255,0.10)',
-},
+  comunaEmpty: {
+    padding: '13px',
+    color: '#718096',
+    textAlign: 'left',
+  },
 
-messageLabel: {
-  display: 'block',
-  marginBottom: '8px',
-  color: 'rgba(255,255,255,0.82)',
-  fontSize: '12px',
-  fontWeight: 700,
-  textAlign: 'left',
-},
+  draftBadge: {
+    display: 'inline-flex',
+    marginTop: '8px',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: '#fff7df',
+    border: '1px solid #f3d98b',
+    color: '#9b6700',
+    fontSize: '11px',
+    fontWeight: 900,
+  },
+
+  publishedBadge: {
+    display: 'inline-flex',
+    marginTop: '8px',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    background: '#eafaf5',
+    border: '1px solid #b9eadc',
+    color: '#07846f',
+    fontSize: '11px',
+    fontWeight: 900,
+  },
+
+  messageBox: {
+    marginTop: '14px',
+    padding: '13px',
+    borderRadius: '12px',
+    background: '#f7faff',
+    border: '1px solid #e1e9f4',
+  },
+
+  messageLabel: {
+    display: 'block',
+    marginBottom: '8px',
+    color: '#315174',
+    fontSize: '12px',
+    fontWeight: 800,
+    textAlign: 'left',
+  },
 };
