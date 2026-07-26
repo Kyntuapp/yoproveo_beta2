@@ -238,7 +238,17 @@ export default function Terminos() {
           Kyntü.
         </p>
       </TermSection>
+      <div style={styles.actions}>
+        <a
+            href="/legales/terminos-v1.0.pdf"
+            download
+            style={styles.downloadButton}
+        >
+            Descargar Términos y Condiciones (PDF)
+        </a>
+        </div>
     </LegalLayout>
+    
   );
 }
 
@@ -293,5 +303,24 @@ const styles = {
   list: {
     margin: "5px 0 0",
     paddingLeft: "21px",
+  },
+  actions: {
+    marginTop: '40px',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+
+  downloadButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '14px 24px',
+    borderRadius: '14px',
+    background: '#176BFF',
+    color: '#fff',
+    textDecoration: 'none',
+    fontWeight: 700,
+    boxShadow: '0 14px 28px rgba(23,107,255,.25)',
+    transition: '.2s',
   },
 };

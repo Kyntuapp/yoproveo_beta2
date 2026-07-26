@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { Eye, EyeOff } from "lucide-react";
+import KyntuModal, {
+  createModalState,
+} from '../pages/KyntuModal';
 
 export default function Register() {
   const router = useRouter();
@@ -13,6 +16,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [modal, setModal] = useState(createModalState());
 
   const handleRegister = async () => {
     setErrorMessage('');
@@ -197,12 +201,58 @@ export default function Register() {
         }
       }
 
-      alert(
-        authIdExistente
-          ? 'Perfil agregado correctamente.'
-          : 'Usuario registrado con éxito. Revisa tu correo para confirmar la cuenta.'
-      );
-      router.push('/login');
+      const aceptacionesToInsert = [
+  {
+    usuario_id: authIdParaInsert,
+    tipo_documento: 'terminos',
+    version: '1.0',
+  },
+  {
+    usuario_id: authIdParaInsert,
+    tipo_documento: 'privacidad',
+    version: '1.0',
+  },
+];
+
+const { error: aceptacionError } = await supabase
+  .from('aceptaciones_documentos')
+  .upsert(aceptacionesToInsert, {
+    onConflict: 'usuario_id,tipo_documento,version',
+    ignoreDuplicates: true,
+  });
+
+if (aceptacionError) {
+  console.error(
+    'Error guardando aceptación de documentos:',
+    aceptacionError
+  );
+
+  setErrorMessage(
+    'El perfil fue creado, pero no se pudo registrar la aceptación de los documentos legales.'
+  );
+
+  setLoading(false);
+  return;
+}
+
+   setModal({
+      open: true,
+      type: 'success',
+      title: authIdExistente
+        ? 'Perfil agregado'
+        : 'Registro exitoso',
+      message: authIdExistente
+        ? 'El nuevo perfil fue agregado correctamente.'
+        : 'Tu cuenta fue creada correctamente. Revisa tu correo para confirmar la cuenta.',
+      confirmText: 'Aceptar',
+      cancelText: 'Cancelar',
+      showCancel: false,
+      onConfirm: () => {
+        setModal(createModalState());
+        router.push('/login');
+      },
+      onCancel: null,
+    });
     } catch (err) {
       console.error(err);
       setErrorMessage('Ocurrió un error inesperado.');
@@ -210,6 +260,8 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+
 
   return (
     <div style={styles.container}>
@@ -311,7 +363,19 @@ export default function Register() {
         </button>
       </div>
       </div>
+      <KyntuModal
+        open={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        showCancel={modal.showCancel}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+      />
     </div>
+    
   );
 }
 
