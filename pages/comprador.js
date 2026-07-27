@@ -7,13 +7,31 @@ import { comunasChile } from '../utils/comunasChile';
 import KyntuModal, { createModalState } from '../pages/KyntuModal';
 import ModalCalificacion from './ModalCalificacion';
 
+const MAX_DETALLE_PEDIDO = 120;
+
 const filaVacia = {
   producto: '',
   formato: '',
   marca: '',
   cantidad: '',
   precio: '',
+  detalle_pedido: '',
 };
+
+function normalizarDetallePedido(valor) {
+  const texto = (valor ?? '').toString().trim();
+  return texto ? texto.slice(0, MAX_DETALLE_PEDIDO) : null;
+}
+
+function textoDetallePedidoVisible(item) {
+  if (!item) return '';
+
+  const detalles = (item.formatos_detalle || [])
+    .map((f) => (f?.detalle_pedido ?? '').toString().trim())
+    .filter(Boolean);
+
+  return detalles.join(' · ');
+}
 
 export default function Comprador() {
   const [productos, setProductos] = useState([{ ...filaVacia }]);
@@ -422,9 +440,11 @@ setListas(listasEnriquecidas);
     const updated = [...productos];
 
     updated[index][field] =
-      typeof value === 'string'
-        ? value.toUpperCase()
-        : value;
+      field === 'detalle_pedido'
+        ? value.slice(0, MAX_DETALLE_PEDIDO)
+        : typeof value === 'string'
+          ? value.toUpperCase()
+          : value;
 
     if (field === 'producto') {
       updated[index].formato = '';
@@ -522,6 +542,7 @@ setListas(listasEnriquecidas);
       formato: p.formato,
       cantidad: Number(p.cantidad),
       precio: Number(p.precio),
+      detalle_pedido: normalizarDetallePedido(p.detalle_pedido),
     });
 
     return acc;
@@ -663,6 +684,7 @@ const guardarLista = async () => {
         formato: p.formato,
         cantidad: Number(p.cantidad),
         precio: Number(p.precio),
+        detalle_pedido: normalizarDetallePedido(p.detalle_pedido),
       });
 
       return acc;
@@ -799,9 +821,40 @@ const publicarLista = async (listaId) => {
   };
 
   const actualizarProducto = async (id, field, value) => {
+    let payload;
+    let estadoParcial;
+
+    if (field === 'detalle_pedido') {
+      const item = listas.find((p) => getRowId(p) === id);
+      if (!item) return;
+
+      const detalle = normalizarDetallePedido(value);
+      const formatos =
+        Array.isArray(item.formatos_detalle) &&
+        item.formatos_detalle.length > 0
+          ? item.formatos_detalle.map((f) => ({
+              ...f,
+              detalle_pedido: detalle,
+            }))
+          : [
+              {
+                formato: item.formato,
+                cantidad: item.cantidad,
+                precio: item.precio,
+                detalle_pedido: detalle,
+              },
+            ];
+
+      payload = { formatos_detalle: formatos };
+      estadoParcial = { formatos_detalle: formatos };
+    } else {
+      payload = { [field]: value };
+      estadoParcial = { [field]: value };
+    }
+
     const { error } = await supabase
       .from('listas_compras')
-      .update({ [field]: value })
+      .update(payload)
       .eq('id', id);
 
     if (error) {
@@ -810,7 +863,9 @@ const publicarLista = async (listaId) => {
     }
 
     setListas((prev) =>
-      prev.map((p) => (getRowId(p) === id ? { ...p, [field]: value } : p))
+      prev.map((p) =>
+        getRowId(p) === id ? { ...p, ...estadoParcial } : p
+      )
     );
   };
 
@@ -1328,7 +1383,11 @@ const guardarCalificacion = async () => {
     const updated = [...(nuevosProductos[fecha] || [])];
 
     updated[index][field] =
-      typeof value === 'string' ? value.toUpperCase() : value;
+      field === 'detalle_pedido'
+        ? value.slice(0, MAX_DETALLE_PEDIDO)
+        : typeof value === 'string'
+          ? value.toUpperCase()
+          : value;
 
     if (field === 'producto') {
       updated[index].formato = '';
@@ -1362,6 +1421,14 @@ const guardarCalificacion = async () => {
       marca: producto.marca,
       cantidad: Number(producto.cantidad),
       precio: Number(producto.precio),
+      formatos_detalle: [
+        {
+          formato: producto.formato,
+          cantidad: Number(producto.cantidad),
+          precio: Number(producto.precio),
+          detalle_pedido: normalizarDetallePedido(producto.detalle_pedido),
+        },
+      ],
       usuario_id: listaBase.usuario_id,
       comprador_email:
         listaBase.comprador_email || localStorage.getItem('user_email') || '',
@@ -1504,6 +1571,9 @@ const guardarCalificacion = async () => {
                   <th className="kyntu-th" style={styles.th}>Marca</th>
                   <th className="kyntu-th" style={styles.th}>Cantidad</th>
                   <th className="kyntu-th" style={styles.th}>Precio</th>
+                  <th className="kyntu-th" style={styles.thDetalle}>
+                    DETALLES DEL PEDIDO
+                  </th>
                 </tr>
               </thead>
 
@@ -1589,6 +1659,20 @@ const guardarCalificacion = async () => {
                           handleChange(i, 'precio', e.target.value)
                         }
                         className="kyntu-quantityInput" style={styles.quantityInput}
+                      />
+                    </td>
+
+                    <td className="kyntu-td" style={styles.td}>
+                      <input
+                        type="text"
+                        value={item.detalle_pedido || ''}
+                        maxLength={MAX_DETALLE_PEDIDO}
+                        placeholder="Ej: solo calibre grande"
+                        onChange={(e) =>
+                          handleChange(i, 'detalle_pedido', e.target.value)
+                        }
+                        className="kyntu-detalleInput"
+                        style={styles.detalleInput}
                       />
                     </td>
                   </tr>
@@ -1759,6 +1843,9 @@ const guardarCalificacion = async () => {
                               <th className="kyntu-th" style={styles.th}>Marca</th>
                               <th className="kyntu-th" style={styles.th}>Cantidad</th>
                               <th className="kyntu-th" style={styles.th}>Precio</th>
+                              <th className="kyntu-th" style={styles.thDetalle}>
+                                DETALLES DEL PEDIDO
+                              </th>
                               <th className="kyntu-th" style={styles.th}>Ofertas</th>
                             </tr>
                           </thead>
@@ -1788,6 +1875,9 @@ const guardarCalificacion = async () => {
                                     <td className="kyntu-td" style={styles.td}>
                                       ${formatearPrecio(item.precio)}
                                     </td>
+                                    <td className="kyntu-td" style={styles.tdDetalle}>
+                                      {textoDetallePedidoVisible(item) || '—'}
+                                    </td>
                                     <td className="kyntu-td" style={styles.td}>
                                       <span className="kyntu-offerCount" style={styles.offerCount}>
                                         {ofertas.length > 0
@@ -1802,7 +1892,7 @@ const guardarCalificacion = async () => {
 
                                   {abierto && (
                                     <tr key={`ofertas-${rowId || idx}`}>
-                                      <td colSpan={6} className="kyntu-offersRow" style={styles.offersRow}>
+                                      <td colSpan={7} className="kyntu-offersRow" style={styles.offersRow}>
                                         {ofertas.length === 0 ? (
                                           <p className="kyntu-waitingOffer" style={styles.waitingOffer}>
                                             Aún no has recibido ofertas por este producto.
@@ -2229,13 +2319,14 @@ const guardarCalificacion = async () => {
 
           .kyntu-input,
           .kyntu-select,
-          .kyntu-quantityInput {
+          .kyntu-quantityInput,
+          .kyntu-detalleInput {
             width: 100% !important;
             min-width: 120px !important;
           }
 
           .kyntu-table {
-            min-width: 720px !important;
+            min-width: 900px !important;
           }
 
           .kyntu-actionRow {
@@ -2542,6 +2633,52 @@ const styles = {
     textAlign: 'center',
   },
 
+  detalleInput: {
+    width: '100%',
+    minWidth: '160px',
+    maxWidth: '220px',
+    minHeight: '42px',
+    padding: '10px 11px',
+    borderRadius: '11px',
+    border: '1px solid #ccd9ea',
+    background: '#ffffff',
+    color: '#132b4f',
+    outline: 'none',
+    textAlign: 'left',
+    textTransform: 'none',
+    boxSizing: 'border-box',
+  },
+
+  thDetalle: {
+    padding: '13px 12px',
+    color: '#52627a',
+    background: '#f4f7fb',
+    borderBottom: '1px solid #dfe8f3',
+    fontSize: '11px',
+    fontWeight: 900,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    whiteSpace: 'normal',
+    lineHeight: 1.3,
+    minWidth: '160px',
+    maxWidth: '220px',
+  },
+
+  tdDetalle: {
+    padding: '12px',
+    color: '#52627a',
+    background: '#ffffff',
+    borderBottom: '1px solid #e7edf5',
+    textAlign: 'left',
+    verticalAlign: 'middle',
+    fontSize: '12px',
+    lineHeight: 1.45,
+    minWidth: '160px',
+    maxWidth: '220px',
+    overflowWrap: 'anywhere',
+  },
+
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
@@ -2552,7 +2689,7 @@ const styles = {
 
   table: {
     width: '100%',
-    minWidth: '760px',
+    minWidth: '980px',
     borderCollapse: 'collapse',
     borderSpacing: 0,
   },
