@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabaseClient';
+import { subscribeNotificacionesUsuario } from '../lib/ofertaMensajes';
 
 export default function Notificaciones({ userId, rol }) {
   const router = useRouter();
@@ -28,7 +29,15 @@ export default function Notificaciones({ userId, rol }) {
     }
 
     cargarNotificaciones();
+
+    return subscribeNotificacionesUsuario(userId, rol, cargarNotificaciones);
   }, [userId, rol]);
+
+  useEffect(() => {
+    if (mostrar && userId && rol) {
+      cargarNotificaciones();
+    }
+  }, [mostrar, userId, rol]);
 
   useEffect(() => {
     const cerrarAlHacerClickFuera = (event) => {

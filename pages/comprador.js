@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
+import OfertaConversacionContenedor from '../components/OfertaConversacionContenedor';
 import { comunasChile } from '../utils/comunasChile';
 import KyntuModal, { createModalState } from '../pages/KyntuModal';
 import ModalCalificacion from './ModalCalificacion';
@@ -29,7 +30,10 @@ export default function Comprador() {
   const [nuevosProductos, setNuevosProductos] = useState({});
   const [listasConOfertas, setListasConOfertas] = useState([]);
   const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
-  const [comentariosCompra, setComentariosCompra] = useState({});
+  const [conversacionAbiertaPorProducto, setConversacionAbiertaPorProducto] =
+    useState({});
+  const [ofertaDestacadaId, setOfertaDestacadaId] = useState(null);
+  const [deepLinkError, setDeepLinkError] = useState('');
   const [productosConOfertasAbiertas, setProductosConOfertasAbiertas] =
     useState({});
   const [nombreLista, setNombreLista] = useState('');
@@ -244,9 +248,9 @@ setListas(listasEnriquecidas);
     fetchData();
   }, [router]);
 
-  useEffect(() => {
+  const abrirDesdeNotificacion = (tipoNotif) => {
     if (!router.isReady) return;
-    if (router.query?.notif !== 'ofertas') return;
+    if (router.query?.notif !== tipoNotif) return;
     if (!listas || listas.length === 0) return;
 
     let fechaKey = null;
@@ -256,39 +260,31 @@ setListas(listasEnriquecidas);
       ? router.query.list_id[0]
       : router.query.list_id;
 
+    const ofertaIdParam = Array.isArray(router.query.oferta_id)
+      ? router.query.oferta_id[0]
+      : router.query.oferta_id;
+
     if (listIdParam) {
       const listaMatch = listas.find(
-        (l) =>
-          String(getRowId(l)) ===
-          String(listIdParam)
+        (l) => String(getRowId(l)) === String(listIdParam)
       );
 
       if (listaMatch) {
         listIdToOpen = getRowId(listaMatch);
-        fechaKey = new Date(
-          listaMatch.fecha_creacion
-        ).toLocaleString();
+        fechaKey = new Date(listaMatch.fecha_creacion).toLocaleString();
       }
     }
 
     if (!fechaKey) {
       const ultima = listas.reduce((a, b) =>
-        new Date(a.fecha_creacion) >
-        new Date(b.fecha_creacion)
-          ? a
-          : b
+        new Date(a.fecha_creacion) > new Date(b.fecha_creacion) ? a : b
       );
 
-      fechaKey = new Date(
-        ultima.fecha_creacion
-      ).toLocaleString();
+      fechaKey = new Date(ultima.fecha_creacion).toLocaleString();
     }
 
     if (!expandedFechas.includes(fechaKey)) {
-      setExpandedFechas((prev) => [
-        ...prev,
-        fechaKey,
-      ]);
+      setExpandedFechas((prev) => [...prev, fechaKey]);
     }
 
     if (listIdToOpen) {
@@ -298,31 +294,117 @@ setListas(listasEnriquecidas);
       }));
     }
 
-    verOfertas(fechaKey);
+    if (ofertaIdParam) {
+      setOfertaDestacadaId(String(ofertaIdParam));
+      if (tipoNotif === 'chat' && listIdToOpen) {
+        setConversacionAbiertaPorProducto((prev) => ({
+          ...prev,
+          [listIdToOpen]: String(ofertaIdParam),
+        }));
+      }
+    }
 
-    // eslint-disable-next-line
+    verOfertas(fechaKey);
+  };
+
+  const toggleConversacionProducto = (productoRowId, ofertaId) => {
+    const ofertaStr = String(ofertaId);
+
+    setConversacionAbiertaPorProducto((prev) => {
+      if (prev[productoRowId] === ofertaStr) {
+        const next = { ...prev };
+        delete next[productoRowId];
+        return next;
+      }
+
+      return { ...prev, [productoRowId]: ofertaStr };
+    });
+  };
+
+  useEffect(() => {
+    abrirDesdeNotificacion('ofertas');
+    abrirDesdeNotificacion('chat');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query, listas]);
 
   useEffect(() => {
+    if (!router.isReady || router.query?.notif !== 'chat') return;
+    if (!ofertaDestacadaId) return;
+    if (Object.keys(ofertasCrudasPorProducto).length === 0) return;
+
+    const existe = Object.values(ofertasCrudasPorProducto)
+      .flat()
+      .some((o) => String(o.id) === String(ofertaDestacadaId));
+
+    if (!existe) {
+      setDeepLinkError(
+        'No se pudo abrir la conversación solicitada. La oferta no está disponible o no tienes acceso.'
+      );
+      setConversacionAbiertaPorProducto((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((key) => {
+          if (next[key] === String(ofertaDestacadaId)) {
+            delete next[key];
+          }
+        });
+        return next;
+      });
+    }
+  }, [router.isReady, router.query, ofertaDestacadaId, ofertasCrudasPorProducto]);
+
+  useEffect(() => {
+    if (!router.isReady || router.query?.notif !== 'chat') return;
+
+    const ofertaIdParam = Array.isArray(router.query.oferta_id)
+      ? router.query.oferta_id[0]
+      : router.query.oferta_id;
+
+    if (!ofertaIdParam || Object.keys(ofertasCrudasPorProducto).length === 0) {
+      return;
+    }
+
+    const ofertaMatch = Object.values(ofertasCrudasPorProducto)
+      .flat()
+      .find((o) => String(o.id) === String(ofertaIdParam));
+
+    if (!ofertaMatch?.lista_id) return;
+
+    setConversacionAbiertaPorProducto((prev) => ({
+      ...prev,
+      [ofertaMatch.lista_id]: String(ofertaIdParam),
+    }));
+  }, [router.isReady, router.query, ofertasCrudasPorProducto]);
+
+  useEffect(() => {
     if (!router.isReady) return;
-    if (router.query?.notif !== 'ofertas') return;
+    if (!['ofertas', 'chat'].includes(router.query?.notif)) return;
 
     const listIdParam = Array.isArray(router.query.list_id)
       ? router.query.list_id[0]
       : router.query.list_id;
 
-    if (!listIdParam) return;
-    if (!productosConOfertasAbiertas[listIdParam]) return;
-    if (scrolledToOfertaRef.current === listIdParam) return;
+    const ofertaIdParam = Array.isArray(router.query.oferta_id)
+      ? router.query.oferta_id[0]
+      : router.query.oferta_id;
+
+    const scrollKey = ofertaIdParam
+      ? `oferta-card-${ofertaIdParam}`
+      : listIdParam
+        ? `oferta-${listIdParam}`
+        : null;
+
+    if (!scrollKey) return;
+    if (listIdParam && !productosConOfertasAbiertas[listIdParam]) return;
+    if (scrolledToOfertaRef.current === scrollKey) return;
 
     const timer = setTimeout(() => {
-      const el = document.getElementById(`oferta-${listIdParam}`);
+      const el = document.getElementById(scrollKey);
 
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        scrolledToOfertaRef.current = listIdParam;
+        scrolledToOfertaRef.current = scrollKey;
       }
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [
@@ -828,19 +910,48 @@ const publicarLista = async (listaId) => {
   ]
 );
 
+  const combinarOfertasVisibles = useCallback(
+    (ofertas, destacadaId) => {
+      const base = aplicarFiltrosOfertas(ofertas);
+      const visibles = [...base];
+      const ids = new Set(visibles.map((o) => String(o.id)));
+
+      (ofertas || []).forEach((o) => {
+        const estado = (o.estado || '').toLowerCase();
+        if (estado === 'rechazada' && !ids.has(String(o.id))) {
+          visibles.push(o);
+          ids.add(String(o.id));
+        }
+      });
+
+      if (destacadaId) {
+        const destacada = (ofertas || []).find(
+          (o) => String(o.id) === String(destacadaId)
+        );
+        if (destacada && !ids.has(String(destacada.id))) {
+          visibles.push(destacada);
+        }
+      }
+
+      return visibles;
+    },
+    [aplicarFiltrosOfertas]
+  );
+
   useEffect(() => {
     const claves = Object.keys(ofertasCrudasPorProducto);
     if (claves.length === 0) return;
 
     const filtradas = {};
     claves.forEach((clave) => {
-      filtradas[clave] = aplicarFiltrosOfertas(
-        ofertasCrudasPorProducto[clave]
+      filtradas[clave] = combinarOfertasVisibles(
+        ofertasCrudasPorProducto[clave],
+        ofertaDestacadaId
       );
     });
 
     setOfertasPorProducto(filtradas);
-  }, [ofertasCrudasPorProducto, aplicarFiltrosOfertas]);
+  }, [ofertasCrudasPorProducto, combinarOfertasVisibles, ofertaDestacadaId]);
 
   const verOfertas = async (fecha) => {
     if (!expandedFechas.includes(fecha)) {
@@ -873,10 +984,7 @@ const publicarLista = async (listaId) => {
       return;
     }
 
-    const visibles = (ofertasAll || []).filter((o) => {
-      const st = (o.estado || '').toLowerCase();
-      return st !== 'rechazada';
-    });
+    const visibles = ofertasAll || [];
 
     const proveedorIds = [
       ...new Set(visibles.map((o) => o.proveedor_id)),
@@ -927,13 +1035,10 @@ const publicarLista = async (listaId) => {
   };
 
   const aceptarOferta = async (oferta) => {
-  const comentario = comentariosCompra[oferta.id]?.trim() || '';
-
   const { error: ofertaError } = await supabase
     .from('ofertas_productos')
     .update({
       estado: 'pendiente_pago',
-      comentario_comprador: comentario,
     })
     .eq('id', oferta.id);
 
@@ -967,10 +1072,8 @@ const publicarLista = async (listaId) => {
         usuario_id: oferta.proveedor_id,
         rol: 'proveedor',
         titulo: 'Compra pendiente de pago',
-        mensaje: comentario
-          ? `El comprador aceptó tu oferta para ${oferta.producto}. Mensaje: ${comentario}`
-          : `El comprador aceptó tu oferta para ${oferta.producto}. El pago está en proceso.`,
-        ruta: RUTA_MIS_OFERTAS,
+        mensaje: `El comprador aceptó tu oferta para ${oferta.producto}. El pago está en proceso.`,
+        ruta: `${RUTA_MIS_OFERTAS}?notif=chat&oferta_id=${oferta.id}`,
         leida: false,
       },
     ]);
@@ -1706,6 +1809,14 @@ const guardarCalificacion = async () => {
                                           </p>
                                         ) : (
                                           <div className="kyntu-offersGrid" style={styles.offersGrid}>
+                                            {deepLinkError && (
+                                              <p
+                                                className="kyntu-deepLinkError"
+                                                style={styles.deepLinkError}
+                                              >
+                                                {deepLinkError}
+                                              </p>
+                                            )}
                                             {ofertas.map((of, i) => {
                                               const estado = (
                                                 of.estado || ''
@@ -1729,10 +1840,25 @@ const guardarCalificacion = async () => {
                                               const isProviderPaid =
                                                 estado === 'pagada';
 
+                                              const isRejected =
+                                                estado === 'rechazada';
+
+                                              const cardDestacada =
+                                                ofertaDestacadaId &&
+                                                String(ofertaDestacadaId) ===
+                                                  String(of.id);
+
                                               return (
                                                 <div
-                                                  key={i}
-                                                  className="kyntu-offerCard" style={styles.offerCard}
+                                                  key={of.id || i}
+                                                  id={`oferta-card-${of.id}`}
+                                                  className="kyntu-offerCard"
+                                                  style={{
+                                                    ...styles.offerCard,
+                                                    ...(cardDestacada
+                                                      ? styles.offerCardDestacada
+                                                      : {}),
+                                                  }}
                                                 >
                                                   <p className="kyntu-offerPrice" style={styles.offerPrice}>
                                                     $
@@ -1751,108 +1877,41 @@ const guardarCalificacion = async () => {
                                                       : 'Sin despacho'}
                                                   </p>
 
-                                                  {isPending && (
-                                                    <>
-                                                      <div className="kyntu-messageBox" style={styles.messageBox}>
-                                                        <label className="kyntu-messageLabel" style={styles.messageLabel}>
-                                                          Mensaje para el proveedor
-                                                        </label>
-
-                                                        <input
-                                                          type="text"
-                                                          placeholder="Escribe un mensaje antes de aceptar la compra"
-                                                          value={comentariosCompra[of.id] || ''}
-                                                          onClick={(e) => e.stopPropagation()}
-                                                          onChange={(e) =>
-                                                            setComentariosCompra((prev) => ({
-                                                              ...prev,
-                                                              [of.id]: e.target.value,
-                                                            }))
-                                                          }
-                                                          className="kyntu-input" style={styles.input}
-                                                        />
-                                                      </div>
-
-                                                      <div className="kyntu-offerActions" style={styles.offerActions}>
-                                                        <button
-                                                          type="button"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            aceptarOferta(of);
-                                                          }}
-                                                          className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
-                                                        >
-                                                          Aceptar y pagar
-                                                        </button>
-
-                                                        <button
-                                                          type="button"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            rechazarOferta(of, item, fecha);
-                                                          }}
-                                                          className="kyntu-deleteButton" style={styles.deleteButton}
-                                                        >
-                                                          Rechazar
-                                                        </button>
-                                                      </div>
-                                                    </>
+                                                  {isRejected && (
+                                                    <p
+                                                      className="kyntu-rejectedText"
+                                                      style={styles.rejectedText}
+                                                    >
+                                                      Oferta rechazada
+                                                    </p>
                                                   )}
 
-                                                  {/* {isWaiting && (
-                                                    <>
-                                                      <div className="kyntu-contactBox" style={styles.contactBox}>
-                                                        <p className="kyntu-contactText" style={styles.contactText}>
-                                                          <strong>Proveedor:</strong>{' '}
-                                                          {of.perfiles?.email_contacto ||
-                                                            of.perfiles?.email ||
-                                                            'No disponible'}
-                                                        </p>
-
-                                                        <p className="kyntu-contactText" style={styles.contactText}>
-                                                          <strong>Teléfono:</strong>{' '}
-                                                          {of.perfiles?.telefono_contacto ||
-                                                            'No disponible'}
-                                                        </p>
-                                                      </div>
-
-                                                      <input
-                                                        type="text"
-                                                        placeholder="Comentario para el proveedor"
-                                                        value={comentariosCompra[of.id] || ''}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        onChange={(e) =>
-                                                          setComentariosCompra((prev) => ({
-                                                            ...prev,
-                                                            [of.id]: e.target.value,
-                                                          }))
-                                                        }
-                                                        className="kyntu-input" style={styles.input}
-                                                      />
-
-                                                      <div className="kyntu-offerActions" style={styles.offerActions}>
-                                                        <button
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            confirmarOferta(of, fecha);
-                                                          }}
-                                                          className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
-                                                        >
-                                                          Confirmar compra
-                                                        </button>
-
-                                                        <button
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            rechazarOferta(of, item, fecha);
-                                                          }}
-                                                          className="kyntu-deleteButton" style={styles.deleteButton}
-                                                        >
-                                                          Rechazar
-                                                        </button>
-                                                      </div>
-                                                    </>
-                                                  )} */}
+                                                  {authUserId && (
+                                                    <OfertaConversacionContenedor
+                                                      ofertaId={of.id}
+                                                      authUserId={authUserId}
+                                                      estadoOferta={estado}
+                                                      variant="light"
+                                                      participanteLabel="Proveedor"
+                                                      tooltipChat="Hablar con el proveedor"
+                                                      mostrarAceptarRechazar={isPending}
+                                                      chatAbierto={
+                                                        conversacionAbiertaPorProducto[rowId] ===
+                                                        String(of.id)
+                                                      }
+                                                      onToggleChat={() =>
+                                                        toggleConversacionProducto(rowId, of.id)
+                                                      }
+                                                      onAceptar={(e) => {
+                                                        e.stopPropagation();
+                                                        aceptarOferta(of);
+                                                      }}
+                                                      onRechazar={(e) => {
+                                                        e.stopPropagation();
+                                                        rechazarOferta(of, item, fecha);
+                                                      }}
+                                                    />
+                                                  )}
 
                                                   {isPendingPayment && (
                                                     <>
@@ -2095,14 +2154,17 @@ const guardarCalificacion = async () => {
           }
 
           .kyntu-offersGrid {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            align-items: flex-start !important;
           }
 
           .kyntu-offerCard {
             width: 100% !important;
+            max-width: 360px !important;
+            flex: 0 0 auto !important;
             min-width: 0 !important;
-            max-width: none !important;
           }
 
           .kyntu-filtersBox {
@@ -2215,7 +2277,12 @@ const guardarCalificacion = async () => {
           }
 
           .kyntu-offersGrid {
-            grid-template-columns: 1fr !important;
+            justify-content: flex-start !important;
+          }
+
+          .kyntu-offerCard {
+            width: 100% !important;
+            max-width: 360px !important;
           }
 
           .kyntu-offerPrice {
@@ -2697,19 +2764,49 @@ const styles = {
   },
 
   offersGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
     gap: '14px',
     marginTop: '10px',
   },
 
   offerCard: {
+    width: '100%',
+    maxWidth: '360px',
+    flex: '0 0 auto',
+    alignSelf: 'flex-start',
     minWidth: 0,
+    boxSizing: 'border-box',
     padding: '18px',
     borderRadius: '17px',
     background: '#ffffff',
     border: '1px solid #dfe8f3',
     boxShadow: '0 12px 26px rgba(28,69,128,0.07)',
+    overflow: 'hidden',
+  },
+
+  offerCardDestacada: {
+    border: '1px solid rgba(23, 107, 255, 0.45)',
+    boxShadow: '0 0 0 2px rgba(23, 107, 255, 0.12)',
+  },
+
+  deepLinkError: {
+    gridColumn: '1 / -1',
+    margin: 0,
+    color: '#a86a00',
+    fontSize: '13px',
+    fontWeight: 700,
+  },
+
+  rejectedText: {
+    marginTop: '10px',
+    marginBottom: 0,
+    color: '#8a94a6',
+    fontSize: '12px',
+    fontWeight: 700,
+    fontStyle: 'italic',
   },
 
   offerPrice: {

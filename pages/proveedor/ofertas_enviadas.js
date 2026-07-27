@@ -1,8 +1,18 @@
 // pages/proveedor/ofertas_enviadas.js
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
+import Notificaciones from '../../components/Notificaciones';
+import OfertaAccionesBar from '../../components/OfertaAccionesBar';
+import OfertaConversacion from '../../components/OfertaConversacion';
+import CompradorContacto from '../../components/CompradorContacto';
+import {
+  esOfertaAdjudicada,
+  contarMensajesNoLeidos,
+  panelConversacionId,
+  subscribeMensajesOferta,
+} from '../../lib/ofertaMensajes';
 
 export default function OfertasEnviadas() {
   const router = useRouter();
@@ -21,6 +31,14 @@ export default function OfertasEnviadas() {
   estado: '',
 });
   const [detalleContactoId, setDetalleContactoId] = useState(null);
+  const [conversacionAbiertaId, setConversacionAbiertaId] = useState(null);
+  const [ofertaDestacadaId, setOfertaDestacadaId] = useState(null);
+  const [authUserId, setAuthUserId] = useState(null);
+  const [perfilId, setPerfilId] = useState(null);
+  const [noLeidosPorOferta, setNoLeidosPorOferta] = useState({});
+  const [deepLinkError, setDeepLinkError] = useState('');
+  const [deepLinkPendienteId, setDeepLinkPendienteId] = useState(null);
+  const scrolledToOfertaRef = useRef(null);
   const itemsPorPagina = 20;
 
   useEffect(() => {
@@ -44,6 +62,8 @@ export default function OfertasEnviadas() {
       }
 
       const proveedorPerfilId = perfilProv.id;
+      setAuthUserId(userData.user.id);
+      setPerfilId(proveedorPerfilId);
 
       const { data: ofertasData, error: ofertasError } = await supabase
         .from('ofertas_productos')
@@ -66,7 +86,7 @@ export default function OfertasEnviadas() {
         const { data: listasRows, error: listasErr } = await supabase
           .from('listas_compras')
           .select(
-            'id, usuario_id, comprador_email, producto, formato, marca, cantidad, precio, comuna_despacho, direccion_envio, fecha_creacion'
+            'id, usuario_id, producto, formato, marca, cantidad, precio, comuna_despacho, fecha_creacion'
           )
           .in('id', listaIds);
 
@@ -78,70 +98,19 @@ export default function OfertasEnviadas() {
           mapLista[l.id] = {
             id: l.id,
             usuario_id: (l.usuario_id || '').toString().trim(),
-            comprador_email: (l.comprador_email || '').toString().trim(),
             producto: l.producto || '',
             formato: l.formato || '',
             marca: l.marca || '',
             cantidad: l.cantidad || '',
             precio: l.precio || '',
             comuna_despacho: (l.comuna_despacho || '').toString().trim(),
-            direccion_envio: (l.direccion_envio || '').toString().trim(),
             fecha_creacion: l.fecha_creacion || null,
-          };
-        });
-      }
-
-      const usuarioIds = Array.from(
-        new Set(
-          Object.values(mapLista)
-            .map((v) => (v?.usuario_id || '').toString().trim())
-            .filter(Boolean)
-        )
-      );
-
-      const mapPerfilComprador = {};
-
-      if (usuarioIds.length) {
-        const { data: perfilesRows, error: perfilesErr } = await supabase
-          .from('perfiles')
-          .select(
-            'id, auth_id, tipo, email, email_contacto, telefono_contacto, direccion, comuna'
-          )
-          .eq('tipo', 'comprador')
-          .in('auth_id', usuarioIds);
-
-        if (perfilesErr) {
-          console.error('Error cargando perfiles comprador:', perfilesErr);
-        }
-
-        (perfilesRows || []).forEach((p) => {
-          const authId = (p.auth_id || '').toString().trim();
-          if (!authId) return;
-
-          const emailContacto = (p.email_contacto || '').toString().trim();
-          const emailBase = (p.email || '').toString().trim();
-          const telefono = (p.telefono_contacto || '').toString().trim();
-          const direccion = (p.direccion || '').toString().trim();
-          const comuna = (p.comuna || '').toString().trim();
-
-          mapPerfilComprador[authId] = {
-            email: emailContacto || emailBase || 'N/A',
-            telefono: telefono || 'No disponible',
-            direccionPerfil: [direccion, comuna].filter(Boolean).join(', '),
           };
         });
       }
 
       const enriquecidas = (ofertasData || []).map((o) => {
         const li = mapLista[o.lista_id] || {};
-        const buyer =
-          mapPerfilComprador[(li.usuario_id || '').toString().trim()] || {};
-
-        const direccionFinal =
-          buyer.direccionPerfil ||
-          li.direccion_envio ||
-          li.comuna_despacho ||
-          'No disponible';
 
         return {
           ...o,
@@ -150,9 +119,7 @@ export default function OfertasEnviadas() {
           marca: o.marca || li.marca || '',
           cantidad: li.cantidad || '',
           precio_objetivo: li.precio || '',
-          comprador_email: buyer.email || li.comprador_email || 'N/A',
-          comprador_telefono: buyer.telefono || 'No disponible',
-          comprador_direccion: direccionFinal,
+          comprador_auth_id: (li.usuario_id || '').toString().trim(),
           comuna: li.comuna_despacho || '—',
           fecha_creacion: li.fecha_creacion || null,
         };
@@ -163,6 +130,61 @@ export default function OfertasEnviadas() {
 
     cargarOfertas();
   }, [router]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query?.notif !== 'chat') return;
+
+    const ofertaIdParam = Array.isArray(router.query.oferta_id)
+      ? router.query.oferta_id[0]
+      : router.query.oferta_id;
+
+    if (!ofertaIdParam) return;
+
+    setDeepLinkPendienteId(String(ofertaIdParam));
+    setOfertaDestacadaId(String(ofertaIdParam));
+  }, [router.isReady, router.query]);
+
+  useEffect(() => {
+    if (!deepLinkPendienteId || ofertas.length === 0) return;
+
+    const idx = ofertas.findIndex(
+      (o) => String(o.id) === String(deepLinkPendienteId)
+    );
+
+    if (idx === -1) {
+      setDeepLinkError(
+        'No se pudo abrir la conversación solicitada. La oferta no está disponible o no tienes acceso.'
+      );
+      setDeepLinkPendienteId(null);
+      setConversacionAbiertaId(null);
+      return;
+    }
+
+    setPaginaActual(Math.floor(idx / itemsPorPagina) + 1);
+    setConversacionAbiertaId(String(deepLinkPendienteId));
+    setDeepLinkPendienteId(null);
+  }, [deepLinkPendienteId, ofertas, itemsPorPagina]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query?.notif !== 'chat') return;
+    if (!conversacionAbiertaId) return;
+    if (scrolledToOfertaRef.current === conversacionAbiertaId) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(
+        `oferta-card-proveedor-${conversacionAbiertaId}`
+      );
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scrolledToOfertaRef.current = conversacionAbiertaId;
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [router.isReady, router.query, conversacionAbiertaId, ofertas]);
 
   const volverAlPanel = () => router.push('/proveedor');
 
@@ -228,7 +250,9 @@ const ofertasFiltradas = useMemo(() => {
       precioObjetivo: item.precio_objetivo?.toString(),
       oferta: item.precio_ofertado?.toString(),
       comuna: item.comuna,
-      comprador: item.comprador_email,
+      comprador: esOfertaAdjudicada(item.estado)
+        ? 'CONTACTO DISPONIBLE'
+        : 'CONTRAPARTE',
       estado: estadoTexto(item.estado),
     };
 
@@ -245,7 +269,80 @@ const ofertasFiltradas = useMemo(() => {
   const totalPaginas = Math.ceil(ofertasFiltradas.length / itemsPorPagina);
   const inicio = (paginaActual - 1) * itemsPorPagina;
   const fin = inicio + itemsPorPagina;
-  const ofertasPaginadas = ofertasFiltradas.slice(inicio, fin);
+  const ofertasPaginadas = useMemo(
+    () => ofertasFiltradas.slice(inicio, fin),
+    [ofertasFiltradas, inicio, fin]
+  );
+
+  const handleLeidosActualizados = useCallback((ofertaId) => {
+    setNoLeidosPorOferta((prev) => {
+      if (prev[ofertaId] === 0) return prev;
+
+      return {
+        ...prev,
+        [ofertaId]: 0,
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!authUserId || ofertasPaginadas.length === 0) return undefined;
+
+    let activo = true;
+
+    const cargarConteos = async () => {
+      const entries = await Promise.all(
+        ofertasPaginadas.map(async (o) => {
+          if (String(o.id) === String(conversacionAbiertaId)) {
+            return [o.id, 0];
+          }
+          const n = await contarMensajesNoLeidos(o.id, authUserId);
+          return [o.id, n];
+        })
+      );
+
+      if (!activo) return;
+
+      setNoLeidosPorOferta((prev) => {
+        const next = { ...prev };
+        let changed = false;
+
+        for (const [id, count] of entries) {
+          if (prev[id] !== count) {
+            next[id] = count;
+            changed = true;
+          }
+        }
+
+        return changed ? next : prev;
+      });
+    };
+
+    cargarConteos();
+
+    const cleanups = ofertasPaginadas
+      .filter((o) => String(o.id) !== String(conversacionAbiertaId))
+      .map((o) =>
+        subscribeMensajesOferta(o.id, () => {
+          contarMensajesNoLeidos(o.id, authUserId).then((n) => {
+            setNoLeidosPorOferta((prev) =>
+              prev[o.id] === n ? prev : { ...prev, [o.id]: n }
+            );
+          });
+        })
+      );
+
+    return () => {
+      activo = false;
+      cleanups.forEach((fn) => fn());
+    };
+  }, [authUserId, ofertasPaginadas, conversacionAbiertaId]);
+
+  const toggleConversacion = (ofertaId) => {
+    setConversacionAbiertaId((prev) =>
+      prev === String(ofertaId) ? null : String(ofertaId)
+    );
+  };
 
   return (
     <div style={styles.page}>
@@ -268,7 +365,11 @@ const ofertasFiltradas = useMemo(() => {
           <h1 style={styles.title}>Mis Ofertas Enviadas</h1>
         </div>
 
-        <div style={styles.rightActions}></div>
+        <div style={styles.rightActions}>
+          {perfilId && (
+            <Notificaciones userId={perfilId} rol="proveedor" />
+          )}
+        </div>
       </div>
 
       <main style={styles.content}>
@@ -280,6 +381,10 @@ const ofertasFiltradas = useMemo(() => {
           />
 
           <h2 style={styles.cardTitle}>Historial de ofertas</h2>
+
+          {deepLinkError && (
+            <p style={styles.deepLinkError}>{deepLinkError}</p>
+          )}
 
           <div style={styles.filtersGrid}>
   <div style={styles.filterGroup}>
@@ -346,16 +451,21 @@ const ofertasFiltradas = useMemo(() => {
                       <th style={styles.th}>Comprador</th>
                       <th style={styles.th}>Fecha</th>
                       <th style={styles.th}>Estado</th>
-                      <th style={styles.th}>Comentario comprador</th>
+                      <th style={styles.th}>Conversación</th>
                       <th style={styles.th}>Contacto</th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {ofertasPaginadas.map((item) => {
-                      const puedeVerContacto =
-                        item.estado === 'en_espera_confirmacion' ||
-                        item.estado === 'confirmada';
+                      const adjudicada = esOfertaAdjudicada(item.estado);
+                      const puedeVerContacto = adjudicada;
+                      const noLeidos = noLeidosPorOferta[item.id] || 0;
+                      const conversacionAbierta =
+                        conversacionAbiertaId === String(item.id);
+                      const cardDestacada =
+                        ofertaDestacadaId &&
+                        String(ofertaDestacadaId) === String(item.id);
 
                       return (
                         <>
@@ -371,7 +481,9 @@ const ofertasFiltradas = useMemo(() => {
                               ${formatearNumero(item.precio_ofertado)}
                             </td>
                             <td style={styles.td}>{item.comuna}</td>
-                            <td style={styles.td}>{item.comprador_email}</td>
+                            <td style={styles.td}>
+                              {adjudicada ? 'Contacto disponible' : 'Contraparte'}
+                            </td>
                             <td style={styles.td}>
                               {item.fecha_creacion
                                 ? new Date(item.fecha_creacion).toLocaleString()
@@ -383,11 +495,13 @@ const ofertasFiltradas = useMemo(() => {
                               </span>
                             </td>
                             <td style={styles.td}>
-                              <div style={styles.commentBox}>
-                                {item.comentario_comprador?.trim()
-                                  ? item.comentario_comprador
-                                  : 'Sin comentarios'}
-                              </div>
+                              <OfertaAccionesBar
+                                tooltipChat="Hablar con el comprador"
+                                noLeidos={noLeidos}
+                                chatAbierto={conversacionAbierta}
+                                panelId={panelConversacionId(item.id)}
+                                onToggleChat={() => toggleConversacion(item.id)}
+                              />
                             </td>
                             <td style={styles.td}>
                               {puedeVerContacto ? (
@@ -411,31 +525,54 @@ const ofertasFiltradas = useMemo(() => {
                             </td>
                           </tr>
 
+                          {conversacionAbierta && (
+                            <tr key={`conversacion-${item.id}`}>
+                              <td colSpan={12} style={styles.conversacionBox}>
+                                <div
+                                  id={`oferta-card-proveedor-${item.id}`}
+                                  style={{
+                                    ...styles.offerCardEmbedded,
+                                    ...(cardDestacada
+                                      ? styles.offerCardEmbeddedDestacada
+                                      : {}),
+                                  }}
+                                >
+                                  <p style={styles.embeddedPrice}>
+                                    ${formatearNumero(item.precio_ofertado)}
+                                  </p>
+                                  <p style={styles.embeddedMeta}>
+                                    {item.producto} · {item.formato} · {item.marca}
+                                  </p>
+
+                                  {authUserId && (
+                                    <OfertaConversacion
+                                      ofertaId={item.id}
+                                      authUserId={authUserId}
+                                      estadoOferta={item.estado}
+                                      panelId={panelConversacionId(item.id)}
+                                      onLeidosActualizados={handleLeidosActualizados}
+                                      participanteLabel="Comprador"
+                                    />
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+
                           {puedeVerContacto && detalleContactoId === item.id && (
                             <tr key={`detalle-${item.id}`}>
                               <td colSpan={12} style={styles.contactBox}>
                                 <strong>Datos de contacto del comprador</strong>
-
-                                <div style={styles.contactText}>
-                                  <p>
-                                    <strong>Correo:</strong>{' '}
-                                    {item.comprador_email || 'N/A'}
-                                  </p>
-                                  <p>
-                                    <strong>Teléfono:</strong>{' '}
-                                    {item.comprador_telefono ||
-                                      'No disponible'}
-                                  </p>
-                                  <p>
-                                    <strong>Dirección de despacho:</strong>{' '}
-                                    {item.comprador_direccion ||
-                                      'No disponible'}
-                                  </p>
-                                  <p>
-                                    <strong>Precio aceptado:</strong>{' '}
-                                    ${formatearNumero(item.precio_ofertado)}
-                                  </p>
-                                </div>
+                                <CompradorContacto
+                                  usuarioAuthId={item.comprador_auth_id}
+                                  listaCompraId={item.lista_id}
+                                  comunaDespacho={item.comuna}
+                                  styles={styles}
+                                />
+                                <p style={styles.contactText}>
+                                  <strong>Precio aceptado:</strong>{' '}
+                                  ${formatearNumero(item.precio_ofertado)}
+                                </p>
                               </td>
                             </tr>
                           )}
@@ -755,18 +892,53 @@ filterLabel: {
   fontWeight: '700',
   textAlign: 'left',
 },
-commentBox: {
-  minWidth: '160px',
-  maxWidth: '240px',
-  minHeight: '38px',
-  padding: '10px',
-  borderRadius: '10px',
-  background: 'rgba(255, 255, 255, 0.08)',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
-  color: 'rgba(255,255,255,0.82)',
+conversacionBox: {
+  padding: '16px 18px',
+  background: 'rgba(255,255,255,0.025)',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  textAlign: 'left',
+},
+offerCardEmbedded: {
+  width: '100%',
+  maxWidth: '360px',
+  flex: '0 0 auto',
+  alignSelf: 'flex-start',
+  padding: '16px',
+  borderRadius: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxSizing: 'border-box',
+  overflow: 'hidden',
+},
+offerCardEmbeddedDestacada: {
+  border: '1px solid rgba(49, 247, 198, 0.55)',
+  boxShadow: '0 0 0 2px rgba(49, 247, 198, 0.18)',
+},
+embeddedPrice: {
+  color: '#31f7c6',
+  fontSize: '22px',
+  fontWeight: 800,
+  margin: 0,
+},
+embeddedMeta: {
+  color: 'rgba(255,255,255,0.72)',
+  marginTop: '4px',
+  marginBottom: 0,
   fontSize: '12px',
-  lineHeight: '1.4',
-  whiteSpace: 'normal',
-  wordBreak: 'break-word',
+},
+unreadInline: {
+  display: 'block',
+  marginTop: '6px',
+  color: '#31f7c6',
+  fontSize: '11px',
+  fontWeight: 800,
+},
+deepLinkError: {
+  width: '100%',
+  color: '#ffd166',
+  margin: '0 0 16px',
+  fontSize: '13px',
+  fontWeight: 700,
+  textAlign: 'left',
 },
 };
