@@ -6,6 +6,19 @@ import { useRouter } from 'next/router';
 const VISTA_STORAGE_KEY = 'kyntu_proveedor_vista_ofertas';
 const MOBILE_BREAKPOINT = 820;
 
+function formatearFechaCorta(fecha) {
+  if (!fecha) return '—';
+
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return '—';
+
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+
+  return `${dd}-${mm}-${yyyy}`;
+}
+
 function leerVistaPreferida() {
   try {
     const valor = localStorage.getItem(VISTA_STORAGE_KEY);
@@ -627,23 +640,33 @@ export default function OfertarProductos() {
       ? ''
       : new Intl.NumberFormat('es-CL').format(num);
 
-  const getEstadoStyle = (estadoTexto) => {
+  const getEstadoStyle = (estadoTexto, compacto = false) => {
+    let base;
+
     switch (estadoTexto) {
       case 'Recibiendo ofertas':
-        return styles.estadoVerde;
+        base = styles.estadoVerde;
+        break;
       case 'Oferta enviada':
-        return styles.estadoAzul;
+        base = styles.estadoAzul;
+        break;
       case 'En espera de confirmación':
-        return styles.estadoNaranja;
+        base = styles.estadoNaranja;
+        break;
       case 'Confirmada':
-        return styles.estadoConfirmada;
+        base = styles.estadoConfirmada;
+        break;
       case 'Rechazada':
-        return styles.estadoGris;
+        base = styles.estadoGris;
+        break;
       case 'Cerrada':
-        return styles.estadoRojo;
+        base = styles.estadoRojo;
+        break;
       default:
-        return styles.estadoDefault;
+        base = styles.estadoDefault;
     }
+
+    return compacto ? { ...base, ...styles.estadoBadgeTabla } : base;
   };
 
   const estadoTexto = (item) => obtenerEstado(item);
@@ -757,9 +780,7 @@ export default function OfertarProductos() {
               <div style={styles.metaItem}>
                 <span style={styles.metaLabel}>Fecha</span>
                 <span style={styles.metaValue}>
-                  {item.fecha_creacion
-                    ? new Date(item.fecha_creacion).toLocaleString('es-CL')
-                    : '—'}
+                  {formatearFechaCorta(item.fecha_creacion)}
                 </span>
               </div>
               <div style={styles.metaItem}>
@@ -852,6 +873,20 @@ export default function OfertarProductos() {
   const renderVistaLista = () => (
     <div className="kyntu-tableWrapper" style={styles.tableWrapper}>
       <table className="kyntu-table" style={styles.table}>
+        <colgroup>
+          <col style={styles.colProducto} />
+          <col style={styles.colFormato} />
+          <col style={styles.colMarca} />
+          <col style={styles.colCantidad} />
+          <col style={styles.colPrecio} />
+          <col style={styles.colDetalle} />
+          <col style={styles.colComuna} />
+          <col style={styles.colFecha} />
+          <col style={styles.colEstado} />
+          <col style={styles.colOferta} />
+          <col style={styles.colDespacho} />
+          <col style={styles.colAccion} />
+        </colgroup>
         <thead>
           <tr>
             <th style={styles.thProducto}>Producto</th>
@@ -861,8 +896,8 @@ export default function OfertarProductos() {
             <th style={styles.th}>Precio referencia</th>
             <th style={styles.thDetalle}>Detalle del pedido</th>
             <th style={styles.th}>Comuna</th>
-            <th style={styles.th}>Fecha</th>
-            <th style={styles.th}>Estado</th>
+            <th style={styles.thFecha}>Fecha</th>
+            <th style={styles.thEstado}>Estado</th>
             <th style={styles.th}>
               Tu oferta{' '}
               <span
@@ -903,13 +938,11 @@ export default function OfertarProductos() {
                       <td style={styles.td} rowSpan={rowSpan}>
                         {fila.comuna || '—'}
                       </td>
-                      <td style={styles.td} rowSpan={rowSpan}>
-                        {fila.fecha
-                          ? new Date(fila.fecha).toLocaleString('es-CL')
-                          : '—'}
+                      <td style={styles.tdFecha} rowSpan={rowSpan}>
+                        {formatearFechaCorta(fila.fecha)}
                       </td>
-                      <td style={styles.td} rowSpan={rowSpan}>
-                        <span style={getEstadoStyle(estado)}>{estado}</span>
+                      <td style={styles.tdEstado} rowSpan={rowSpan}>
+                        <span style={getEstadoStyle(estado, true)}>{estado}</span>
                       </td>
                       <td style={styles.td} rowSpan={rowSpan}>
                         <BloqueOferta
@@ -1477,13 +1510,26 @@ const styles = {
 
   table: {
     width: '100%',
-    minWidth: '1080px',
+    tableLayout: 'fixed',
     borderCollapse: 'collapse',
     borderSpacing: 0,
   },
 
+  colProducto: { width: '11%' },
+  colFormato: { width: '8%' },
+  colMarca: { width: '7%' },
+  colCantidad: { width: '6%' },
+  colPrecio: { width: '7%' },
+  colDetalle: { width: '15%' },
+  colComuna: { width: '8%' },
+  colFecha: { width: '7%' },
+  colEstado: { width: '6%' },
+  colOferta: { width: '12%' },
+  colDespacho: { width: '7%' },
+  colAccion: { width: '10%' },
+
   thProducto: {
-    padding: '12px 10px',
+    padding: '10px 6px',
     color: '#52627a',
     background: '#f4f7fb',
     borderBottom: '1px solid #dfe8f3',
@@ -1492,11 +1538,10 @@ const styles = {
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    minWidth: '130px',
   },
 
   thFormato: {
-    padding: '12px 10px',
+    padding: '10px 6px',
     color: '#52627a',
     background: '#f4f7fb',
     borderBottom: '1px solid #dfe8f3',
@@ -1505,11 +1550,10 @@ const styles = {
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    minWidth: '110px',
   },
 
   thAccion: {
-    padding: '12px 10px',
+    padding: '10px 6px',
     color: '#52627a',
     background: '#f4f7fb',
     borderBottom: '1px solid #dfe8f3',
@@ -1518,11 +1562,37 @@ const styles = {
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    minWidth: '120px',
+  },
+
+  thFecha: {
+    padding: '10px 4px',
+    color: '#52627a',
+    background: '#f4f7fb',
+    borderBottom: '1px solid #dfe8f3',
+    fontSize: '11px',
+    fontWeight: 900,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    whiteSpace: 'nowrap',
+  },
+
+  thEstado: {
+    padding: '10px 4px',
+    color: '#52627a',
+    background: '#f4f7fb',
+    borderBottom: '1px solid #dfe8f3',
+    fontSize: '11px',
+    fontWeight: 900,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    whiteSpace: 'normal',
+    lineHeight: 1.2,
   },
 
   th: {
-    padding: '12px 10px',
+    padding: '10px 6px',
     color: '#52627a',
     background: '#f4f7fb',
     borderBottom: '1px solid #dfe8f3',
@@ -1535,7 +1605,7 @@ const styles = {
   },
 
   thDetalle: {
-    padding: '12px 10px',
+    padding: '10px 6px',
     color: '#52627a',
     background: '#f4f7fb',
     borderBottom: '1px solid #dfe8f3',
@@ -1544,8 +1614,8 @@ const styles = {
     textAlign: 'center',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    minWidth: '200px',
-    maxWidth: '280px',
+    whiteSpace: 'normal',
+    lineHeight: 1.2,
   },
 
   trRow: {
@@ -1553,7 +1623,7 @@ const styles = {
   },
 
   td: {
-    padding: '11px 10px',
+    padding: '9px 6px',
     color: '#243a5a',
     background: '#ffffff',
     borderBottom: '1px solid #e7edf5',
@@ -1563,7 +1633,7 @@ const styles = {
   },
 
   tdProducto: {
-    padding: '11px 10px',
+    padding: '9px 6px',
     color: '#243a5a',
     background: '#ffffff',
     borderBottom: '1px solid #e7edf5',
@@ -1571,43 +1641,60 @@ const styles = {
     verticalAlign: 'middle',
     fontSize: '12px',
     fontWeight: 700,
-    minWidth: '130px',
     overflowWrap: 'anywhere',
   },
 
   tdFormato: {
-    padding: '11px 10px',
+    padding: '9px 6px',
     color: '#243a5a',
     background: '#ffffff',
     borderBottom: '1px solid #e7edf5',
     textAlign: 'center',
     verticalAlign: 'middle',
     fontSize: '12px',
-    minWidth: '110px',
     overflowWrap: 'anywhere',
   },
 
-  tdAccion: {
-    padding: '11px 10px',
+  tdFecha: {
+    padding: '9px 4px',
+    color: '#243a5a',
+    background: '#ffffff',
+    borderBottom: '1px solid #e7edf5',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    fontSize: '11px',
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+  },
+
+  tdEstado: {
+    padding: '9px 4px',
     color: '#243a5a',
     background: '#ffffff',
     borderBottom: '1px solid #e7edf5',
     textAlign: 'center',
     verticalAlign: 'middle',
     fontSize: '12px',
-    minWidth: '120px',
+  },
+
+  tdAccion: {
+    padding: '9px 4px',
+    color: '#243a5a',
+    background: '#ffffff',
+    borderBottom: '1px solid #e7edf5',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    fontSize: '12px',
   },
 
   tdDetalle: {
-    padding: '11px 10px',
+    padding: '9px 6px',
     color: '#243a5a',
     background: '#ffffff',
     borderBottom: '1px solid #e7edf5',
     textAlign: 'left',
     verticalAlign: 'top',
     fontSize: '12px',
-    minWidth: '200px',
-    maxWidth: '280px',
   },
 
   detalleCelda: {
@@ -1810,15 +1897,15 @@ const styles = {
   },
 
   offerHighlightBoxCompact: {
-    padding: '8px 10px',
+    padding: '7px 8px',
     borderRadius: '12px',
     background: 'linear-gradient(180deg, #eef5ff 0%, #f8fbff 100%)',
     border: '1.5px solid #9ec0f5',
     boxShadow: '0 2px 8px rgba(23, 107, 255, 0.06)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '5px',
-    minWidth: '118px',
+    gap: '4px',
+    minWidth: 0,
   },
 
   offerBlockHeader: {
@@ -1922,15 +2009,15 @@ const styles = {
   },
 
   mainButtonSmall: {
-    minHeight: '42px',
-    padding: '10px 16px',
+    minHeight: '38px',
+    padding: '8px 11px',
     border: 'none',
     borderRadius: '11px',
     background: 'linear-gradient(135deg, #176BFF, #438CFF)',
     color: '#ffffff',
     cursor: 'pointer',
     fontWeight: 800,
-    fontSize: '13px',
+    fontSize: '11px',
     boxShadow: '0 9px 18px rgba(23,107,255,0.18)',
     whiteSpace: 'nowrap',
   },
@@ -2073,5 +2160,16 @@ const styles = {
     color: '#315174',
     fontWeight: 800,
     fontSize: '12px',
+  },
+
+  estadoBadgeTabla: {
+    display: 'inline-block',
+    maxWidth: '68px',
+    whiteSpace: 'normal',
+    lineHeight: 1.25,
+    padding: '4px 5px',
+    fontSize: '10px',
+    textAlign: 'center',
+    wordBreak: 'break-word',
   },
 };
