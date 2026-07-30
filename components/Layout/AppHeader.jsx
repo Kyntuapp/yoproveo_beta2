@@ -392,16 +392,18 @@ export default function AppHeader({
 
 const styles = {
   header: {
-    position: 'relative',
-    width: '100%',
-    padding: '14px 18px',
-    boxSizing: 'border-box',
-    borderRadius: '24px',
-    background: 'rgba(255, 255, 255, 0.96)',
-    border: '1px solid rgba(214, 225, 239, 0.95)',
-    boxShadow: '0 18px 50px rgba(31, 69, 122, 0.11)',
-    backdropFilter: 'blur(18px)',
-  },
+  position: 'sticky',
+  top: '0px',
+  zIndex: 1000,
+  width: '100%',
+  padding: '14px 18px',
+  boxSizing: 'border-box',
+  borderRadius: '24px',
+  background: 'rgba(255, 255, 255, 0.96)',
+  border: '1px solid rgba(214, 225, 239, 0.95)',
+  boxShadow: '0 18px 50px rgba(31, 69, 122, 0.11)',
+  backdropFilter: 'blur(18px)',
+},
 
   mainRow: {
     display: 'flex',

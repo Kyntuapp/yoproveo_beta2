@@ -13,7 +13,10 @@ export default function AppLayout({
 }) {
   return (
     <>
-      <div className="app-layout-page" style={styles.page}>
+      <div
+        className="app-layout-page"
+        style={styles.page}
+      >
         <div style={styles.backgroundGlow} />
 
         <img
@@ -23,7 +26,10 @@ export default function AppLayout({
           style={styles.watermark}
         />
 
-        <div style={styles.wrapper}>
+        <div
+          className="app-layout-wrapper"
+          style={styles.wrapper}
+        >
           <AppHeader
             title={title}
             profileLabel={profileLabel}
@@ -35,7 +41,10 @@ export default function AppLayout({
             notifications={notifications}
           />
 
-          <main className="app-layout-content" style={styles.content}>
+          <main
+            className="app-layout-content"
+            style={styles.content}
+          >
             {children}
           </main>
         </div>
@@ -73,7 +82,11 @@ const styles = {
     minHeight: '100vh',
     minHeight: '100dvh',
     position: 'relative',
-    overflowX: 'hidden',
+
+    // No usar hidden porque bloquea position: sticky.
+    overflowX: 'clip',
+    overflowY: 'visible',
+
     padding: '24px',
     boxSizing: 'border-box',
     fontFamily:
@@ -109,6 +122,9 @@ const styles = {
     width: '100%',
     maxWidth: '1440px',
     margin: '0 auto',
+
+    // El header sticky no debe quedar atrapado.
+    overflow: 'visible',
   },
 
   content: {

@@ -1,8 +1,16 @@
 // pages/proveedor/ofertas_enviadas.js
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
+import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
 import OfertaAccionesBar from '../../components/OfertaAccionesBar';
 import OfertaConversacion from '../../components/OfertaConversacion';
@@ -19,17 +27,19 @@ export default function OfertasEnviadas() {
 
   const [ofertas, setOfertas] = useState([]);
   const [paginaActual, setPaginaActual] = useState(1);
+
   const [filtros, setFiltros] = useState({
-  producto: '',
-  formato: '',
-  marca: '',
-  cantidad: '',
-  precioObjetivo: '',
-  oferta: '',
-  comuna: '',
-  comprador: '',
-  estado: '',
-});
+    producto: '',
+    formato: '',
+    marca: '',
+    cantidad: '',
+    precioObjetivo: '',
+    oferta: '',
+    comuna: '',
+    comprador: '',
+    estado: '',
+  });
+
   const [detalleContactoId, setDetalleContactoId] = useState(null);
   const [conversacionAbiertaId, setConversacionAbiertaId] = useState(null);
   const [ofertaDestacadaId, setOfertaDestacadaId] = useState(null);
@@ -38,12 +48,14 @@ export default function OfertasEnviadas() {
   const [noLeidosPorOferta, setNoLeidosPorOferta] = useState({});
   const [deepLinkError, setDeepLinkError] = useState('');
   const [deepLinkPendienteId, setDeepLinkPendienteId] = useState(null);
+
   const scrolledToOfertaRef = useRef(null);
   const itemsPorPagina = 20;
 
   useEffect(() => {
     const cargarOfertas = async () => {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
         alert('Debes iniciar sesión.');
@@ -51,9 +63,12 @@ export default function OfertasEnviadas() {
         return;
       }
 
-      const { perfil: perfilProv } = await resolveProveedorProfile(userData.user, {
-        select: 'id, tipo',
-      });
+      const { perfil: perfilProv } = await resolveProveedorProfile(
+        userData.user,
+        {
+          select: 'id, tipo',
+        }
+      );
 
       if (!perfilProv) {
         alert('No se encontró perfil proveedor.');
@@ -62,6 +77,7 @@ export default function OfertasEnviadas() {
       }
 
       const proveedorPerfilId = perfilProv.id;
+
       setAuthUserId(userData.user.id);
       setPerfilId(proveedorPerfilId);
 
@@ -77,7 +93,11 @@ export default function OfertasEnviadas() {
       }
 
       const listaIds = Array.from(
-        new Set((ofertasData || []).map((o) => o.lista_id).filter(Boolean))
+        new Set(
+          (ofertasData || [])
+            .map((oferta) => oferta.lista_id)
+            .filter(Boolean)
+        )
       );
 
       const mapLista = {};
@@ -91,37 +111,50 @@ export default function OfertasEnviadas() {
           .in('id', listaIds);
 
         if (listasErr) {
-          console.error('Error cargando listas_compras:', listasErr);
+          console.error(
+            'Error cargando listas_compras:',
+            listasErr
+          );
         }
 
-        (listasRows || []).forEach((l) => {
-          mapLista[l.id] = {
-            id: l.id,
-            usuario_id: (l.usuario_id || '').toString().trim(),
-            producto: l.producto || '',
-            formato: l.formato || '',
-            marca: l.marca || '',
-            cantidad: l.cantidad || '',
-            precio: l.precio || '',
-            comuna_despacho: (l.comuna_despacho || '').toString().trim(),
-            fecha_creacion: l.fecha_creacion || null,
+        (listasRows || []).forEach((lista) => {
+          mapLista[lista.id] = {
+            id: lista.id,
+            usuario_id: (lista.usuario_id || '')
+              .toString()
+              .trim(),
+            producto: lista.producto || '',
+            formato: lista.formato || '',
+            marca: lista.marca || '',
+            cantidad: lista.cantidad || '',
+            precio: lista.precio || '',
+            comuna_despacho: (
+              lista.comuna_despacho || ''
+            )
+              .toString()
+              .trim(),
+            fecha_creacion: lista.fecha_creacion || null,
           };
         });
       }
 
-      const enriquecidas = (ofertasData || []).map((o) => {
-        const li = mapLista[o.lista_id] || {};
+      const enriquecidas = (ofertasData || []).map((oferta) => {
+        const lista = mapLista[oferta.lista_id] || {};
 
         return {
-          ...o,
-          producto: o.producto || li.producto || '',
-          formato: o.formato || li.formato || '',
-          marca: o.marca || li.marca || '',
-          cantidad: li.cantidad || '',
-          precio_objetivo: li.precio || '',
-          comprador_auth_id: (li.usuario_id || '').toString().trim(),
-          comuna: li.comuna_despacho || '—',
-          fecha_creacion: li.fecha_creacion || null,
+          ...oferta,
+          producto: oferta.producto || lista.producto || '',
+          formato: oferta.formato || lista.formato || '',
+          marca: oferta.marca || lista.marca || '',
+          cantidad: lista.cantidad || '',
+          precio_objetivo: lista.precio || '',
+          comprador_auth_id: (
+            lista.usuario_id || ''
+          )
+            .toString()
+            .trim(),
+          comuna: lista.comuna_despacho || '—',
+          fecha_creacion: lista.fecha_creacion || null,
         };
       });
 
@@ -135,7 +168,9 @@ export default function OfertasEnviadas() {
     if (!router.isReady) return;
     if (router.query?.notif !== 'chat') return;
 
-    const ofertaIdParam = Array.isArray(router.query.oferta_id)
+    const ofertaIdParam = Array.isArray(
+      router.query.oferta_id
+    )
       ? router.query.oferta_id[0]
       : router.query.oferta_id;
 
@@ -146,23 +181,33 @@ export default function OfertasEnviadas() {
   }, [router.isReady, router.query]);
 
   useEffect(() => {
-    if (!deepLinkPendienteId || ofertas.length === 0) return;
+    if (!deepLinkPendienteId || ofertas.length === 0) {
+      return;
+    }
 
-    const idx = ofertas.findIndex(
-      (o) => String(o.id) === String(deepLinkPendienteId)
+    const indice = ofertas.findIndex(
+      (oferta) =>
+        String(oferta.id) === String(deepLinkPendienteId)
     );
 
-    if (idx === -1) {
+    if (indice === -1) {
       setDeepLinkError(
         'No se pudo abrir la conversación solicitada. La oferta no está disponible o no tienes acceso.'
       );
+
       setDeepLinkPendienteId(null);
       setConversacionAbiertaId(null);
       return;
     }
 
-    setPaginaActual(Math.floor(idx / itemsPorPagina) + 1);
-    setConversacionAbiertaId(String(deepLinkPendienteId));
+    setPaginaActual(
+      Math.floor(indice / itemsPorPagina) + 1
+    );
+
+    setConversacionAbiertaId(
+      String(deepLinkPendienteId)
+    );
+
     setDeepLinkPendienteId(null);
   }, [deepLinkPendienteId, ofertas, itemsPorPagina]);
 
@@ -170,27 +215,41 @@ export default function OfertasEnviadas() {
     if (!router.isReady) return;
     if (router.query?.notif !== 'chat') return;
     if (!conversacionAbiertaId) return;
-    if (scrolledToOfertaRef.current === conversacionAbiertaId) return;
+
+    if (
+      scrolledToOfertaRef.current ===
+      conversacionAbiertaId
+    ) {
+      return;
+    }
 
     const timer = setTimeout(() => {
-      const el = document.getElementById(
+      const elemento = document.getElementById(
         `oferta-card-proveedor-${conversacionAbiertaId}`
       );
 
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        scrolledToOfertaRef.current = conversacionAbiertaId;
+      if (elemento) {
+        elemento.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+
+        scrolledToOfertaRef.current =
+          conversacionAbiertaId;
       }
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [router.isReady, router.query, conversacionAbiertaId, ofertas]);
+  }, [
+    router.isReady,
+    router.query,
+    conversacionAbiertaId,
+    ofertas,
+  ]);
 
-  const volverAlPanel = () => router.push('/proveedor');
-
-  const normalizarTexto = (t) =>
-    t
-      ? t
+  const normalizarTexto = (texto) =>
+    texto
+      ? texto
           .toString()
           .toUpperCase()
           .normalize('NFD')
@@ -198,28 +257,51 @@ export default function OfertasEnviadas() {
       : '';
 
   const manejarCambioFiltro = (campo, valor) => {
-  setFiltros((prev) => ({
-    ...prev,
-    [campo]: valor.toUpperCase(),
-  }));
-  setPaginaActual(1);
-};
+    setFiltros((prev) => ({
+      ...prev,
+      [campo]: valor.toUpperCase(),
+    }));
 
-  const formatearNumero = (num) =>
-    num === '' || num === null || num === undefined
+    setPaginaActual(1);
+  };
+
+  const limpiarFiltros = () => {
+    setFiltros({
+      producto: '',
+      formato: '',
+      marca: '',
+      cantidad: '',
+      precioObjetivo: '',
+      oferta: '',
+      comuna: '',
+      comprador: '',
+      estado: '',
+    });
+
+    setPaginaActual(1);
+  };
+
+  const formatearNumero = (numero) =>
+    numero === '' ||
+    numero === null ||
+    numero === undefined
       ? ''
-      : new Intl.NumberFormat('es-CL').format(num);
+      : new Intl.NumberFormat('es-CL').format(numero);
 
   const estadoTexto = (estado) => {
     switch ((estado || '').toLowerCase()) {
       case 'pendiente':
         return 'Oferta enviada';
+
       case 'en_espera_confirmacion':
         return 'Aceptada';
+
       case 'confirmada':
         return 'Confirmada';
+
       case 'rechazada':
         return 'Rechazada';
+
       default:
         return estado || '—';
     }
@@ -228,105 +310,162 @@ export default function OfertasEnviadas() {
   const getEstadoStyle = (estado) => {
     switch ((estado || '').toLowerCase()) {
       case 'pendiente':
-        return styles.estadoAzul;
+        return {
+          ...styles.estadoBase,
+          ...styles.estadoAzul,
+        };
+
       case 'en_espera_confirmacion':
-        return styles.estadoNaranja;
+        return {
+          ...styles.estadoBase,
+          ...styles.estadoNaranja,
+        };
+
       case 'confirmada':
-        return styles.estadoConfirmada;
+        return {
+          ...styles.estadoBase,
+          ...styles.estadoConfirmada,
+        };
+
       case 'rechazada':
-        return styles.estadoGris;
+        return {
+          ...styles.estadoBase,
+          ...styles.estadoGris,
+        };
+
       default:
-        return styles.estadoDefault;
+        return {
+          ...styles.estadoBase,
+          ...styles.estadoDefault,
+        };
     }
   };
 
-const ofertasFiltradas = useMemo(() => {
-  return ofertas.filter((item) => {
-    const valores = {
-      producto: item.producto,
-      formato: item.formato,
-      marca: item.marca,
-      cantidad: item.cantidad?.toString(),
-      precioObjetivo: item.precio_objetivo?.toString(),
-      oferta: item.precio_ofertado?.toString(),
-      comuna: item.comuna,
-      comprador: esOfertaAdjudicada(item.estado)
-        ? 'CONTACTO DISPONIBLE'
-        : 'CONTRAPARTE',
-      estado: estadoTexto(item.estado),
-    };
+  const ofertasFiltradas = useMemo(() => {
+    return ofertas.filter((item) => {
+      const valores = {
+        producto: item.producto,
+        formato: item.formato,
+        marca: item.marca,
+        cantidad: item.cantidad?.toString(),
+        precioObjetivo:
+          item.precio_objetivo?.toString(),
+        oferta: item.precio_ofertado?.toString(),
+        comuna: item.comuna,
+        comprador: esOfertaAdjudicada(item.estado)
+          ? 'CONTACTO DISPONIBLE'
+          : 'CONTRAPARTE',
+        estado: estadoTexto(item.estado),
+      };
 
-    return Object.entries(filtros).every(([campo, valor]) => {
-      if (!valor) return true;
+      return Object.entries(filtros).every(
+        ([campo, valor]) => {
+          if (!valor) return true;
 
-      return normalizarTexto(valores[campo] || '').includes(
-        normalizarTexto(valor)
+          return normalizarTexto(
+            valores[campo] || ''
+          ).includes(normalizarTexto(valor));
+        }
       );
     });
-  });
-}, [ofertas, filtros]);
+  }, [ofertas, filtros]);
 
-  const totalPaginas = Math.ceil(ofertasFiltradas.length / itemsPorPagina);
-  const inicio = (paginaActual - 1) * itemsPorPagina;
+  const totalPaginas = Math.ceil(
+    ofertasFiltradas.length / itemsPorPagina
+  );
+
+  const inicio =
+    (paginaActual - 1) * itemsPorPagina;
+
   const fin = inicio + itemsPorPagina;
+
   const ofertasPaginadas = useMemo(
     () => ofertasFiltradas.slice(inicio, fin),
     [ofertasFiltradas, inicio, fin]
   );
 
-  const handleLeidosActualizados = useCallback((ofertaId) => {
-    setNoLeidosPorOferta((prev) => {
-      if (prev[ofertaId] === 0) return prev;
+  const handleLeidosActualizados = useCallback(
+    (ofertaId) => {
+      setNoLeidosPorOferta((prev) => {
+        if (prev[ofertaId] === 0) return prev;
 
-      return {
-        ...prev,
-        [ofertaId]: 0,
-      };
-    });
-  }, []);
+        return {
+          ...prev,
+          [ofertaId]: 0,
+        };
+      });
+    },
+    []
+  );
 
   useEffect(() => {
-    if (!authUserId || ofertasPaginadas.length === 0) return undefined;
+    if (
+      !authUserId ||
+      ofertasPaginadas.length === 0
+    ) {
+      return undefined;
+    }
 
     let activo = true;
 
     const cargarConteos = async () => {
       const entries = await Promise.all(
-        ofertasPaginadas.map(async (o) => {
-          if (String(o.id) === String(conversacionAbiertaId)) {
-            return [o.id, 0];
+        ofertasPaginadas.map(async (oferta) => {
+          if (
+            String(oferta.id) ===
+            String(conversacionAbiertaId)
+          ) {
+            return [oferta.id, 0];
           }
-          const n = await contarMensajesNoLeidos(o.id, authUserId);
-          return [o.id, n];
+
+          const cantidad =
+            await contarMensajesNoLeidos(
+              oferta.id,
+              authUserId
+            );
+
+          return [oferta.id, cantidad];
         })
       );
 
       if (!activo) return;
 
       setNoLeidosPorOferta((prev) => {
-        const next = { ...prev };
-        let changed = false;
+        const siguiente = { ...prev };
+        let cambio = false;
 
-        for (const [id, count] of entries) {
-          if (prev[id] !== count) {
-            next[id] = count;
-            changed = true;
+        for (const [id, cantidad] of entries) {
+          if (prev[id] !== cantidad) {
+            siguiente[id] = cantidad;
+            cambio = true;
           }
         }
 
-        return changed ? next : prev;
+        return cambio ? siguiente : prev;
       });
     };
 
     cargarConteos();
 
     const cleanups = ofertasPaginadas
-      .filter((o) => String(o.id) !== String(conversacionAbiertaId))
-      .map((o) =>
-        subscribeMensajesOferta(o.id, () => {
-          contarMensajesNoLeidos(o.id, authUserId).then((n) => {
+      .filter(
+        (oferta) =>
+          String(oferta.id) !==
+          String(conversacionAbiertaId)
+      )
+      .map((oferta) =>
+        subscribeMensajesOferta(oferta.id, () => {
+          contarMensajesNoLeidos(
+            oferta.id,
+            authUserId
+          ).then((cantidad) => {
             setNoLeidosPorOferta((prev) =>
-              prev[o.id] === n ? prev : { ...prev, [o.id]: n }
+              prev[oferta.id] === cantidad
+                ? prev
+                : {
+                    ...prev,
+                    [oferta.id]: cantidad,
+                  }
             );
           });
         })
@@ -334,611 +473,1232 @@ const ofertasFiltradas = useMemo(() => {
 
     return () => {
       activo = false;
-      cleanups.forEach((fn) => fn());
+      cleanups.forEach((limpiar) => limpiar());
     };
-  }, [authUserId, ofertasPaginadas, conversacionAbiertaId]);
+  }, [
+    authUserId,
+    ofertasPaginadas,
+    conversacionAbiertaId,
+  ]);
 
   const toggleConversacion = (ofertaId) => {
     setConversacionAbiertaId((prev) =>
-      prev === String(ofertaId) ? null : String(ofertaId)
+      prev === String(ofertaId)
+        ? null
+        : String(ofertaId)
     );
   };
 
+  const irDashboard = () => {
+    router.push('/proveedor/DashboardProveedor');
+  };
+
+  const irDatosContacto = () => {
+    router.push('/proveedor/datos-contacto');
+  };
+
+  const cambiarPerfil = () => {
+    router.push('/seleccionar-perfil');
+  };
+
+  const cerrarSesion = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error(
+        'Error al cerrar sesión:',
+        error
+      );
+
+      alert('No se pudo cerrar la sesión.');
+      return;
+    }
+
+    localStorage.clear();
+    router.push('/login');
+  };
+
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow}></div>
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        style={styles.watermark}
-      />
-
-      <div style={styles.topBar}>
-        <div style={styles.leftActions}>
-          <button onClick={volverAlPanel} style={styles.secondaryButton}>
-            Volver al panel
-          </button>
-        </div>
-
-        <div style={styles.centerTitle}>
-          <h1 style={styles.title}>Mis Ofertas Enviadas</h1>
-        </div>
-
-        <div style={styles.rightActions}>
-          {perfilId && (
-            <Notificaciones userId={perfilId} rol="proveedor" />
-          )}
-        </div>
-      </div>
-
-      <main style={styles.content}>
-        <section style={styles.card}>
-          <img
-            src="/icono_1.png"
-            alt="Kyntü"
-            style={styles.logo}
+    <AppLayout
+      title="Mis ofertas enviadas"
+      profileLabel="Proveedor"
+      showProfileSwitch
+      onChangeProfile={cambiarPerfil}
+      onUpdateData={irDatosContacto}
+      onDashboard={irDashboard}
+      onLogout={cerrarSesion}
+      notifications={
+        perfilId ? (
+          <Notificaciones
+            userId={perfilId}
+            rol="proveedor"
           />
+        ) : null
+      }
+    >
+      <main
+        className="kyntu-main"
+        style={styles.main}
+      >
+        <section
+          className="kyntu-headerSection"
+          style={styles.headerSection}
+        >
+          <div>
+            <h1 style={styles.heading}>
+              Mis ofertas enviadas
+            </h1>
 
-          <h2 style={styles.cardTitle}>Historial de ofertas</h2>
+            <p style={styles.subtitle}>
+              Revisa el estado de tus ofertas,
+              conversa con los compradores y accede a
+              sus datos cuando una oferta sea
+              adjudicada.
+            </p>
+          </div>
 
-          {deepLinkError && (
-            <p style={styles.deepLinkError}>{deepLinkError}</p>
-          )}
+          <div style={styles.summaryBadge}>
+            <span style={styles.summaryNumber}>
+              {ofertasFiltradas.length}
+            </span>
 
-          <div style={styles.filtersGrid}>
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Producto</label>
-    <input value={filtros.producto} onChange={(e) => manejarCambioFiltro('producto', e.target.value)} style={styles.filterInput} />
-  </div>
+            <span style={styles.summaryLabel}>
+              {ofertasFiltradas.length === 1
+                ? 'oferta'
+                : 'ofertas'}
+            </span>
+          </div>
+        </section>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Formato</label>
-    <input value={filtros.formato} onChange={(e) => manejarCambioFiltro('formato', e.target.value)} style={styles.filterInput} />
-  </div>
+        {deepLinkError && (
+          <div style={styles.deepLinkError}>
+            {deepLinkError}
+          </div>
+        )}
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Marca</label>
-    <input value={filtros.marca} onChange={(e) => manejarCambioFiltro('marca', e.target.value)} style={styles.filterInput} />
-  </div>
+        <section
+          className="kyntu-filterCard"
+          style={styles.filterCard}
+        >
+          <div style={styles.filterHeader}>
+            <div>
+              <h2 style={styles.filterTitle}>
+                Buscar ofertas
+              </h2>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Cantidad</label>
-    <input value={filtros.cantidad} onChange={(e) => manejarCambioFiltro('cantidad', e.target.value)} style={styles.filterInput} />
-  </div>
+              <p style={styles.filterSubtitle}>
+                Puedes combinar varios filtros para
+                encontrar una oferta específica.
+              </p>
+            </div>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Precio objetivo</label>
-    <input value={filtros.precioObjetivo} onChange={(e) => manejarCambioFiltro('precioObjetivo', e.target.value)} style={styles.filterInput} />
-  </div>
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              style={styles.clearFiltersButton}
+            >
+              Limpiar filtros
+            </button>
+          </div>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Tu oferta</label>
-    <input value={filtros.oferta} onChange={(e) => manejarCambioFiltro('oferta', e.target.value)} style={styles.filterInput} />
-  </div>
+          <div
+            className="kyntu-filterGrid"
+            style={styles.filtersGrid}
+          >
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Producto
+              </label>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Comuna</label>
-    <input value={filtros.comuna} onChange={(e) => manejarCambioFiltro('comuna', e.target.value)} style={styles.filterInput} />
-  </div>
+              <input
+                value={filtros.producto}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'producto',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar producto"
+              />
+            </div>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Comprador</label>
-    <input value={filtros.comprador} onChange={(e) => manejarCambioFiltro('comprador', e.target.value)} style={styles.filterInput} />
-  </div>
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Formato
+              </label>
 
-  <div style={styles.filterGroup}>
-    <label style={styles.filterLabel}>Estado</label>
-    <input value={filtros.estado} onChange={(e) => manejarCambioFiltro('estado', e.target.value)} style={styles.filterInput} />
-  </div>
-</div>
+              <input
+                value={filtros.formato}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'formato',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar formato"
+              />
+            </div>
 
-          {ofertasFiltradas.length === 0 ? (
-            <p style={styles.emptyText}>No has enviado ofertas todavía.</p>
-          ) : (
-            <>
-              <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Producto</th>
-                      <th style={styles.th}>Formato</th>
-                      <th style={styles.th}>Marca</th>
-                      <th style={styles.th}>Cantidad</th>
-                      <th style={styles.th}>Precio objetivo</th>
-                      <th style={styles.th}>Tu oferta</th>
-                      <th style={styles.th}>Comuna</th>
-                      <th style={styles.th}>Comprador</th>
-                      <th style={styles.th}>Fecha</th>
-                      <th style={styles.th}>Estado</th>
-                      <th style={styles.th}>Conversación</th>
-                      <th style={styles.th}>Contacto</th>
-                    </tr>
-                  </thead>
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Marca
+              </label>
 
-                  <tbody>
-                    {ofertasPaginadas.map((item) => {
-                      const adjudicada = esOfertaAdjudicada(item.estado);
-                      const puedeVerContacto = adjudicada;
-                      const noLeidos = noLeidosPorOferta[item.id] || 0;
-                      const conversacionAbierta =
-                        conversacionAbiertaId === String(item.id);
-                      const cardDestacada =
-                        ofertaDestacadaId &&
-                        String(ofertaDestacadaId) === String(item.id);
+              <input
+                value={filtros.marca}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'marca',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar marca"
+              />
+            </div>
 
-                      return (
-                        <>
-                          <tr key={item.id}>
-                            <td style={styles.td}>{item.producto}</td>
-                            <td style={styles.td}>{item.formato}</td>
-                            <td style={styles.td}>{item.marca}</td>
-                            <td style={styles.td}>{item.cantidad}</td>
-                            <td style={styles.td}>
-                              ${formatearNumero(item.precio_objetivo)}
-                            </td>
-                            <td style={styles.td}>
-                              ${formatearNumero(item.precio_ofertado)}
-                            </td>
-                            <td style={styles.td}>{item.comuna}</td>
-                            <td style={styles.td}>
-                              {adjudicada ? 'Contacto disponible' : 'Contraparte'}
-                            </td>
-                            <td style={styles.td}>
-                              {item.fecha_creacion
-                                ? new Date(item.fecha_creacion).toLocaleString()
-                                : ''}
-                            </td>
-                            <td style={styles.td}>
-                              <span style={getEstadoStyle(item.estado)}>
-                                {estadoTexto(item.estado)}
-                              </span>
-                            </td>
-                            <td style={styles.td}>
-                              <OfertaAccionesBar
-                                tooltipChat="Hablar con el comprador"
-                                noLeidos={noLeidos}
-                                chatAbierto={conversacionAbierta}
-                                panelId={panelConversacionId(item.id)}
-                                onToggleChat={() => toggleConversacion(item.id)}
-                              />
-                            </td>
-                            <td style={styles.td}>
-                              {puedeVerContacto ? (
-                                <button
-                                  onClick={() =>
-                                    setDetalleContactoId(
-                                      detalleContactoId === item.id
-                                        ? null
-                                        : item.id
-                                    )
-                                  }
-                                  style={styles.smallButton}
-                                >
-                                  {detalleContactoId === item.id
-                                    ? 'Ocultar'
-                                    : 'Ver contacto'}
-                                </button>
-                              ) : (
-                                <span style={styles.emptyAction}>—</span>
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Cantidad
+              </label>
+
+              <input
+                value={filtros.cantidad}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'cantidad',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar cantidad"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Precio objetivo
+              </label>
+
+              <input
+                value={filtros.precioObjetivo}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'precioObjetivo',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar precio"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Tu oferta
+              </label>
+
+              <input
+                value={filtros.oferta}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'oferta',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar oferta"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Comuna
+              </label>
+
+              <input
+                value={filtros.comuna}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'comuna',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar comuna"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Comprador
+              </label>
+
+              <input
+                value={filtros.comprador}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'comprador',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar comprador"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>
+                Estado
+              </label>
+
+              <input
+                value={filtros.estado}
+                onChange={(event) =>
+                  manejarCambioFiltro(
+                    'estado',
+                    event.target.value
+                  )
+                }
+                style={styles.filterInput}
+                placeholder="Buscar estado"
+              />
+            </div>
+          </div>
+        </section>
+
+        {ofertasFiltradas.length === 0 ? (
+          <section style={styles.emptyCard}>
+            <div style={styles.emptyIcon}>✓</div>
+
+            <h2 style={styles.emptyTitle}>
+              No hay ofertas para mostrar
+            </h2>
+
+            <p style={styles.emptyText}>
+              No has enviado ofertas todavía o no
+              existen resultados para los filtros
+              seleccionados.
+            </p>
+          </section>
+        ) : (
+          <>
+            <section
+              className="kyntu-tableWrapper"
+              style={styles.tableWrapper}
+            >
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>
+                      Producto
+                    </th>
+
+                    <th style={styles.th}>
+                      Formato
+                    </th>
+
+                    <th style={styles.th}>Marca</th>
+
+                    <th style={styles.th}>
+                      Cantidad
+                    </th>
+
+                    <th style={styles.th}>
+                      Precio objetivo
+                    </th>
+
+                    <th style={styles.th}>
+                      Tu oferta
+                    </th>
+
+                    <th style={styles.th}>
+                      Comuna
+                    </th>
+
+                    <th style={styles.th}>
+                      Comprador
+                    </th>
+
+                    <th style={styles.th}>Fecha</th>
+
+                    <th style={styles.th}>
+                      Estado
+                    </th>
+
+                    <th style={styles.th}>
+                      Conversación
+                    </th>
+
+                    <th style={styles.th}>
+                      Contacto
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {ofertasPaginadas.map((item) => {
+                    const adjudicada =
+                      esOfertaAdjudicada(item.estado);
+
+                    const puedeVerContacto =
+                      adjudicada;
+
+                    const noLeidos =
+                      noLeidosPorOferta[item.id] || 0;
+
+                    const conversacionAbierta =
+                      conversacionAbiertaId ===
+                      String(item.id);
+
+                    const cardDestacada =
+                      ofertaDestacadaId &&
+                      String(ofertaDestacadaId) ===
+                        String(item.id);
+
+                    return (
+                      <Fragment key={item.id}>
+                        <tr style={styles.tableRow}>
+                          <td
+                            style={{
+                              ...styles.td,
+                              ...styles.productCell,
+                            }}
+                          >
+                            <strong
+                              style={
+                                styles.productName
+                              }
+                            >
+                              {item.producto || '—'}
+                            </strong>
+                          </td>
+
+                          <td style={styles.td}>
+                            {item.formato || '—'}
+                          </td>
+
+                          <td style={styles.td}>
+                            {item.marca || '—'}
+                          </td>
+
+                          <td style={styles.td}>
+                            {item.cantidad || '—'}
+                          </td>
+
+                          <td style={styles.td}>
+                            $
+                            {formatearNumero(
+                              item.precio_objetivo
+                            )}
+                          </td>
+
+                          <td style={styles.td}>
+                            <span
+                              style={
+                                styles.offerPrice
+                              }
+                            >
+                              $
+                              {formatearNumero(
+                                item.precio_ofertado
                               )}
+                            </span>
+                          </td>
+
+                          <td style={styles.td}>
+                            {item.comuna || '—'}
+                          </td>
+
+                          <td style={styles.td}>
+                            {adjudicada
+                              ? 'Contacto disponible'
+                              : 'Contraparte'}
+                          </td>
+
+                          <td style={styles.td}>
+                            {item.fecha_creacion
+                              ? new Date(
+                                  item.fecha_creacion
+                                ).toLocaleString(
+                                  'es-CL'
+                                )
+                              : '—'}
+                          </td>
+
+                          <td style={styles.td}>
+                            <span
+                              style={getEstadoStyle(
+                                item.estado
+                              )}
+                            >
+                              {estadoTexto(
+                                item.estado
+                              )}
+                            </span>
+                          </td>
+
+                          <td style={styles.td}>
+                            <OfertaAccionesBar
+                              tooltipChat="Hablar con el comprador"
+                              noLeidos={noLeidos}
+                              chatAbierto={
+                                conversacionAbierta
+                              }
+                              panelId={panelConversacionId(
+                                item.id
+                              )}
+                              onToggleChat={() =>
+                                toggleConversacion(
+                                  item.id
+                                )
+                              }
+                            />
+                          </td>
+
+                          <td style={styles.td}>
+                            {puedeVerContacto ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDetalleContactoId(
+                                    detalleContactoId ===
+                                      item.id
+                                      ? null
+                                      : item.id
+                                  )
+                                }
+                                style={
+                                  styles.smallButton
+                                }
+                              >
+                                {detalleContactoId ===
+                                item.id
+                                  ? 'Ocultar'
+                                  : 'Ver contacto'}
+                              </button>
+                            ) : (
+                              <span
+                                style={
+                                  styles.emptyAction
+                                }
+                              >
+                                —
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+
+                        {conversacionAbierta && (
+                          <tr>
+                            <td
+                              colSpan={12}
+                              style={
+                                styles.conversacionBox
+                              }
+                            >
+                              <div
+                                id={`oferta-card-proveedor-${item.id}`}
+                                style={{
+                                  ...styles.offerCardEmbedded,
+                                  ...(cardDestacada
+                                    ? styles.offerCardEmbeddedDestacada
+                                    : {}),
+                                }}
+                              >
+                                <div
+                                  style={
+                                    styles.embeddedHeader
+                                  }
+                                >
+                                  <div>
+                                    <span
+                                      style={
+                                        styles.embeddedLabel
+                                      }
+                                    >
+                                      Tu oferta
+                                    </span>
+
+                                    <p
+                                      style={
+                                        styles.embeddedPrice
+                                      }
+                                    >
+                                      $
+                                      {formatearNumero(
+                                        item.precio_ofertado
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  <span
+                                    style={getEstadoStyle(
+                                      item.estado
+                                    )}
+                                  >
+                                    {estadoTexto(
+                                      item.estado
+                                    )}
+                                  </span>
+                                </div>
+
+                                <p
+                                  style={
+                                    styles.embeddedMeta
+                                  }
+                                >
+                                  {item.producto} ·{' '}
+                                  {item.formato} ·{' '}
+                                  {item.marca}
+                                </p>
+
+                                {authUserId && (
+                                  <OfertaConversacion
+                                    ofertaId={item.id}
+                                    authUserId={
+                                      authUserId
+                                    }
+                                    estadoOferta={
+                                      item.estado
+                                    }
+                                    panelId={panelConversacionId(
+                                      item.id
+                                    )}
+                                    onLeidosActualizados={
+                                      handleLeidosActualizados
+                                    }
+                                    participanteLabel="Comprador"
+                                  />
+                                )}
+                              </div>
                             </td>
                           </tr>
+                        )}
 
-                          {conversacionAbierta && (
-                            <tr key={`conversacion-${item.id}`}>
-                              <td colSpan={12} style={styles.conversacionBox}>
+                        {puedeVerContacto &&
+                          detalleContactoId ===
+                            item.id && (
+                            <tr>
+                              <td
+                                colSpan={12}
+                                style={
+                                  styles.contactTableCell
+                                }
+                              >
                                 <div
-                                  id={`oferta-card-proveedor-${item.id}`}
-                                  style={{
-                                    ...styles.offerCardEmbedded,
-                                    ...(cardDestacada
-                                      ? styles.offerCardEmbeddedDestacada
-                                      : {}),
-                                  }}
+                                  style={
+                                    styles.contactBox
+                                  }
                                 >
-                                  <p style={styles.embeddedPrice}>
-                                    ${formatearNumero(item.precio_ofertado)}
-                                  </p>
-                                  <p style={styles.embeddedMeta}>
-                                    {item.producto} · {item.formato} · {item.marca}
-                                  </p>
+                                  <h3
+                                    style={
+                                      styles.contactTitle
+                                    }
+                                  >
+                                    Datos de contacto del
+                                    comprador
+                                  </h3>
 
-                                  {authUserId && (
-                                    <OfertaConversacion
-                                      ofertaId={item.id}
-                                      authUserId={authUserId}
-                                      estadoOferta={item.estado}
-                                      panelId={panelConversacionId(item.id)}
-                                      onLeidosActualizados={handleLeidosActualizados}
-                                      participanteLabel="Comprador"
-                                    />
-                                  )}
+                                  <CompradorContacto
+                                    usuarioAuthId={
+                                      item.comprador_auth_id
+                                    }
+                                    listaCompraId={
+                                      item.lista_id
+                                    }
+                                    comunaDespacho={
+                                      item.comuna
+                                    }
+                                    styles={styles}
+                                  />
+
+                                  <p
+                                    style={
+                                      styles.contactText
+                                    }
+                                  >
+                                    <strong>
+                                      Precio aceptado:
+                                    </strong>{' '}
+                                    $
+                                    {formatearNumero(
+                                      item.precio_ofertado
+                                    )}
+                                  </p>
                                 </div>
                               </td>
                             </tr>
                           )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
 
-                          {puedeVerContacto && detalleContactoId === item.id && (
-                            <tr key={`detalle-${item.id}`}>
-                              <td colSpan={12} style={styles.contactBox}>
-                                <strong>Datos de contacto del comprador</strong>
-                                <CompradorContacto
-                                  usuarioAuthId={item.comprador_auth_id}
-                                  listaCompraId={item.lista_id}
-                                  comunaDespacho={item.comuna}
-                                  styles={styles}
-                                />
-                                <p style={styles.contactText}>
-                                  <strong>Precio aceptado:</strong>{' '}
-                                  ${formatearNumero(item.precio_ofertado)}
-                                </p>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+            <div style={styles.pagination}>
+              <button
+                type="button"
+                onClick={() =>
+                  setPaginaActual((pagina) =>
+                    Math.max(pagina - 1, 1)
+                  )
+                }
+                disabled={paginaActual === 1}
+                style={{
+                  ...styles.pageButton,
+                  ...(paginaActual === 1
+                    ? styles.pageButtonDisabled
+                    : {}),
+                }}
+              >
+                Anterior
+              </button>
 
-              <div style={styles.pagination}>
-                <button
-                  onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
-                  disabled={paginaActual === 1}
-                  style={styles.secondaryButton}
-                >
-                  Anterior
-                </button>
+              <span style={styles.pageText}>
+                Página {paginaActual} de{' '}
+                {totalPaginas || 1}
+              </span>
 
-                <span style={styles.pageText}>
-                  Página {paginaActual} de {totalPaginas || 1}
-                </span>
-
-                <button
-                  onClick={() =>
-                    setPaginaActual((p) => Math.min(p + 1, totalPaginas || 1))
-                  }
-                  disabled={
-                    paginaActual === totalPaginas || totalPaginas === 0
-                  }
-                  style={styles.secondaryButton}
-                >
-                  Siguiente
-                </button>
-              </div>
-            </>
-          )}
-        </section>
+              <button
+                type="button"
+                onClick={() =>
+                  setPaginaActual((pagina) =>
+                    Math.min(
+                      pagina + 1,
+                      totalPaginas || 1
+                    )
+                  )
+                }
+                disabled={
+                  paginaActual === totalPaginas ||
+                  totalPaginas === 0
+                }
+                style={{
+                  ...styles.pageButton,
+                  ...(paginaActual === totalPaginas ||
+                  totalPaginas === 0
+                    ? styles.pageButtonDisabled
+                    : {}),
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+          </>
+        )}
       </main>
-    </div>
+
+      <style jsx>{`
+        @media (max-width: 1100px) {
+          .kyntu-filterGrid {
+            grid-template-columns: repeat(
+              3,
+              minmax(150px, 1fr)
+            ) !important;
+          }
+        }
+
+        @media (max-width: 820px) {
+          .kyntu-main {
+            padding: 22px 14px 38px !important;
+          }
+
+          .kyntu-headerSection {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
+
+          .kyntu-filterGrid {
+            grid-template-columns: repeat(
+              2,
+              minmax(130px, 1fr)
+            ) !important;
+          }
+        }
+
+        @media (max-width: 560px) {
+          .kyntu-filterGrid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .kyntu-filterCard {
+            padding: 17px !important;
+          }
+
+          .kyntu-tableWrapper {
+            border-radius: 14px !important;
+          }
+        }
+      `}</style>
+    </AppLayout>
   );
 }
 
 const styles = {
-  page: {
-    minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
-    position: 'relative',
-    overflowX: 'hidden',
-    padding: '24px',
-    boxSizing: 'border-box',
-    fontFamily: 'Arial, Helvetica, sans-serif',
-  },
-
-  backgroundGlow: {
-    position: 'absolute',
-    inset: 0,
-    background:
-      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
-    zIndex: 1,
-  },
-
-  watermark: {
-    position: 'absolute',
-    top: '35px',
-    left: '45px',
-    width: '260px',
-    opacity: 0.08,
-    zIndex: 1,
-    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
-    pointerEvents: 'none',
-  },
-
-  topBar: {
-    position: 'relative',
-    zIndex: 3,
-    display: 'grid',
-    gridTemplateColumns: '1fr auto 1fr',
-    alignItems: 'center',
-    marginBottom: '32px',
-  },
-
-  leftActions: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-  },
-
-  centerTitle: {
-    display: 'flex',
-    justifyContent: 'center',
-  },
-
-  rightActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-  },
-
-  title: {
-    color: '#ffffff',
-    fontSize: '38px',
-    fontWeight: 800,
-    margin: 0,
-    textAlign: 'center',
-    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
-  },
-
-  content: {
-    position: 'relative',
-    zIndex: 3,
-    maxWidth: '1280px',
-    margin: '0 auto',
-  },
-
-  card: {
+  main: {
     width: '100%',
-    background: 'rgba(5, 12, 29, 0.86)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    borderRadius: '28px',
-    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
-    padding: '34px',
+    maxWidth: '1500px',
+    margin: '0 auto',
+    padding: '32px 24px 48px',
     boxSizing: 'border-box',
-    backdropFilter: 'blur(10px)',
+  },
+
+  headerSection: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '24px',
+    marginBottom: '24px',
+    padding: '26px 28px',
+    borderRadius: '22px',
+    background:
+      'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(244,249,255,0.98))',
+    border: '1px solid #dce7f4',
+    boxShadow:
+      '0 18px 45px rgba(32, 73, 130, 0.08)',
+  },
+
+  heading: {
+    margin: 0,
+    color: '#071c41',
+    fontSize: 'clamp(25px, 3vw, 34px)',
+    lineHeight: 1.15,
+    fontWeight: 900,
+    letterSpacing: '-0.035em',
+  },
+
+  subtitle: {
+    maxWidth: '700px',
+    margin: '8px 0 0',
+    color: '#65758b',
+    fontSize: '14px',
+    lineHeight: 1.6,
+  },
+
+  summaryBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '9px',
+    flexShrink: 0,
+    minHeight: '48px',
+    padding: '9px 15px',
+    borderRadius: '14px',
+    border: '1px solid #cddfff',
+    background: '#f2f7ff',
+  },
+
+  summaryNumber: {
+    color: '#176bff',
+    fontSize: '22px',
+    fontWeight: 900,
+  },
+
+  summaryLabel: {
+    color: '#47627f',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+
+  deepLinkError: {
+    marginBottom: '20px',
+    padding: '14px 17px',
+    borderRadius: '13px',
+    border: '1px solid #f1d189',
+    background: '#fff8e8',
+    color: '#835f16',
+    fontSize: '13px',
+    lineHeight: 1.5,
+    fontWeight: 700,
+  },
+
+  filterCard: {
+    marginBottom: '24px',
+    padding: '22px',
+    borderRadius: '20px',
+    background: '#ffffff',
+    border: '1px solid #dfe8f3',
+    boxShadow:
+      '0 14px 38px rgba(32, 73, 130, 0.07)',
+  },
+
+  filterHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '18px',
+    marginBottom: '18px',
+  },
+
+  filterTitle: {
+    margin: 0,
+    color: '#071c41',
+    fontSize: '19px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+  },
+
+  filterSubtitle: {
+    margin: '5px 0 0',
+    color: '#748399',
+    fontSize: '13px',
+    lineHeight: 1.5,
+  },
+
+  clearFiltersButton: {
+    minHeight: '38px',
+    padding: '8px 14px',
+    flexShrink: 0,
+    borderRadius: '10px',
+    border: '1px solid #cfdbea',
+    background: '#f8fbff',
+    color: '#315173',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+
+  filtersGrid: {
+    width: '100%',
+    display: 'grid',
+    gridTemplateColumns:
+      'repeat(4, minmax(150px, 1fr))',
+    gap: '12px',
+  },
+
+  filterGroup: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
+    gap: '6px',
+    minWidth: 0,
   },
 
-  logo: {
-    width: '220px',
-    marginBottom: '-18px',
-    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+  filterLabel: {
+    color: '#4e6178',
+    fontSize: '11px',
+    fontWeight: 900,
   },
 
-  cardTitle: {
-    color: '#ffffff',
-    fontSize: '28px',
-    margin: '0 0 24px',
-    fontWeight: 800,
-    textAlign: 'center',
-  },
-
-  searchInput: {
-    width: 'min(420px, 100%)',
-    padding: '13px 15px',
-    marginBottom: '24px',
-    borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
+  filterInput: {
+    width: '100%',
+    minWidth: 0,
+    minHeight: '43px',
+    padding: '10px 12px',
+    boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #ccd9e8',
+    background: '#fbfdff',
+    color: '#183354',
     outline: 'none',
-    fontSize: '14px',
+    fontSize: '12px',
     textTransform: 'uppercase',
-    textAlign: 'center',
   },
 
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
+    marginBottom: '24px',
+    borderRadius: '18px',
+    border: '1px solid #dfe8f3',
+    background: '#ffffff',
+    boxShadow:
+      '0 16px 42px rgba(32, 73, 130, 0.07)',
   },
 
   table: {
     width: '100%',
+    minWidth: '1450px',
     borderCollapse: 'separate',
-    borderSpacing: '0 10px',
-    textAlign: 'center',
+    borderSpacing: 0,
+    tableLayout: 'auto',
+  },
+
+  tableRow: {
+    background: '#ffffff',
   },
 
   th: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: '12px',
-    padding: '8px',
+    padding: '13px 10px',
+    borderBottom: '1px solid #dce5f0',
+    background: '#f3f7fc',
+    color: '#52647b',
     textAlign: 'center',
+    verticalAlign: 'middle',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    letterSpacing: '0.035em',
     whiteSpace: 'nowrap',
   },
 
   td: {
-    color: '#ffffff',
-    padding: '9px 8px',
+    padding: '12px 10px',
+    borderBottom: '1px solid #e7edf5',
+    background: '#ffffff',
+    color: '#293f5f',
     textAlign: 'center',
-    background: 'rgba(255, 255, 255, 0.045)',
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    verticalAlign: 'middle',
+    fontSize: '12px',
+    lineHeight: 1.45,
+  },
+
+  productCell: {
+    minWidth: '150px',
+    textAlign: 'left',
+  },
+
+  productName: {
+    color: '#102b50',
     fontSize: '13px',
+    lineHeight: 1.4,
+    fontWeight: 900,
+    overflowWrap: 'anywhere',
+  },
+
+  offerPrice: {
+    color: '#176bff',
+    fontSize: '13px',
+    fontWeight: 900,
+  },
+
+  estadoBase: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: '150px',
+    padding: '6px 9px',
+    borderRadius: '999px',
+    fontSize: '9px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+    textAlign: 'center',
+    whiteSpace: 'normal',
+  },
+
+  estadoAzul: {
+    border: '1px solid #bed5f5',
+    background: '#e9f2ff',
+    color: '#225d9f',
+  },
+
+  estadoNaranja: {
+    border: '1px solid #f0d69a',
+    background: '#fff6df',
+    color: '#8a6214',
+  },
+
+  estadoConfirmada: {
+    border: '1px solid #b8e4c9',
+    background: '#e8f8ef',
+    color: '#237444',
+  },
+
+  estadoGris: {
+    border: '1px solid #d3d9e1',
+    background: '#edf0f4',
+    color: '#677486',
+  },
+
+  estadoDefault: {
+    border: '1px solid #bce3dc',
+    background: '#edf8f6',
+    color: '#287568',
   },
 
   smallButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '10px 14px',
-    borderRadius: '11px',
+    minWidth: '94px',
+    minHeight: '36px',
+    padding: '8px 11px',
+    borderRadius: '9px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
     cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '12px',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
     whiteSpace: 'nowrap',
   },
 
-  secondaryButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '12px 22px',
-    borderRadius: '12px',
-    cursor: 'pointer',
+  emptyAction: {
+    color: '#9aa7b7',
+    fontSize: '12px',
     fontWeight: 700,
-    fontSize: '14px',
+  },
+
+  conversacionBox: {
+    padding: '18px',
+    borderBottom: '1px solid #e4ebf4',
+    background: '#f8fbff',
+    textAlign: 'left',
+  },
+
+  offerCardEmbedded: {
+    width: '100%',
+    maxWidth: '620px',
+    padding: '18px',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    borderRadius: '16px',
+    border: '1px solid #d7e3f2',
+    background: '#ffffff',
+    boxShadow:
+      '0 10px 26px rgba(32, 73, 130, 0.07)',
+  },
+
+  offerCardEmbeddedDestacada: {
+    border: '1px solid #176bff',
+    boxShadow:
+      '0 0 0 3px rgba(23,107,255,0.12)',
+  },
+
+  embeddedHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '16px',
+  },
+
+  embeddedLabel: {
+    color: '#7c899b',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    letterSpacing: '0.065em',
+  },
+
+  embeddedPrice: {
+    margin: '4px 0 0',
+    color: '#176bff',
+    fontSize: '22px',
+    lineHeight: 1.2,
+    fontWeight: 900,
+  },
+
+  embeddedMeta: {
+    margin: '8px 0 14px',
+    color: '#69798e',
+    fontSize: '12px',
+    lineHeight: 1.5,
+    overflowWrap: 'anywhere',
+  },
+
+  contactTableCell: {
+    padding: '0 18px 18px',
+    borderBottom: '1px solid #e4ebf4',
+    background: '#f8fbff',
+  },
+
+  contactBox: {
+    padding: '17px',
+    borderRadius: '14px',
+    border: '1px solid #b9d3f2',
+    background: '#f2f8ff',
+    color: '#234b77',
+    textAlign: 'left',
+    fontSize: '12px',
+    lineHeight: 1.5,
+  },
+
+  contactTitle: {
+    margin: '0 0 12px',
+    color: '#173c69',
+    fontSize: '15px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+  },
+
+  contactText: {
+    margin: '12px 0 0',
+    color: '#315173',
+    fontSize: '13px',
+    lineHeight: 1.5,
+  },
+
+  emptyCard: {
+    padding: '44px 24px',
+    borderRadius: '20px',
+    border: '1px solid #dfe8f3',
+    background: '#ffffff',
+    boxShadow:
+      '0 14px 38px rgba(32, 73, 130, 0.07)',
+    textAlign: 'center',
+  },
+
+  emptyIcon: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '52px',
+    height: '52px',
+    margin: '0 auto 15px',
+    borderRadius: '16px',
+    background: '#eaf2ff',
+    color: '#176bff',
+    fontSize: '23px',
+    fontWeight: 900,
+  },
+
+  emptyTitle: {
+    margin: 0,
+    color: '#102b50',
+    fontSize: '20px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+  },
+
+  emptyText: {
+    maxWidth: '520px',
+    margin: '8px auto 0',
+    color: '#718095',
+    fontSize: '13px',
+    lineHeight: 1.6,
   },
 
   pagination: {
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: '14px',
+    justifyContent: 'center',
+    gap: '12px',
     flexWrap: 'wrap',
-    marginTop: '24px',
+  },
+
+  pageButton: {
+    minWidth: '105px',
+    minHeight: '40px',
+    padding: '9px 15px',
+    borderRadius: '10px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 900,
+  },
+
+  pageButtonDisabled: {
+    borderColor: '#d9e1eb',
+    background: '#edf1f6',
+    color: '#9aa7b7',
+    cursor: 'not-allowed',
   },
 
   pageText: {
-    color: 'rgba(255, 255, 255, 0.78)',
-    fontWeight: 700,
-  },
-
-  emptyText: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    margin: 0,
-  },
-
-  emptyAction: {
-    color: 'rgba(255, 255, 255, 0.45)',
-  },
-
-  contactBox: {
-    color: '#ffffff',
-    textAlign: 'left',
-    background: 'rgba(255, 255, 255, 0.07)',
-    padding: '16px 20px',
-    borderRadius: '14px',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-  },
-
-  contactText: {
-    marginTop: '8px',
-    fontSize: '14px',
-    color: 'rgba(255, 255, 255, 0.82)',
-  },
-
-  estadoAzul: {
-    color: '#5dade2',
+    color: '#52647b',
+    fontSize: '12px',
     fontWeight: 800,
   },
 
-  estadoNaranja: {
-    color: '#f39c12',
-    fontWeight: 800,
+  unreadInline: {
+    display: 'block',
+    marginTop: '6px',
+    color: '#176bff',
+    fontSize: '11px',
+    fontWeight: 900,
   },
-
-  estadoConfirmada: {
-    color: '#2ecc71',
-    fontWeight: 800,
-  },
-
-  estadoGris: {
-    color: 'rgba(255, 255, 255, 0.55)',
-    fontStyle: 'italic',
-  },
-
-  estadoDefault: {
-    color: '#ffffff',
-  },
-filtersGrid: {
-  width: '100%',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-  gap: '10px',
-  marginBottom: '24px',
-},
-
-filterInput: {
-  padding: '11px 12px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
-  outline: 'none',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  textAlign: 'center',
-},filtersGrid: {
-  width: '100%',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-  gap: '10px',
-  marginBottom: '24px',
-},
-
-filterInput: {
-  padding: '11px 12px',
-  borderRadius: '10px',
-  border: '1px solid rgba(255, 255, 255, 0.18)',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
-  outline: 'none',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  textAlign: 'center',
-},
-filterGroup: {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-},
-
-filterLabel: {
-  color: 'rgba(255,255,255,0.75)',
-  fontSize: '11px',
-  fontWeight: '700',
-  textAlign: 'left',
-},
-conversacionBox: {
-  padding: '16px 18px',
-  background: 'rgba(255,255,255,0.025)',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  textAlign: 'left',
-},
-offerCardEmbedded: {
-  width: '100%',
-  maxWidth: '360px',
-  flex: '0 0 auto',
-  alignSelf: 'flex-start',
-  padding: '16px',
-  borderRadius: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxSizing: 'border-box',
-  overflow: 'hidden',
-},
-offerCardEmbeddedDestacada: {
-  border: '1px solid rgba(49, 247, 198, 0.55)',
-  boxShadow: '0 0 0 2px rgba(49, 247, 198, 0.18)',
-},
-embeddedPrice: {
-  color: '#31f7c6',
-  fontSize: '22px',
-  fontWeight: 800,
-  margin: 0,
-},
-embeddedMeta: {
-  color: 'rgba(255,255,255,0.72)',
-  marginTop: '4px',
-  marginBottom: 0,
-  fontSize: '12px',
-},
-unreadInline: {
-  display: 'block',
-  marginTop: '6px',
-  color: '#31f7c6',
-  fontSize: '11px',
-  fontWeight: 800,
-},
-deepLinkError: {
-  width: '100%',
-  color: '#ffd166',
-  margin: '0 0 16px',
-  fontSize: '13px',
-  fontWeight: 700,
-  textAlign: 'left',
-},
 };
