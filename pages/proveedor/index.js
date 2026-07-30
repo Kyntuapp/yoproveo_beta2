@@ -2,9 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import {
+  Boxes,
+  PackageSearch,
+  Send,
+} from 'lucide-react';
+
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import Notificaciones from '../../components/Notificaciones';
+import AppLayout from '../../components/Layout/AppLayout';
 
 export default function ProveedorIndex() {
   const [perfilId, setPerfilId] = useState(null);
@@ -12,7 +19,8 @@ export default function ProveedorIndex() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: userData, error } = await supabase.auth.getUser();
+      const { data: userData, error } =
+        await supabase.auth.getUser();
 
       if (error || !userData?.user) {
         alert('Debes iniciar sesión.');
@@ -20,9 +28,12 @@ export default function ProveedorIndex() {
         return;
       }
 
-      const { perfil } = await resolveProveedorProfile(userData.user, {
-        select: 'id, auth_id, email',
-      });
+      const { perfil } = await resolveProveedorProfile(
+        userData.user,
+        {
+          select: 'id, auth_id, email',
+        }
+      );
 
       if (!perfil) {
         alert('No se encontró perfil de proveedor');
@@ -42,225 +53,328 @@ export default function ProveedorIndex() {
     router.push('/login');
   };
 
-  const cambiarPerfil = () => router.push('/seleccionar-perfil');
-  const irCatalogo = () => router.push('/proveedor/catalogo');
-  const irOfertarProductos = () => router.push('/proveedor/ofertar_productos');
-  const irOfertasEnviadas = () => router.push('/proveedor/ofertas_enviadas');
-  const irDatosContacto = () => router.push('/proveedor/datos-contacto');
+  const cambiarPerfil = () =>
+    router.push('/seleccionar-perfil');
+
+  const irCatalogo = () =>
+    router.push('/proveedor/catalogo');
+
+  const irOfertarProductos = () =>
+    router.push('/proveedor/ofertar_productos');
+
+  const irOfertasEnviadas = () =>
+    router.push('/proveedor/ofertas_enviadas');
+
+  const irDatosContacto = () =>
+    router.push('/proveedor/datos-contacto');
+
+  const irDashboard = () =>
+    router.push('/proveedor/DashboardProveedor');
 
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow}></div>
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        style={styles.watermark}
-      />
-
-      {/* Barra superior */}
-      <div style={styles.topBar}>
-        <div style={styles.leftActions}>
-          <button onClick={cambiarPerfil} style={styles.secondaryButton}>
-            Cambiar perfil
-          </button>
-
-          <button onClick={irDatosContacto} style={styles.secondaryButton}>
-            Actualizar datos
-          </button>
-
-            <button
-            onClick={() => router.push('/proveedor/DashboardProveedor')}
-            style={styles.secondaryButton}
-          >
-            Dashboard
-          </button>
-        </div>
-
-        <div style={styles.centerTitle}>
-          <h1 style={styles.title}>Panel del Proveedor</h1>
-        </div>
-
-        <div style={styles.rightActions}>
-          <Notificaciones userId={perfilId} rol="proveedor" />
-
-          <button onClick={cerrarSesion} style={styles.logoutButton}>
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-
-      {/* Contenido */}
-      <div style={styles.content}>
-        <div style={styles.card}>
+    <AppLayout
+      title="Panel del Proveedor"
+      profileLabel="Proveedor"
+      showProfileSwitch
+      onChangeProfile={cambiarPerfil}
+      onUpdateData={irDatosContacto}
+      onDashboard={irDashboard}
+      onLogout={cerrarSesion}
+      notifications={
+        <Notificaciones
+          userId={perfilId}
+          rol="proveedor"
+        />
+      }
+    >
+      <section
+        className="proveedor-card"
+        style={styles.card}
+      >
+        <div
+          className="proveedor-heading"
+          style={styles.heading}
+        >
           <img
             src="/icono_1.png"
             alt="Kyntü"
             style={styles.logo}
           />
 
-          <h2 style={styles.cardTitle}>Acciones rápidas</h2>
+          <div style={styles.headingContent}>
+            <span style={styles.eyebrow}>
+              PANEL DE GESTIÓN
+            </span>
 
-          <div style={styles.buttonGroup}>
-            <button onClick={irCatalogo} style={styles.mainButton}>
-              Catálogo y Stock
-            </button>
+            <h2 style={styles.cardTitle}>
+              Acciones rápidas
+            </h2>
 
-            <button onClick={irOfertarProductos} style={styles.mainButton}>
-              Ofertar Productos
-            </button>
-
-            <button onClick={irOfertasEnviadas} style={styles.mainButton}>
-              Mis Ofertas Enviadas
-            </button>
+            <p style={styles.cardDescription}>
+              Administra tu catálogo, revisa las solicitudes
+              de los compradores y consulta las ofertas que
+              ya enviaste.
+            </p>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div
+          className="proveedor-grid"
+          style={styles.actionGrid}
+        >
+          <button
+            type="button"
+            onClick={irCatalogo}
+            className="proveedor-action"
+            style={styles.actionCard}
+          >
+            <span style={styles.iconBox}>
+              <Boxes size={25} strokeWidth={2} />
+            </span>
+
+            <span style={styles.actionContent}>
+              <strong style={styles.actionTitle}>
+                Catálogo y stock
+              </strong>
+
+              <span style={styles.actionDescription}>
+                Agrega productos, modifica sus datos y
+                actualiza su disponibilidad.
+              </span>
+            </span>
+
+            <span style={styles.actionLink}>
+              Administrar catálogo
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={irOfertarProductos}
+            className="proveedor-action"
+            style={styles.actionCard}
+          >
+            <span style={styles.iconBox}>
+              <PackageSearch size={25} strokeWidth={2} />
+            </span>
+
+            <span style={styles.actionContent}>
+              <strong style={styles.actionTitle}>
+                Ofertar productos
+              </strong>
+
+              <span style={styles.actionDescription}>
+                Revisa solicitudes de compra y envía nuevas
+                propuestas a los compradores.
+              </span>
+            </span>
+
+            <span style={styles.actionLink}>
+              Ver solicitudes
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={irOfertasEnviadas}
+            className="proveedor-action"
+            style={styles.actionCard}
+          >
+            <span style={styles.iconBox}>
+              <Send size={25} strokeWidth={2} />
+            </span>
+
+            <span style={styles.actionContent}>
+              <strong style={styles.actionTitle}>
+                Mis ofertas enviadas
+              </strong>
+
+              <span style={styles.actionDescription}>
+                Consulta estados, pagos, conversaciones y
+                respuestas de los compradores.
+              </span>
+            </span>
+
+            <span style={styles.actionLink}>
+              Revisar ofertas
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <style jsx>{`
+        .proveedor-action {
+          transition:
+            transform 0.2s ease,
+            border-color 0.2s ease,
+            box-shadow 0.2s ease,
+            background 0.2s ease;
+        }
+
+        .proveedor-action:hover {
+          transform: translateY(-4px);
+          border-color: #b9d1ff !important;
+          background: #f8fbff !important;
+          box-shadow: 0 20px 42px rgba(31, 69, 122, 0.13);
+        }
+
+        .proveedor-action:focus-visible {
+          outline: 3px solid rgba(23, 107, 255, 0.22);
+          outline-offset: 3px;
+        }
+
+        @media (max-width: 950px) {
+          .proveedor-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .proveedor-card {
+            padding: 22px 16px !important;
+            border-radius: 20px !important;
+          }
+
+          .proveedor-heading {
+            align-items: flex-start !important;
+          }
+
+          .proveedor-heading img {
+            width: 64px !important;
+            height: 64px !important;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .proveedor-heading {
+            flex-direction: column !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .proveedor-action {
+            transition: none;
+          }
+        }
+      `}</style>
+    </AppLayout>
   );
 }
 
 const styles = {
-  page: {
-    minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
-    position: 'relative',
-    overflow: 'hidden',
-    padding: '24px',
-    boxSizing: 'border-box',
-    fontFamily: 'Arial, Helvetica, sans-serif',
-  },
-
-  backgroundGlow: {
-    position: 'absolute',
-    inset: 0,
-    background:
-      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
-    zIndex: 1,
-  },
-
-  watermark: {
-    position: 'absolute',
-    top: '35px',
-    left: '45px',
-    width: '260px',
-    opacity: 0.08,
-    zIndex: 1,
-    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
-    pointerEvents: 'none',
-  },
-
-  topBar: {
-    position: 'relative',
-    zIndex: 3,
-    display: 'grid',
-    gridTemplateColumns: '1fr auto 1fr',
-    alignItems: 'center',
-    marginBottom: '40px',
-  },
-
-  leftActions: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-  },
-
-  centerTitle: {
-    display: 'flex',
-    justifyContent: 'center',
-  },
-
-  rightActions: {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-
-  title: {
-    color: '#ffffff',
-    fontSize: '38px',
-    fontWeight: 800,
-    margin: 0,
-    textAlign: 'center',
-    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
-  },
-
-  content: {
-    position: 'relative',
-    zIndex: 3,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: '30px',
-  },
-
   card: {
-    width: '420px',
-    background: 'rgba(5, 12, 29, 0.86)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    borderRadius: '28px',
-    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
-    padding: '40px 32px',
-    backdropFilter: 'blur(10px)',
+    width: '100%',
+    padding: '32px',
+    boxSizing: 'border-box',
+    borderRadius: '26px',
+    background: 'rgba(255, 255, 255, 0.96)',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 22px 60px rgba(31, 69, 122, 0.10)',
+  },
+
+  heading: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
+    gap: '18px',
+    marginBottom: '28px',
+  },
+
+  headingContent: {
+    minWidth: 0,
   },
 
   logo: {
-    width: '220px',
-    marginBottom: '-20px',
-    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+    width: '82px',
+    height: '82px',
+    objectFit: 'contain',
+    flexShrink: 0,
+  },
+
+  eyebrow: {
+    display: 'block',
+    marginBottom: '7px',
+    color: '#176bff',
+    fontSize: '11px',
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '0.13em',
   },
 
   cardTitle: {
-    color: '#ffffff',
-    fontSize: '28px',
-    marginBottom: '28px',
-    fontWeight: 800,
+    margin: 0,
+    color: '#061b41',
+    fontSize: 'clamp(26px, 3vw, 34px)',
+    lineHeight: 1.15,
+    fontWeight: 900,
+    letterSpacing: '-0.035em',
   },
 
-  buttonGroup: {
+  cardDescription: {
+    maxWidth: '680px',
+    margin: '9px 0 0',
+    color: '#71829a',
+    fontSize: '14px',
+    lineHeight: 1.6,
+  },
+
+  actionGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: '16px',
+  },
+
+  actionCard: {
     width: '100%',
+    minHeight: '220px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '22px',
+    padding: '22px',
+    boxSizing: 'border-box',
+    borderRadius: '20px',
+    border: '1px solid #dfe8f3',
+    background: '#ffffff',
+    color: '#17365e',
+    cursor: 'pointer',
+    textAlign: 'left',
   },
 
-  mainButton: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#fff',
-    border: 'none',
-    padding: '15px 20px',
-    borderRadius: '14px',
-    cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '15px',
-    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+  iconBox: {
+    width: '52px',
+    height: '52px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '15px',
+    background:
+      'linear-gradient(135deg, #e9f1ff 0%, #e9fbf7 100%)',
+    color: '#176bff',
   },
 
-  secondaryButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '10px 18px',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 700,
+  actionContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    flex: 1,
+  },
+
+  actionTitle: {
+    color: '#17365e',
+    fontSize: '17px',
+    fontWeight: 900,
+  },
+
+  actionDescription: {
+    color: '#75869c',
     fontSize: '13px',
+    lineHeight: 1.55,
   },
 
-  logoutButton: {
-    background: 'rgba(255, 80, 80, 0.14)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 80, 80, 0.25)',
-    padding: '10px 18px',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '13px',
+  actionLink: {
+    color: '#176bff',
+    fontSize: '12px',
+    fontWeight: 900,
   },
 };

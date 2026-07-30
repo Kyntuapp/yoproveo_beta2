@@ -6,6 +6,7 @@ import OfertaConversacionContenedor from '../components/OfertaConversacionConten
 import { comunasChile } from '../utils/comunasChile';
 import KyntuModal, { createModalState } from '../pages/KyntuModal';
 import ModalCalificacion from './ModalCalificacion';
+import AppLayout from '../components/Layout/AppLayout';
 
 const MAX_DETALLE_PEDIDO = 120;
 
@@ -1457,52 +1458,20 @@ const guardarCalificacion = async () => {
       : Number(valor).toLocaleString('es-CL');
 
   return (
-    <div className="kyntu-page" style={styles.page}>
-      <div className="kyntu-backgroundGlow" style={styles.backgroundGlow}></div>
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        className="kyntu-watermark" style={styles.watermark}
-      />
-
-      <div className="kyntu-topBar" style={styles.topBar}>
-        <div className="kyntu-leftActions" style={styles.leftActions}>
-          {tienePerfilProveedor && (
-            <button onClick={cambiarPerfil} className="kyntu-secondaryButton" style={styles.secondaryButton}>
-              Cambiar perfil
-            </button>
-          )}
-
-          <button
-            onClick={() => router.push('/comprador/datos-contacto')}
-            className="kyntu-secondaryButton" style={styles.secondaryButton}
-          >
-            Actualizar datos
-          </button>
-
-          <button
-            onClick={() => router.push('/comprador/DashboardComprador')}
-            className="kyntu-secondaryButton" style={styles.secondaryButton}
-          >
-            Dashboard
-          </button>
-        </div>
-
-        <div className="kyntu-centerTitle" style={styles.centerTitle}>
-          <h1 className="kyntu-title" style={styles.title}>Panel del Comprador</h1>
-        </div>
-
-        <div className="kyntu-rightActions" style={styles.rightActions}>
-          <Notificaciones userId={authUserId} rol="comprador" />
-
-          <button onClick={cerrarSesion} className="kyntu-logoutButton" style={styles.logoutButton}>
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-
-      <main className="kyntu-content" style={styles.content}>
+    <AppLayout
+      title="Panel del Comprador"
+      showProfileSwitch={tienePerfilProveedor}
+      onChangeProfile={cambiarPerfil}
+      onUpdateData={() => router.push('/comprador/datos-contacto')}
+      onDashboard={() => router.push('/comprador/DashboardComprador')}
+      onLogout={cerrarSesion}
+      notifications={
+        <Notificaciones
+          userId={authUserId}
+          rol="comprador"
+        />
+      }
+    >
         <section className="kyntu-card" style={styles.card}>
           <img
             src="/icono_1.png"
@@ -2110,8 +2079,6 @@ const guardarCalificacion = async () => {
             })
           )}
         </section>
-      </main>
-
       <style jsx global>{`
         * {
           box-sizing: border-box;
@@ -2449,7 +2416,7 @@ const guardarCalificacion = async () => {
   }
 />
       <KyntuModal {...modal} />
-    </div>
+    </AppLayout>
   );
 }
 

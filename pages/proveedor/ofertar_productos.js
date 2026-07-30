@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
+import AppLayout from '../../components/Layout/AppLayout';
+import Notificaciones from '../../components/Notificaciones';
 
 const VISTA_STORAGE_KEY = 'kyntu_proveedor_vista_ofertas';
 const MOBILE_BREAKPOINT = 820;
@@ -22,10 +24,14 @@ function formatearFechaCorta(fecha) {
 function leerVistaPreferida() {
   try {
     const valor = localStorage.getItem(VISTA_STORAGE_KEY);
-    if (valor === 'lista' || valor === 'cuadricula') return valor;
+
+    if (valor === 'lista' || valor === 'cuadricula') {
+      return valor;
+    }
   } catch (_) {
     /* localStorage no disponible */
   }
+
   return 'lista';
 }
 
@@ -101,8 +107,10 @@ function DetallePedidoBloque({ detalle }) {
         <span style={styles.detalleIcon} aria-hidden="true">
           ℹ
         </span>
+
         Detalle del pedido
       </div>
+
       <p className="kyntu-detalleText" style={styles.detalleText}>
         {detalle}
       </p>
@@ -116,24 +124,38 @@ function DetallePedidoCelda({ detalle }) {
   }
 
   return (
-    <span className="kyntu-detalleCelda" style={styles.detalleCelda} title={detalle}>
+    <span
+      className="kyntu-detalleCelda"
+      style={styles.detalleCelda}
+      title={detalle}
+    >
       {detalle}
     </span>
   );
 }
 
-function BloqueOferta({ fila, variant, onChange, formatearNumero }) {
+function BloqueOferta({
+  fila,
+  variant,
+  onChange,
+  formatearNumero,
+}) {
   const compacto = variant === 'lista';
+
   const boxStyle = compacto
     ? styles.offerHighlightBoxCompact
     : styles.offerHighlightBox;
+
   const inputId = `oferta-${fila.itemId}`;
 
   if (fila.ya_oferto) {
     return (
       <div className="kyntu-offerHighlight" style={boxStyle}>
         <span style={styles.offerBlockTitle}>Tu oferta</span>
-        <span style={styles.sentOffer}>${formatearNumero(fila.oferta)}</span>
+
+        <span style={styles.sentOffer}>
+          ${formatearNumero(fila.oferta)}
+        </span>
       </div>
     );
   }
@@ -151,18 +173,24 @@ function BloqueOferta({ fila, variant, onChange, formatearNumero }) {
     <div className="kyntu-offerHighlight" style={boxStyle}>
       <div style={styles.offerBlockHeader}>
         <span style={styles.offerBlockTitle}>Tu oferta</span>
+
         {!compacto && (
           <span style={styles.offerBlockHint}>
             Ingresa tu precio · monto total ofertado
           </span>
         )}
       </div>
+
       {compacto && (
-        <span style={styles.offerBlockHintCompact}>Ingresa tu precio</span>
+        <span style={styles.offerBlockHintCompact}>
+          Ingresa tu precio
+        </span>
       )}
+
       <label htmlFor={inputId} style={styles.srOnly}>
         Ingresar monto total de la oferta
       </label>
+
       <input
         id={inputId}
         type="text"
@@ -171,13 +199,21 @@ function BloqueOferta({ fila, variant, onChange, formatearNumero }) {
         placeholder="Monto total"
         aria-label="Ingresar monto total de la oferta"
         className="kyntu-offerInput"
-        style={compacto ? styles.offerInputLista : styles.offerInputGrid}
+        style={
+          compacto
+            ? styles.offerInputLista
+            : styles.offerInputGrid
+        }
       />
     </div>
   );
 }
 
-function SelectorVista({ vista, onChange, deshabilitarLista }) {
+function SelectorVista({
+  vista,
+  onChange,
+  deshabilitarLista,
+}) {
   return (
     <div
       className="kyntu-viewToggle"
@@ -190,8 +226,12 @@ function SelectorVista({ vista, onChange, deshabilitarLista }) {
         className="kyntu-viewToggleBtn"
         style={{
           ...styles.viewToggleBtn,
-          ...(vista === 'lista' ? styles.viewToggleBtnActive : {}),
-          ...(deshabilitarLista ? styles.viewToggleBtnDisabled : {}),
+          ...(vista === 'lista'
+            ? styles.viewToggleBtnActive
+            : {}),
+          ...(deshabilitarLista
+            ? styles.viewToggleBtnDisabled
+            : {}),
         }}
         aria-label="Ver como lista"
         aria-pressed={vista === 'lista'}
@@ -201,12 +241,15 @@ function SelectorVista({ vista, onChange, deshabilitarLista }) {
       >
         ☰ Lista
       </button>
+
       <button
         type="button"
         className="kyntu-viewToggleBtn"
         style={{
           ...styles.viewToggleBtn,
-          ...(vista === 'cuadricula' ? styles.viewToggleBtnActive : {}),
+          ...(vista === 'cuadricula'
+            ? styles.viewToggleBtnActive
+            : {}),
         }}
         aria-label="Ver como cuadrícula"
         aria-pressed={vista === 'cuadricula'}
@@ -222,7 +265,9 @@ function SelectorVista({ vista, onChange, deshabilitarLista }) {
 export default function OfertarProductos() {
   const [listas, setListas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  const [proveedorPerfilId, setProveedorPerfilId] = useState(null);
+  const [proveedorPerfilId, setProveedorPerfilId] =
+    useState(null);
+
   const [filtros, setFiltros] = useState({
     producto: '',
     formato: '',
@@ -233,11 +278,15 @@ export default function OfertarProductos() {
     fecha: '',
     estado: '',
   });
+
   const [paginaActual, setPaginaActual] = useState(1);
-  const [detalleContactoId, setDetalleContactoId] = useState(null);
+  const [detalleContactoId, setDetalleContactoId] =
+    useState(null);
+
   const [vista, setVista] = useState('lista');
   const [vistaLista, setVistaLista] = useState(true);
   const [esMobile, setEsMobile] = useState(false);
+
   const itemsPorPagina = 20;
   const router = useRouter();
 
@@ -246,137 +295,291 @@ export default function OfertarProductos() {
   }, []);
 
   useEffect(() => {
-    if (vista) guardarVistaPreferida(vista);
+    if (vista) {
+      guardarVistaPreferida(vista);
+    }
   }, [vista]);
 
   useEffect(() => {
     const evaluarViewport = () => {
-      const mobile = window.innerWidth <= MOBILE_BREAKPOINT;
+      const mobile =
+        window.innerWidth <= MOBILE_BREAKPOINT;
+
       setEsMobile(mobile);
       setVistaLista(!mobile);
     };
 
     evaluarViewport();
-    window.addEventListener('resize', evaluarViewport);
-    return () => window.removeEventListener('resize', evaluarViewport);
+
+    window.addEventListener(
+      'resize',
+      evaluarViewport
+    );
+
+    return () =>
+      window.removeEventListener(
+        'resize',
+        evaluarViewport
+      );
   }, []);
 
-  const vistaEfectiva = esMobile || !vistaLista ? 'cuadricula' : vista;
+  const vistaEfectiva =
+    esMobile || !vistaLista
+      ? 'cuadricula'
+      : vista;
 
   const cambiarVista = (nuevaVista) => {
-    if (nuevaVista === 'lista' && !vistaLista) return;
+    if (
+      nuevaVista === 'lista' &&
+      !vistaLista
+    ) {
+      return;
+    }
+
     setVista(nuevaVista);
   };
 
   useEffect(() => {
     const cargarDatos = async () => {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+      const {
+        data: userData,
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (userError || !userData?.user) {
+      if (
+        userError ||
+        !userData?.user
+      ) {
         alert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
 
-      const { perfil: perfilProv } = await resolveProveedorProfile(userData.user, {
-        select: 'id, tipo',
-      });
+      const {
+        perfil: perfilProv,
+      } = await resolveProveedorProfile(
+        userData.user,
+        {
+          select: 'id, tipo',
+        }
+      );
 
       if (!perfilProv) {
-        alert('El usuario no tiene un perfil de proveedor asociado.');
+        alert(
+          'El usuario no tiene un perfil de proveedor asociado.'
+        );
+
         return;
       }
 
-      setProveedorPerfilId(perfilProv.id);
+      setProveedorPerfilId(
+        perfilProv.id
+      );
 
-      const { data: listasData, error: listasError } = await supabase
+      const {
+        data: listasData,
+        error: listasError,
+      } = await supabase
         .from('listas_compras')
         .select('*')
-        .order('fecha_creacion', { ascending: false });
+        .order(
+          'fecha_creacion',
+          {
+            ascending: false,
+          }
+        );
 
-      const listaIds = Array.from(
-        new Set((listasData || []).map((item) => item.lista_id).filter(Boolean))
-      );
+      const listaIds =
+        Array.from(
+          new Set(
+            (listasData || [])
+              .map(
+                (item) =>
+                  item.lista_id
+              )
+              .filter(Boolean)
+          )
+        );
 
       let estadoPorLista = {};
 
       if (listaIds.length > 0) {
-        const { data: cabecerasData, error: cabecerasError } = await supabase
+        const {
+          data: cabecerasData,
+          error: cabecerasError,
+        } = await supabase
           .from('listas')
           .select('id, estado')
           .in('id', listaIds);
 
         if (cabecerasError) {
-          console.error('Error cargando estados de listas:', cabecerasError);
+          console.error(
+            'Error cargando estados de listas:',
+            cabecerasError
+          );
+
           return;
         }
 
-        estadoPorLista = Object.fromEntries(
-          (cabecerasData || []).map((lista) => [lista.id, lista.estado])
-        );
+        estadoPorLista =
+          Object.fromEntries(
+            (
+              cabecerasData || []
+            ).map((lista) => [
+              lista.id,
+              lista.estado,
+            ])
+          );
       }
 
-      const { data: perfilesData, error: perfilesError } = await supabase
+      const {
+        data: perfilesData,
+        error: perfilesError,
+      } = await supabase
         .from('perfiles')
         .select('*');
 
-      const { data: ofertasData, error: ofertasError } = await supabase
-        .from('ofertas_productos')
-        .select('lista_id, proveedor_id, precio_ofertado, estado')
-        .eq('proveedor_id', perfilProv.id);
+      const {
+        data: ofertasData,
+        error: ofertasError,
+      } = await supabase
+        .from(
+          'ofertas_productos'
+        )
+        .select(
+          'lista_id, proveedor_id, precio_ofertado, estado'
+        )
+        .eq(
+          'proveedor_id',
+          perfilProv.id
+        );
 
-      if (listasError || perfilesError || ofertasError) {
-        console.error(listasError || perfilesError || ofertasError);
-        alert('Error al cargar datos.');
+      if (
+        listasError ||
+        perfilesError ||
+        ofertasError
+      ) {
+        console.error(
+          listasError ||
+            perfilesError ||
+            ofertasError
+        );
+
+        alert(
+          'Error al cargar datos.'
+        );
+
         return;
       }
 
-      const authUserId = userData.user.id;
-      const listasAjenas = (listasData || []).filter((item) => {
-        const perteneceAOtroUsuario =
-          String(item.usuario_id || '') !== String(authUserId);
+      const authUserId =
+        userData.user.id;
 
-        const estaPublicada =
-          !item.lista_id || estadoPorLista[item.lista_id] === 'publicada';
+      const listasAjenas =
+        (listasData || []).filter(
+          (item) => {
+            const perteneceAOtroUsuario =
+              String(
+                item.usuario_id || ''
+              ) !==
+              String(authUserId);
 
-        return perteneceAOtroUsuario && estaPublicada;
-      });
+            const estaPublicada =
+              !item.lista_id ||
+              estadoPorLista[
+                item.lista_id
+              ] === 'publicada';
 
-      setUsuarios(perfilesData || []);
+            return (
+              perteneceAOtroUsuario &&
+              estaPublicada
+            );
+          }
+        );
 
-      const compradoresPorAuth = Object.fromEntries(
-        (perfilesData || [])
-          .filter(
-            (p) =>
-              String(p.tipo || '').trim().toLowerCase() === 'comprador' &&
-              p.auth_id
-          )
-          .map((p) => [String(p.auth_id).trim().toLowerCase(), p])
+      setUsuarios(
+        perfilesData || []
       );
 
-      const enriquecida = listasAjenas
-        .map((item) => {
-          const perfilComprador =
-            compradoresPorAuth[
-              String(item.usuario_id || '').trim().toLowerCase()
-            ] || null;
+      const compradoresPorAuth =
+        Object.fromEntries(
+          (
+            perfilesData || []
+          )
+            .filter(
+              (p) =>
+                String(
+                  p.tipo || ''
+                )
+                  .trim()
+                  .toLowerCase() ===
+                  'comprador' &&
+                p.auth_id
+            )
+            .map((p) => [
+              String(
+                p.auth_id
+              )
+                .trim()
+                .toLowerCase(),
+              p,
+            ])
+        );
 
-          const ofertaExistente = (ofertasData || []).find(
-            (o) => o.lista_id === item.id
+      const enriquecida =
+        listasAjenas
+          .map((item) => {
+            const perfilComprador =
+              compradoresPorAuth[
+                String(
+                  item.usuario_id ||
+                    ''
+                )
+                  .trim()
+                  .toLowerCase()
+              ] || null;
+
+            const ofertaExistente =
+              (
+                ofertasData || []
+              ).find(
+                (o) =>
+                  o.lista_id ===
+                  item.id
+              );
+
+            return {
+              ...item,
+
+              comprador_email:
+                item.comprador_email ||
+                perfilComprador?.email ||
+                'Desconocido',
+
+              oferta:
+                ofertaExistente
+                  ? ofertaExistente.precio_ofertado
+                  : '',
+
+              incluye_despacho:
+                false,
+
+              tiempo_despacho_horas:
+                '',
+
+              ya_oferto:
+                !!ofertaExistente,
+
+              estado_oferta:
+                ofertaExistente
+                  ? ofertaExistente.estado
+                  : null,
+            };
+          })
+          .filter(
+            (item) =>
+              !item.ya_oferto
           );
-
-          return {
-            ...item,
-            comprador_email:
-              item.comprador_email || perfilComprador?.email || 'Desconocido',
-            oferta: ofertaExistente ? ofertaExistente.precio_ofertado : '',
-            incluye_despacho: false,
-            tiempo_despacho_horas: '',
-            ya_oferto: !!ofertaExistente,
-            estado_oferta: ofertaExistente ? ofertaExistente.estado : null,
-          };
-        })
-        .filter((item) => !item.ya_oferto);
 
       setListas(enriquecida);
     };
@@ -384,79 +587,155 @@ export default function OfertarProductos() {
     cargarDatos();
   }, [router]);
 
-  const calcularDiasRestantes = (fecha_cierre) => {
-    if (!fecha_cierre) return '-';
-    const cierre = new Date(fecha_cierre);
-    const hoy = new Date();
-    const diff = cierre - hoy;
-    if (diff <= 0) return '0';
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
+  const calcularDiasRestantes = (
+    fecha_cierre
+  ) => {
+    if (!fecha_cierre) {
+      return '-';
+    }
 
-  const manejarCambioOferta = (itemId, valor) => {
-    setListas((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, oferta: valor } : item
-      )
+    const cierre =
+      new Date(fecha_cierre);
+
+    const hoy =
+      new Date();
+
+    const diff =
+      cierre - hoy;
+
+    if (diff <= 0) {
+      return '0';
+    }
+
+    return Math.ceil(
+      diff /
+        (
+          1000 *
+          60 *
+          60 *
+          24
+        )
     );
   };
 
-  const manejarDespacho = (itemId, valor) => {
+  const manejarCambioOferta = (
+    itemId,
+    valor
+  ) => {
     setListas((prev) =>
       prev.map((item) =>
         item.id === itemId
           ? {
               ...item,
-              incluye_despacho: valor,
-              tiempo_despacho_horas: valor ? item.tiempo_despacho_horas : '',
+              oferta: valor,
             }
           : item
       )
     );
   };
 
-  const manejarTiempoDespacho = (itemId, valor) => {
+  const manejarDespacho = (
+    itemId,
+    valor
+  ) => {
     setListas((prev) =>
       prev.map((item) =>
         item.id === itemId
           ? {
               ...item,
-              tiempo_despacho_horas: valor,
+              incluye_despacho:
+                valor,
+
+              tiempo_despacho_horas:
+                valor
+                  ? item.tiempo_despacho_horas
+                  : '',
             }
           : item
       )
     );
   };
 
-  const ofertarProducto = async (itemId) => {
+  const manejarTiempoDespacho = (
+    itemId,
+    valor
+  ) => {
+    setListas((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              tiempo_despacho_horas:
+                valor,
+            }
+          : item
+      )
+    );
+  };
+
+  const ofertarProducto = async (
+    itemId
+  ) => {
     if (!proveedorPerfilId) {
-      alert('No hay perfil de proveedor activo.');
+      alert(
+        'No hay perfil de proveedor activo.'
+      );
+
       return;
     }
 
-    const producto = listas.find((item) => item.id === itemId);
+    const producto =
+      listas.find(
+        (item) =>
+          item.id === itemId
+      );
 
-    if (!producto) return;
-
-    const ofertaLimpia = parseFloat(
-      (producto.oferta ?? '').toString().replace(/\./g, '')
-    );
-
-    if (isNaN(ofertaLimpia) || ofertaLimpia <= 0) {
-      alert('Por favor ingresa un valor numérico válido en la oferta.');
+    if (!producto) {
       return;
     }
 
-    if (producto.incluye_despacho && !producto.tiempo_despacho_horas) {
-      alert('Selecciona el tiempo de despacho.');
+    const ofertaLimpia =
+      parseFloat(
+        (
+          producto.oferta ?? ''
+        )
+          .toString()
+          .replace(/\./g, '')
+      );
+
+    if (
+      isNaN(ofertaLimpia) ||
+      ofertaLimpia <= 0
+    ) {
+      alert(
+        'Por favor ingresa un valor numérico válido en la oferta.'
+      );
+
       return;
     }
 
     if (
-      producto.estado === 'cerrada' ||
-      calcularDiasRestantes(producto.fecha_cierre) === '0'
+      producto.incluye_despacho &&
+      !producto.tiempo_despacho_horas
     ) {
-      alert('La licitación está cerrada.');
+      alert(
+        'Selecciona el tiempo de despacho.'
+      );
+
+      return;
+    }
+
+    if (
+      producto.estado ===
+        'cerrada' ||
+      calcularDiasRestantes(
+        producto.fecha_cierre
+      ) === '0'
+    ) {
+      alert(
+        'La licitación está cerrada.'
+      );
+
       return;
     }
 
@@ -464,19 +743,42 @@ export default function OfertarProductos() {
       alert(
         'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
       );
-      setListas((prev) => prev.filter((item) => item.id !== producto.id));
+
+      setListas((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !==
+            producto.id
+        )
+      );
+
       return;
     }
 
-    const { data: ofertaDuplicada, error: dupError } = await supabase
-      .from('ofertas_productos')
+    const {
+      data: ofertaDuplicada,
+      error: dupError,
+    } = await supabase
+      .from(
+        'ofertas_productos'
+      )
       .select('id')
-      .eq('proveedor_id', proveedorPerfilId)
-      .eq('lista_id', producto.id)
+      .eq(
+        'proveedor_id',
+        proveedorPerfilId
+      )
+      .eq(
+        'lista_id',
+        producto.id
+      )
       .maybeSingle();
 
     if (dupError) {
-      alert('Error al verificar ofertas existentes: ' + dupError.message);
+      alert(
+        'Error al verificar ofertas existentes: ' +
+          dupError.message
+      );
+
       return;
     }
 
@@ -484,940 +786,1446 @@ export default function OfertarProductos() {
       alert(
         'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
       );
-      setListas((prev) => prev.filter((item) => item.id !== producto.id));
+
+      setListas((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !==
+            producto.id
+        )
+      );
+
       return;
     }
 
-    const { error } = await supabase.from('ofertas_productos').insert({
-      lista_id: producto.id,
-      proveedor_id: proveedorPerfilId,
-      producto: producto.producto,
-      formato: producto.formato,
-      marca: producto.marca,
-      precio_ofertado: ofertaLimpia,
-      incluye_despacho: producto.incluye_despacho,
-      tiempo_despacho_horas: producto.incluye_despacho
-        ? Number(producto.tiempo_despacho_horas)
-        : null,
-      estado: 'pendiente',
-    });
+    const { error } =
+      await supabase
+        .from(
+          'ofertas_productos'
+        )
+        .insert({
+          lista_id:
+            producto.id,
+
+          proveedor_id:
+            proveedorPerfilId,
+
+          producto:
+            producto.producto,
+
+          formato:
+            producto.formato,
+
+          marca:
+            producto.marca,
+
+          precio_ofertado:
+            ofertaLimpia,
+
+          incluye_despacho:
+            producto.incluye_despacho,
+
+          tiempo_despacho_horas:
+            producto.incluye_despacho
+              ? Number(
+                  producto.tiempo_despacho_horas
+                )
+              : null,
+
+          estado:
+            'pendiente',
+        });
 
     if (error) {
       const esDuplicada =
-        error.code === '23505' ||
-        (error.message || '').toLowerCase().includes('unique');
+        error.code ===
+          '23505' ||
+        (
+          error.message || ''
+        )
+          .toLowerCase()
+          .includes('unique');
 
       if (esDuplicada) {
         alert(
           'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
         );
-        setListas((prev) => prev.filter((item) => item.id !== producto.id));
+
+        setListas((prev) =>
+          prev.filter(
+            (item) =>
+              item.id !==
+              producto.id
+          )
+        );
       } else {
-        alert('Error al enviar oferta: ' + error.message);
+        alert(
+          'Error al enviar oferta: ' +
+            error.message
+        );
       }
     } else {
-      await supabase.from('notificaciones').insert([
-        {
-          usuario_id: producto.usuario_id,
-          rol: 'comprador',
-          titulo: 'Nueva oferta recibida',
-          mensaje: `Has recibido una oferta para el producto ${producto.producto}`,
-          ruta: '/comprador?notif=ofertas&list_id=' + producto.id,
-          leida: false,
-        },
-      ]);
+      await supabase
+        .from(
+          'notificaciones'
+        )
+        .insert([
+          {
+            usuario_id:
+              producto.usuario_id,
 
-      setListas((prev) => prev.filter((item) => item.id !== producto.id));
+            rol:
+              'comprador',
 
-      alert('Oferta enviada correctamente.');
+            titulo:
+              'Nueva oferta recibida',
+
+            mensaje:
+              `Has recibido una oferta para el producto ${producto.producto}`,
+
+            ruta:
+              '/comprador?notif=ofertas&list_id=' +
+              producto.id,
+
+            leida: false,
+          },
+        ]);
+
+      setListas((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !==
+            producto.id
+        )
+      );
+
+      alert(
+        'Oferta enviada correctamente.'
+      );
     }
   };
 
-  const volverAlPanel = () => router.push('/proveedor');
+  const irDashboard = () => {
+    router.push(
+      '/proveedor/DashboardProveedor'
+    );
+  };
+
+  const irDatosContacto = () => {
+    router.push(
+      '/proveedor/datos-contacto'
+    );
+  };
+
+  const cambiarPerfil = () => {
+    router.push(
+      '/seleccionar-perfil'
+    );
+  };
+
+  const cerrarSesion = async () => {
+    const { error } =
+      await supabase.auth.signOut();
+
+    if (error) {
+      console.error(
+        'Error al cerrar sesión:',
+        error
+      );
+
+      alert(
+        'No se pudo cerrar la sesión.'
+      );
+
+      return;
+    }
+
+    localStorage.clear();
+    router.push('/login');
+  };
 
   const normalizarTexto = (t) =>
-    t ? t.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+    t
+      ? t
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(
+            /[\u0300-\u036f]/g,
+            ''
+          )
+      : '';
 
-  const manejarCambioFiltro = (campo, valor) => {
+  const manejarCambioFiltro = (
+    campo,
+    valor
+  ) => {
     setFiltros((prev) => ({
       ...prev,
-      [campo]: valor.toUpperCase(),
+      [campo]:
+        valor.toUpperCase(),
     }));
+
     setPaginaActual(1);
   };
 
-  const obtenerEstado = (item) => {
-    if (item.estado === 'cerrada') return 'Cerrada';
+  const obtenerEstado = (
+    item
+  ) => {
+    if (
+      item.estado ===
+      'cerrada'
+    ) {
+      return 'Cerrada';
+    }
 
-    switch (item.estado_oferta) {
+    switch (
+      item.estado_oferta
+    ) {
       case 'confirmada':
         return 'Confirmada';
+
       case 'en_espera_confirmacion':
         return 'En espera de confirmación';
+
       case 'rechazada':
         return 'Rechazada';
+
       case 'pendiente':
       case null:
       case undefined:
-        if (item.ya_oferto) return 'Oferta enviada';
+        if (item.ya_oferto) {
+          return 'Oferta enviada';
+        }
+
         break;
+
       default:
-        if (item.ya_oferto) return 'Oferta enviada';
+        if (item.ya_oferto) {
+          return 'Oferta enviada';
+        }
     }
 
     return 'Recibiendo ofertas';
   };
+  const listasFiltradas = useMemo(() => {
+  return listas.filter((item) => {
+    const coincideProducto = normalizarTexto(item.producto).includes(
+      normalizarTexto(filtros.producto)
+    );
 
-  const listasFiltradas = useMemo(
-    () =>
-      listas.filter((item) => {
-        if (item.ya_oferto) return false;
+    const coincideFormato = normalizarTexto(item.formato).includes(
+      normalizarTexto(filtros.formato)
+    );
 
-        const formatos = normalizarFormatosItem(item);
-        const estadoLabel = obtenerEstado(item);
+    const coincideMarca = normalizarTexto(item.marca).includes(
+      normalizarTexto(filtros.marca)
+    );
 
-        const coincideFormato =
-          !filtros.formato ||
-          formatos.some((f) =>
-            normalizarTexto(f.formato).includes(normalizarTexto(filtros.formato))
-          ) ||
-          normalizarTexto(item.formato || '').includes(
-            normalizarTexto(filtros.formato)
-          );
+    const coincideCantidad = String(item.cantidad ?? "").includes(
+      filtros.cantidad
+    );
 
-        const coincideCantidad =
-          !filtros.cantidad ||
-          formatos.some((f) =>
-            String(f.cantidad ?? '').includes(filtros.cantidad)
-          ) ||
-          String(item.cantidad ?? '').includes(filtros.cantidad);
+    const coincidePrecio = String(item.precio ?? "").includes(
+      filtros.precio
+    );
 
-        const coincidePrecio =
-          !filtros.precio ||
-          formatos.some((f) =>
-            String(f.precio ?? '').includes(filtros.precio)
-          ) ||
-          String(item.precio ?? '').includes(filtros.precio);
+    const coincideComuna = normalizarTexto(
+      item.comuna_despacho
+    ).includes(normalizarTexto(filtros.comuna));
 
-        const valores = {
-          producto: item.producto,
-          marca: item.marca,
-          comuna: item.comuna_despacho,
-          fecha: item.fecha_creacion
-            ? new Date(item.fecha_creacion).toISOString().split('T')[0]
-            : '',
-          estado: estadoLabel,
-        };
+    const fechaTexto = item.fecha_creacion
+      ? formatearFechaCorta(item.fecha_creacion)
+      : "";
 
-        const coincideResto = Object.entries(valores).every(([campo, valor]) => {
-          if (!filtros[campo]) return true;
-          return normalizarTexto(valor || '').includes(
-            normalizarTexto(filtros[campo])
-          );
-        });
+    const coincideFecha = fechaTexto.includes(filtros.fecha);
 
-        return (
-          coincideFormato &&
-          coincideCantidad &&
-          coincidePrecio &&
-          coincideResto
-        );
-      }),
-    [listas, filtros]
-  );
+    const estado = obtenerEstado(item);
 
-  const totalPaginas = Math.ceil(listasFiltradas.length / itemsPorPagina);
-  const inicio = (paginaActual - 1) * itemsPorPagina;
-  const fin = inicio + itemsPorPagina;
-  const listasPaginadas = listasFiltradas.slice(inicio, fin);
-  const filasListaPaginadas = useMemo(
-    () => expandirItemsNormalizados(listasPaginadas),
-    [listasPaginadas]
-  );
-
-  const formatearNumero = (num) =>
-    num === '' || num === null || num === undefined
-      ? ''
-      : new Intl.NumberFormat('es-CL').format(num);
-
-  const getEstadoStyle = (estadoTexto, compacto = false) => {
-    let base;
-
-    switch (estadoTexto) {
-      case 'Recibiendo ofertas':
-        base = styles.estadoVerde;
-        break;
-      case 'Oferta enviada':
-        base = styles.estadoAzul;
-        break;
-      case 'En espera de confirmación':
-        base = styles.estadoNaranja;
-        break;
-      case 'Confirmada':
-        base = styles.estadoConfirmada;
-        break;
-      case 'Rechazada':
-        base = styles.estadoGris;
-        break;
-      case 'Cerrada':
-        base = styles.estadoRojo;
-        break;
-      default:
-        base = styles.estadoDefault;
-    }
-
-    return compacto ? { ...base, ...styles.estadoBadgeTabla } : base;
-  };
-
-  const estadoTexto = (item) => obtenerEstado(item);
-
-  const renderAccionOferta = (fila) => {
-    const estado = estadoTexto(fila);
-    const puedeOfertar = !fila.ya_oferto && fila.estado !== 'cerrada';
-    const esConfirmada = fila.estado_oferta === 'confirmada';
-
-    if (esConfirmada) {
-      return (
-        <button
-          type="button"
-          onClick={() =>
-            setDetalleContactoId(
-              detalleContactoId === fila.itemId ? null : fila.itemId
-            )
-          }
-          className="kyntu-smallButton"
-          style={styles.smallButton}
-        >
-          Ver contacto
-        </button>
+    const coincideEstado =
+      !filtros.estado ||
+      normalizarTexto(estado).includes(
+        normalizarTexto(filtros.estado)
       );
-    }
-
-    if (puedeOfertar) {
-      return (
-        <button
-          type="button"
-          onClick={() => ofertarProducto(fila.itemId)}
-          className="kyntu-mainButtonSmall"
-          style={styles.mainButtonSmall}
-        >
-          Enviar oferta
-        </button>
-      );
-    }
-
-    return <span style={styles.emptyAction}>No disponible</span>;
-  };
-
-  const renderDespacho = (fila) => {
-    if (fila.ya_oferto || fila.estado === 'cerrada') {
-      return <span style={styles.metaValue}>No</span>;
-    }
 
     return (
-      <div style={styles.deliveryBoxCompact}>
-        <label style={styles.checkLabel}>
-          <input
-            type="checkbox"
-            checked={Boolean(fila.incluye_despacho)}
-            onChange={(e) => manejarDespacho(fila.itemId, e.target.checked)}
-            style={styles.checkbox}
-          />
-          {fila.incluye_despacho ? 'Sí' : 'No'}
-        </label>
-
-        {fila.incluye_despacho && (
-          <select
-            value={fila.tiempo_despacho_horas || ''}
-            onChange={(e) =>
-              manejarTiempoDespacho(fila.itemId, e.target.value)
-            }
-            className="kyntu-select"
-            style={styles.selectCompact}
-          >
-            <option value="">Plazo</option>
-            <option value="24">24 h</option>
-            <option value="48">48 h</option>
-            <option value="72">72 h</option>
-            <option value="96">72+ h</option>
-          </select>
-        )}
-      </div>
+      coincideProducto &&
+      coincideFormato &&
+      coincideMarca &&
+      coincideCantidad &&
+      coincidePrecio &&
+      coincideComuna &&
+      coincideFecha &&
+      coincideEstado
     );
-  };
+  });
+}, [listas, filtros]);
 
-  const renderVistaCuadricula = () => (
-    <div className="kyntu-cardsGrid" style={styles.cardsGrid}>
-      {listasPaginadas.map((item) => {
-        const estado = estadoTexto(item);
-        const puedeOfertar = !item.ya_oferto && item.estado !== 'cerrada';
-        const esConfirmada = item.estado_oferta === 'confirmada';
-        const formatos = normalizarFormatosItem(item);
+const filas = useMemo(
+  () => expandirItemsNormalizados(listasFiltradas),
+  [listasFiltradas]
+);
 
-        return (
-          <article
-            key={item.id}
-            className="kyntu-productCard"
-            style={styles.productCard}
-          >
-            <div style={styles.cardHeader}>
-              <div style={styles.cardHeaderMain}>
-                <h3 style={styles.productName}>{item.producto}</h3>
-                <p style={styles.productMeta}>
-                  Marca: <strong>{item.marca}</strong>
-                </p>
-              </div>
-              <span style={getEstadoStyle(estado)}>{estado}</span>
-            </div>
+const totalPaginas = Math.ceil(
+  filas.length / itemsPorPagina
+);
 
-            <div className="kyntu-metaGrid" style={styles.metaGrid}>
-              <div style={styles.metaItem}>
-                <span style={styles.metaLabel}>Comuna</span>
-                <span style={styles.metaValue}>
-                  {item.comuna_despacho || '—'}
-                </span>
-              </div>
-              <div style={styles.metaItem}>
-                <span style={styles.metaLabel}>Fecha</span>
-                <span style={styles.metaValue}>
-                  {formatearFechaCorta(item.fecha_creacion)}
-                </span>
-              </div>
-              <div style={styles.metaItem}>
-                <span style={styles.metaLabel}>Días restantes</span>
-                <span style={styles.metaValue}>
-                  {calcularDiasRestantes(item.fecha_cierre)}
-                </span>
-              </div>
-            </div>
+const filasPaginadas = filas.slice(
+  (paginaActual - 1) * itemsPorPagina,
+  paginaActual * itemsPorPagina
+);
 
-            <div style={styles.formatosSection}>
-              {formatos.map((fmt, fmtIndex) => (
-                <div
-                  key={`${item.id}-fmt-${fmtIndex}`}
-                  className="kyntu-formatoCard"
-                  style={styles.formatoCard}
-                >
-                  <div className="kyntu-formatoGrid" style={styles.formatoGrid}>
-                    <div style={styles.formatoField}>
-                      <span style={styles.formatoLabel}>Formato</span>
-                      <span style={styles.formatoValue}>
-                        {fmt.formato || '—'}
-                      </span>
-                    </div>
-                    <div style={styles.formatoField}>
-                      <span style={styles.formatoLabel}>Cantidad</span>
-                      <span style={styles.formatoValue}>
-                        {fmt.cantidad ?? '—'}
-                      </span>
-                    </div>
-                    <div style={styles.formatoField}>
-                      <span style={styles.formatoLabel}>Precio referencia</span>
-                      <span style={styles.formatoValue}>
-                        {fmt.precio !== '' &&
-                        fmt.precio !== null &&
-                        fmt.precio !== undefined
-                          ? `$${formatearNumero(fmt.precio)}`
-                          : '—'}
-                      </span>
-                    </div>
-                  </div>
+const cambiarPagina = (numero) => {
+  if (
+    numero < 1 ||
+    numero > totalPaginas
+  ) {
+    return;
+  }
 
-                  <DetallePedidoBloque detalle={fmt.detalle_pedido} />
-                </div>
-              ))}
-            </div>
+  setPaginaActual(numero);
 
-            <div className="kyntu-offerSection" style={styles.offerSection}>
-              <BloqueOferta
-                fila={item}
-                variant="cuadricula"
-                onChange={manejarCambioOferta}
-                formatearNumero={formatearNumero}
-              />
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
 
-              <div style={styles.offerField}>
-                <label style={styles.label}>Despacho incluido</label>
-                {renderDespacho(item)}
-              </div>
+const formatearNumero = (valor) => {
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+    return "";
+  }
 
-              <div style={styles.offerActions}>
-                {renderAccionOferta(item)}
-              </div>
-            </div>
-
-            {esConfirmada && detalleContactoId === item.id && (
-              <div style={styles.contactBox}>
-                <strong>Datos de contacto</strong>
-                <div style={styles.contactText}>
-                  <p>
-                    <strong>Correo:</strong> {item.comprador_email}
-                  </p>
-                  <p>
-                    <strong>Precio aceptado:</strong> $
-                    {formatearNumero(item.oferta)}
-                  </p>
-                  <p>
-                    <strong>Dirección de despacho:</strong>{' '}
-                    {item.comuna_despacho}
-                  </p>
-                </div>
-              </div>
-            )}
-          </article>
-        );
-      })}
-    </div>
+  const numero = Number(
+    String(valor).replace(/\./g, "")
   );
 
-  const renderVistaLista = () => (
-    <div className="kyntu-tableWrapper" style={styles.tableWrapper}>
-      <table className="kyntu-table" style={styles.table}>
-        <colgroup>
-          <col style={styles.colProducto} />
-          <col style={styles.colFormato} />
-          <col style={styles.colMarca} />
-          <col style={styles.colCantidad} />
-          <col style={styles.colPrecio} />
-          <col style={styles.colDetalle} />
-          <col style={styles.colComuna} />
-          <col style={styles.colFecha} />
-          <col style={styles.colEstado} />
-          <col style={styles.colOferta} />
-          <col style={styles.colDespacho} />
-          <col style={styles.colAccion} />
-        </colgroup>
-        <thead>
-          <tr>
-            <th style={styles.thProducto}>Producto</th>
-            <th style={styles.thFormato}>Formato</th>
-            <th style={styles.th}>Marca</th>
-            <th style={styles.th}>Cantidad</th>
-            <th style={styles.th}>Precio referencia</th>
-            <th style={styles.thDetalle}>Detalle del pedido</th>
-            <th style={styles.th}>Comuna</th>
-            <th style={styles.thFecha}>Fecha</th>
-            <th style={styles.thEstado}>Estado</th>
-            <th style={styles.th}>
-              Tu oferta{' '}
-              <span
-                title="La oferta corresponde al valor total por la cantidad solicitada."
-                style={styles.tooltipIcon}
-              >
-                ⓘ
-              </span>
-            </th>
-            <th style={styles.th}>Despacho</th>
-            <th style={styles.thAccion}>Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filasListaPaginadas.map((fila) => {
-            const estado = estadoTexto(fila);
-            const rowSpan = fila.esPrimeraFilaFormato ? fila.totalFormatos : undefined;
+  if (Number.isNaN(numero)) {
+    return valor;
+  }
 
-            return (
-              <React.Fragment key={fila.rowKey}>
-                <tr style={styles.trRow}>
-                  <td style={styles.tdProducto}>{fila.producto}</td>
-                  <td style={styles.tdFormato}>{fila.formato || '—'}</td>
-                  <td style={styles.td}>{fila.marca}</td>
-                  <td style={styles.td}>{fila.cantidad ?? '—'}</td>
-                  <td style={styles.td}>
-                    {fila.precio !== '' &&
-                    fila.precio !== null &&
-                    fila.precio !== undefined
-                      ? `$${formatearNumero(fila.precio)}`
-                      : '—'}
-                  </td>
-                  <td style={styles.tdDetalle}>
-                    <DetallePedidoCelda detalle={fila.detalle_pedido} />
-                  </td>
-                  {fila.esPrimeraFilaFormato && (
-                    <>
-                      <td style={styles.td} rowSpan={rowSpan}>
-                        {fila.comuna || '—'}
-                      </td>
-                      <td style={styles.tdFecha} rowSpan={rowSpan}>
-                        {formatearFechaCorta(fila.fecha)}
-                      </td>
-                      <td style={styles.tdEstado} rowSpan={rowSpan}>
-                        <span style={getEstadoStyle(estado, true)}>{estado}</span>
-                      </td>
-                      <td style={styles.td} rowSpan={rowSpan}>
-                        <BloqueOferta
-                          fila={fila}
-                          variant="lista"
-                          onChange={manejarCambioOferta}
-                          formatearNumero={formatearNumero}
-                        />
-                      </td>
-                      <td style={styles.td} rowSpan={rowSpan}>
-                        {renderDespacho(fila)}
-                      </td>
-                      <td style={styles.tdAccion} rowSpan={rowSpan}>
-                        {renderAccionOferta(fila)}
-                      </td>
-                    </>
-                  )}
-                </tr>
+  return numero.toLocaleString("es-CL");
+};
 
-                {fila.esPrimeraFilaFormato &&
-                  fila.estado_oferta === 'confirmada' &&
-                  detalleContactoId === fila.itemId && (
-                    <tr>
-                      <td colSpan={12} style={styles.contactBox}>
-                        <strong>Datos de contacto</strong>
-                        <div style={styles.contactText}>
-                          <p>
-                            <strong>Correo:</strong> {fila.comprador_email}
-                          </p>
-                          <p>
-                            <strong>Precio aceptado:</strong> $
-                            {formatearNumero(fila.oferta)}
-                          </p>
-                          <p>
-                            <strong>Dirección de despacho:</strong>{' '}
-                            {fila.comuna}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  return (
-    <div className="kyntu-page" style={styles.page}>
-      <div className="kyntu-backgroundGlow" style={styles.backgroundGlow} />
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        className="kyntu-watermark"
-        style={styles.watermark}
+return (
+  <AppLayout
+    title="Ofertar productos"
+    profileLabel="Proveedor"
+    showProfileSwitch
+    onChangeProfile={cambiarPerfil}
+    onUpdateData={irDatosContacto}
+    onDashboard={irDashboard}
+    onLogout={cerrarSesion}
+    notifications={
+      <Notificaciones
+        userId={proveedorPerfilId}
+        rol="proveedor"
       />
+    }
+  >
+    <main
+      className="kyntu-main"
+      style={styles.main}
+    >
+      <section
+        className="kyntu-headerSection"
+        style={styles.headerSection}
+      >
+        <div>
+          <h1 style={styles.heading}>
+            Solicitudes de compra
+          </h1>
 
-      <div className="kyntu-topBar" style={styles.topBar}>
-        <div className="kyntu-leftActions" style={styles.leftActions}>
+          <p style={styles.subtitle}>
+            Revisa las solicitudes publicadas y
+            envía tu mejor oferta.
+          </p>
+        </div>
+
+        <SelectorVista
+          vista={vistaEfectiva}
+          onChange={cambiarVista}
+          deshabilitarLista={!vistaLista}
+        />
+      </section>
+            <section
+        className="kyntu-filterCard"
+        style={styles.filterCard}
+      >
+        <div style={styles.filterHeader}>
+          <div>
+            <h2 style={styles.filterTitle}>
+              Filtros
+            </h2>
+
+            <p style={styles.filterSubtitle}>
+              Encuentra rápidamente las solicitudes
+              que te interesan.
+            </p>
+          </div>
+
           <button
-            onClick={volverAlPanel}
-            className="kyntu-secondaryButton"
-            style={styles.secondaryButton}
+            type="button"
+            style={styles.clearFiltersButton}
+            onClick={() => {
+              setFiltros({
+                producto: "",
+                formato: "",
+                marca: "",
+                cantidad: "",
+                precio: "",
+                comuna: "",
+                fecha: "",
+                estado: "",
+              });
+
+              setPaginaActual(1);
+            }}
           >
-            Volver al panel
+            Limpiar filtros
           </button>
         </div>
 
-        <div className="kyntu-centerTitle" style={styles.centerTitle}>
-          <h1 className="kyntu-title" style={styles.title}>
-            Ofertar productos
-          </h1>
+        <div
+          className="kyntu-filterGrid"
+          style={styles.filterGrid}
+        >
+          <input
+            style={styles.filterInput}
+            placeholder="Producto"
+            value={filtros.producto}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "producto",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Formato"
+            value={filtros.formato}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "formato",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Marca"
+            value={filtros.marca}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "marca",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Cantidad"
+            value={filtros.cantidad}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "cantidad",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Precio"
+            value={filtros.precio}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "precio",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Comuna"
+            value={filtros.comuna}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "comuna",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Fecha"
+            value={filtros.fecha}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "fecha",
+                e.target.value
+              )
+            }
+          />
+
+          <input
+            style={styles.filterInput}
+            placeholder="Estado"
+            value={filtros.estado}
+            onChange={(e) =>
+              manejarCambioFiltro(
+                "estado",
+                e.target.value
+              )
+            }
+          />
         </div>
+      </section>
+            {vistaEfectiva === 'lista' ? (
+        <div
+          className="kyntu-tableWrapper"
+          style={styles.tableWrapper}
+        >
+          <table
+            className="kyntu-table"
+            style={styles.table}
+          >
+            <thead>
+              <tr style={styles.tableHeadRow}>
+                <th style={styles.tableHeader}>
+                  Producto
+                </th>
 
-        <div className="kyntu-rightActions" style={styles.rightActions} />
-      </div>
+                <th style={styles.tableHeader}>
+                  Formato
+                </th>
 
-      <main className="kyntu-content" style={styles.content}>
-        <section className="kyntu-card" style={styles.card}>
-          <img src="/icono_1.png" alt="Kyntü" className="kyntu-logo" style={styles.logo} />
+                <th style={styles.tableHeader}>
+                  Cantidad
+                </th>
 
-          <div className="kyntu-cardTitleRow" style={styles.cardTitleRow}>
-            <h2 className="kyntu-cardTitle" style={styles.cardTitleInline}>
-              Listas de compra activas
-            </h2>
-            <SelectorVista
-              vista={vistaEfectiva}
-              onChange={cambiarVista}
-              deshabilitarLista={!vistaLista}
-            />
-          </div>
+                <th style={styles.tableHeader}>
+                  Precio referencia
+                </th>
 
-          <div className="kyntu-filtersBox" style={styles.filtersBox}>
-            <div style={styles.filtersGrid}>
-              {[
-                ['producto', 'Producto'],
-                ['formato', 'Formato'],
-                ['marca', 'Marca'],
-                ['cantidad', 'Cantidad'],
-                ['precio', 'Precio'],
-                ['comuna', 'Comuna'],
-                ['estado', 'Estado'],
-              ].map(([campo, label]) => (
-                <div key={campo} style={styles.filterGroup}>
-                  <label className="kyntu-label" style={styles.label}>
-                    {label}
-                  </label>
-                  <input
-                    value={filtros[campo]}
-                    onChange={(e) => manejarCambioFiltro(campo, e.target.value)}
-                    className="kyntu-input"
-                    style={styles.input}
-                  />
-                </div>
-              ))}
+                <th style={styles.tableHeader}>
+                  Detalle del pedido
+                </th>
 
-              <div style={styles.filterGroup}>
-                <label className="kyntu-label" style={styles.label}>
+                <th style={styles.tableHeader}>
+                  Comuna
+                </th>
+
+                <th style={styles.tableHeader}>
                   Fecha
-                </label>
-                <input
-                  type="date"
-                  value={filtros.fecha}
-                  onChange={(e) =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      fecha: e.target.value,
-                    }))
-                  }
-                  className="kyntu-input"
-                  style={styles.input}
-                />
-              </div>
-            </div>
-          </div>
+                </th>
 
-          {listasFiltradas.length === 0 ? (
-            <p className="kyntu-emptyText" style={styles.emptyText}>
-              No hay listas disponibles.
-            </p>
-          ) : (
-            <>
-              {vistaEfectiva === 'lista'
-                ? renderVistaLista()
-                : renderVistaCuadricula()}
+                <th style={styles.tableHeader}>
+                  Días restantes
+                </th>
 
-              <div className="kyntu-pagination" style={styles.pagination}>
-                <button
-                  onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
-                  disabled={paginaActual === 1}
-                  className="kyntu-secondaryButton"
-                  style={styles.secondaryButton}
+                <th style={styles.tableHeader}>
+                  Estado
+                </th>
+
+                <th style={styles.tableHeader}>
+                  Tu oferta
+                </th>
+
+                <th style={styles.tableHeader}>
+                  Despacho
+                </th>
+
+                <th style={styles.tableHeader}>
+                  Acción
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filasPaginadas.map((fila) => {
+                const estado =
+                  obtenerEstado(fila);
+
+                const puedeOfertar =
+                  !fila.ya_oferto &&
+                  fila.estado !==
+                    'cerrada';
+
+                const esConfirmada =
+                  fila.estado_oferta ===
+                  'confirmada';
+
+                return (
+                  <React.Fragment
+                    key={fila.rowKey}
+                  >
+                    <tr
+                      className="kyntu-tableRow"
+                      style={styles.tableRow}
+                    >
+                      {fila.esPrimeraFilaFormato && (
+                        <td
+                          rowSpan={
+                            fila.totalFormatos
+                          }
+                          style={{
+                            ...styles.tableCell,
+                            ...styles.productCell,
+                          }}
+                        >
+                          <strong
+                            style={
+                              styles.tableProductName
+                            }
+                          >
+                            {fila.producto ||
+                              '—'}
+                          </strong>
+
+                          <span
+                            style={
+                              styles.tableProductBrand
+                            }
+                          >
+                            Marca:{' '}
+                            {fila.marca ||
+                              '—'}
+                          </span>
+                        </td>
+                      )}
+
+                      <td
+                        style={
+                          styles.tableCell
+                        }
+                      >
+                        {fila.formato ||
+                          '—'}
+                      </td>
+
+                      <td
+                        style={
+                          styles.tableCell
+                        }
+                      >
+                        {fila.cantidad ??
+                          '—'}
+                      </td>
+
+                      <td
+                        style={
+                          styles.tableCell
+                        }
+                      >
+                        {fila.precio !==
+                          '' &&
+                        fila.precio !==
+                          null &&
+                        fila.precio !==
+                          undefined
+                          ? `$${formatearNumero(
+                              fila.precio
+                            )}`
+                          : '—'}
+                      </td>
+
+                      <td
+                        style={{
+                          ...styles.tableCell,
+                          ...styles.detailCell,
+                        }}
+                      >
+                        <DetallePedidoCelda
+                          detalle={
+                            fila.detalle_pedido
+                          }
+                        />
+                      </td>
+
+                      {fila.esPrimeraFilaFormato && (
+                        <>
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={
+                              styles.tableCell
+                            }
+                          >
+                            {fila.comuna ||
+                              '—'}
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={
+                              styles.tableCell
+                            }
+                          >
+                            {formatearFechaCorta(
+                              fila.fecha
+                            )}
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={{
+                              ...styles.tableCell,
+                              ...styles.centerCell,
+                            }}
+                          >
+                            {calcularDiasRestantes(
+                              fila.fecha_cierre
+                            )}
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={
+                              styles.tableCell
+                            }
+                          >
+                            <span
+                              style={getEstadoStyle(
+                                estado,
+                                true
+                              )}
+                            >
+                              {estado}
+                            </span>
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={{
+                              ...styles.tableCell,
+                              ...styles.offerTableCell,
+                            }}
+                          >
+                            <BloqueOferta
+                              fila={fila}
+                              variant="lista"
+                              onChange={
+                                manejarCambioOferta
+                              }
+                              formatearNumero={
+                                formatearNumero
+                              }
+                            />
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={{
+                              ...styles.tableCell,
+                              ...styles.deliveryTableCell,
+                            }}
+                          >
+                            {fila.ya_oferto ||
+                            fila.estado ===
+                              'cerrada' ? (
+                              <span
+                                style={
+                                  styles.metaValue
+                                }
+                              >
+                                No
+                              </span>
+                            ) : (
+                              <div
+                                style={
+                                  styles.deliveryBoxCompact
+                                }
+                              >
+                                <label
+                                  style={
+                                    styles.checkLabel
+                                  }
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(
+                                      fila.incluye_despacho
+                                    )}
+                                    onChange={(
+                                      e
+                                    ) =>
+                                      manejarDespacho(
+                                        fila.itemId,
+                                        e.target
+                                          .checked
+                                      )
+                                    }
+                                    style={
+                                      styles.checkbox
+                                    }
+                                  />
+
+                                  {fila.incluye_despacho
+                                    ? 'Sí'
+                                    : 'No'}
+                                </label>
+
+                                {fila.incluye_despacho && (
+                                  <select
+                                    value={
+                                      fila.tiempo_despacho_horas ||
+                                      ''
+                                    }
+                                    onChange={(
+                                      e
+                                    ) =>
+                                      manejarTiempoDespacho(
+                                        fila.itemId,
+                                        e.target
+                                          .value
+                                      )
+                                    }
+                                    className="kyntu-select"
+                                    style={
+                                      styles.selectCompact
+                                    }
+                                  >
+                                    <option value="">
+                                      Plazo
+                                    </option>
+
+                                    <option value="24">
+                                      24 h
+                                    </option>
+
+                                    <option value="48">
+                                      48 h
+                                    </option>
+
+                                    <option value="72">
+                                      72 h
+                                    </option>
+
+                                    <option value="96">
+                                      72+ h
+                                    </option>
+                                  </select>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          <td
+                            rowSpan={
+                              fila.totalFormatos
+                            }
+                            style={{
+                              ...styles.tableCell,
+                              ...styles.actionTableCell,
+                            }}
+                          >
+                            {esConfirmada ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDetalleContactoId(
+                                    detalleContactoId ===
+                                      fila.itemId
+                                      ? null
+                                      : fila.itemId
+                                  )
+                                }
+                                className="kyntu-smallButton"
+                                style={
+                                  styles.smallButton
+                                }
+                              >
+                                Ver contacto
+                              </button>
+                            ) : puedeOfertar ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  ofertarProducto(
+                                    fila.itemId
+                                  )
+                                }
+                                className="kyntu-mainButtonSmall"
+                                style={
+                                  styles.mainButtonSmall
+                                }
+                              >
+                                Enviar oferta
+                              </button>
+                            ) : (
+                              <span
+                                style={
+                                  styles.emptyAction
+                                }
+                              >
+                                No disponible
+                              </span>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+
+                    {fila.esPrimeraFilaFormato &&
+                      esConfirmada &&
+                      detalleContactoId ===
+                        fila.itemId && (
+                        <tr
+                          style={
+                            styles.contactTableRow
+                          }
+                        >
+                          <td
+                            colSpan="12"
+                            style={
+                              styles.contactTableCell
+                            }
+                          >
+                            <div
+                              style={
+                                styles.contactBox
+                              }
+                            >
+                              <strong>
+                                Datos de
+                                contacto
+                              </strong>
+
+                              <div
+                                style={
+                                  styles.contactText
+                                }
+                              >
+                                <p>
+                                  <strong>
+                                    Correo:
+                                  </strong>{' '}
+                                  {
+                                    fila.comprador_email
+                                  }
+                                </p>
+
+                                <p>
+                                  <strong>
+                                    Precio
+                                    aceptado:
+                                  </strong>{' '}
+                                  $
+                                  {formatearNumero(
+                                    fila.oferta
+                                  )}
+                                </p>
+
+                                <p>
+                                  <strong>
+                                    Dirección de
+                                    despacho:
+                                  </strong>{' '}
+                                  {fila.comuna}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+            <div
+        className="kyntu-grid"
+        style={styles.grid}
+      >
+        {listasFiltradas.map((item) => {
+          const estado = obtenerEstado(item);
+
+          const puedeOfertar =
+            !item.ya_oferto &&
+            item.estado !== "cerrada";
+
+          const esConfirmada =
+            item.estado_oferta === "confirmada";
+
+          return (
+            <article
+              key={item.id}
+              className="kyntu-card"
+              style={styles.card}
+            >
+              <div style={styles.cardHeader}>
+                <div>
+                  <span style={styles.cardLabel}>
+                    Producto
+                  </span>
+
+                  <h3 style={styles.cardTitle}>
+                    {item.producto}
+                  </h3>
+
+                  <span style={styles.cardBrand}>
+                    {item.marca || "Sin marca"}
+                  </span>
+                </div>
+
+                <span
+                  style={getEstadoStyle(
+                    estado,
+                    false
+                  )}
                 >
-                  Anterior
-                </button>
-
-                <span style={styles.pageText}>
-                  Página {paginaActual} de {totalPaginas || 1}
+                  {estado}
                 </span>
-
-                <button
-                  onClick={() =>
-                    setPaginaActual((p) => Math.min(p + 1, totalPaginas))
-                  }
-                  disabled={
-                    paginaActual === totalPaginas || totalPaginas === 0
-                  }
-                  className="kyntu-secondaryButton"
-                  style={styles.secondaryButton}
-                >
-                  Siguiente
-                </button>
               </div>
-            </>
-          )}
-        </section>
-      </main>
 
-      <style jsx global>{`
-        * {
-          box-sizing: border-box;
+              <div style={styles.cardBody}>
+                {normalizarFormatosItem(item).map(
+                  (formato, index) => (
+                    <div
+                      key={index}
+                      style={
+                        styles.formatCard
+                      }
+                    >
+                      <div
+                        style={
+                          styles.formatHeader
+                        }
+                      >
+                        <span
+                          style={
+                            styles.metaLabel
+                          }
+                        >
+                          Formato
+                        </span>
+
+                        <strong>
+                          {formato.formato ||
+                            "—"}
+                        </strong>
+                      </div>
+
+                      <div
+                        style={
+                          styles.metaGrid
+                        }
+                      >
+                        <div>
+                          <span
+                            style={
+                              styles.metaLabel
+                            }
+                          >
+                            Cantidad
+                          </span>
+
+                          <div
+                            style={
+                              styles.metaValue
+                            }
+                          >
+                            {formato.cantidad ??
+                              "—"}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span
+                            style={
+                              styles.metaLabel
+                            }
+                          >
+                            Precio referencia
+                          </span>
+
+                          <div
+                            style={
+                              styles.metaValue
+                            }
+                          >
+                            {formato.precio
+                              ? `$${formatearNumero(
+                                  formato.precio
+                                )}`
+                              : "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <DetallePedidoBloque
+                        detalle={
+                          formato.detalle_pedido
+                        }
+                      />
+                    </div>
+                  )
+                )}
+
+                <div
+                  style={styles.metaGrid}
+                >
+                  <div>
+                    <span
+                      style={
+                        styles.metaLabel
+                      }
+                    >
+                      Comuna
+                    </span>
+
+                    <div
+                      style={
+                        styles.metaValue
+                      }
+                    >
+                      {item.comuna_despacho}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span
+                      style={
+                        styles.metaLabel
+                      }
+                    >
+                      Fecha
+                    </span>
+
+                    <div
+                      style={
+                        styles.metaValue
+                      }
+                    >
+                      {formatearFechaCorta(
+                        item.fecha_creacion
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span
+                      style={
+                        styles.metaLabel
+                      }
+                    >
+                      Días restantes
+                    </span>
+
+                    <div
+                      style={
+                        styles.metaValue
+                      }
+                    >
+                      {calcularDiasRestantes(
+                        item.fecha_cierre
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <BloqueOferta
+                  fila={item}
+                  variant="grid"
+                  onChange={
+                    manejarCambioOferta
+                  }
+                  formatearNumero={
+                    formatearNumero
+                  }
+                />
+                              {!item.ya_oferto &&
+                  item.estado !== "cerrada" && (
+                    <div style={styles.deliveryBox}>
+                      <label style={styles.checkLabel}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(item.incluye_despacho)}
+                          onChange={(e) =>
+                            manejarDespacho(
+                              item.id,
+                              e.target.checked
+                            )
+                          }
+                          style={styles.checkbox}
+                        />
+
+                        Incluye despacho
+                      </label>
+
+                      {item.incluye_despacho && (
+                        <select
+                          value={
+                            item.tiempo_despacho_horas || ""
+                          }
+                          onChange={(e) =>
+                            manejarTiempoDespacho(
+                              item.id,
+                              e.target.value
+                            )
+                          }
+                          className="kyntu-select"
+                          style={styles.select}
+                        >
+                          <option value="">
+                            Tiempo de despacho
+                          </option>
+
+                          <option value="24">
+                            24 horas
+                          </option>
+
+                          <option value="48">
+                            48 horas
+                          </option>
+
+                          <option value="72">
+                            72 horas
+                          </option>
+
+                          <option value="96">
+                            Más de 72 horas
+                          </option>
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                {esConfirmada &&
+                  detalleContactoId === item.id && (
+                    <div style={styles.contactBox}>
+                      <strong>
+                        Datos de contacto
+                      </strong>
+
+                      <div style={styles.contactText}>
+                        <p>
+                          <strong>
+                            Correo:
+                          </strong>{" "}
+                          {item.comprador_email}
+                        </p>
+
+                        <p>
+                          <strong>
+                            Precio aceptado:
+                          </strong>{" "}
+                          $
+                          {formatearNumero(item.oferta)}
+                        </p>
+
+                        <p>
+                          <strong>
+                            Comuna:
+                          </strong>{" "}
+                          {item.comuna_despacho}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              <div style={styles.cardFooter}>
+                {esConfirmada ? (
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() =>
+                      setDetalleContactoId(
+                        detalleContactoId === item.id
+                          ? null
+                          : item.id
+                      )
+                    }
+                  >
+                    {detalleContactoId === item.id
+                      ? "Ocultar contacto"
+                      : "Ver contacto"}
+                  </button>
+                ) : puedeOfertar ? (
+                  <button
+                    type="button"
+                    style={styles.mainButton}
+                    onClick={() =>
+                      ofertarProducto(item.id)
+                    }
+                  >
+                    Enviar oferta
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    style={styles.disabledButton}
+                  >
+                    No disponible
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      )}
+
+      {totalPaginas > 1 && (
+        <div style={styles.pagination}>
+          <button
+            type="button"
+            style={styles.pageButton}
+            disabled={paginaActual === 1}
+            onClick={() =>
+              cambiarPagina(
+                paginaActual - 1
+              )
+            }
+          >
+            Anterior
+          </button>
+
+          {Array.from(
+            { length: totalPaginas },
+            (_, i) => i + 1
+          ).map((pagina) => (
+            <button
+              key={pagina}
+              type="button"
+              onClick={() =>
+                cambiarPagina(pagina)
+              }
+              style={{
+                ...styles.pageButton,
+                ...(paginaActual === pagina
+                  ? styles.pageButtonActive
+                  : {}),
+              }}
+            >
+              {pagina}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            style={styles.pageButton}
+            disabled={
+              paginaActual === totalPaginas
+            }
+            onClick={() =>
+              cambiarPagina(
+                paginaActual + 1
+              )
+            }
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
+    </main>
+
+    <style jsx>{`
+      @media (max-width: 820px) {
+        .kyntu-filterGrid {
+          grid-template-columns: 1fr !important;
         }
 
-        html,
-        body {
-          margin: 0;
-          min-width: 320px;
-          background: #f4f8fd;
+        .kyntu-grid {
+          grid-template-columns: 1fr !important;
         }
-
-        button,
-        input,
-        select,
-        textarea {
-          font: inherit;
-        }
-
-        button {
-          transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease,
-            border-color 0.2s ease,
-            background 0.2s ease;
-        }
-
-        button:hover:not(:disabled) {
-          transform: translateY(-1px);
-        }
-
-        button:focus-visible,
-        input:focus-visible,
-        select:focus-visible {
-          outline: 3px solid rgba(23, 107, 255, 0.2);
-          outline-offset: 2px;
-        }
-
-        .kyntu-detalleCelda {
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        .kyntu-offerInput:focus {
-          border-color: #176bff !important;
-          box-shadow: 0 0 0 3px rgba(23, 107, 255, 0.2) !important;
-        }
-
-        @media (max-width: 1120px) {
-          .kyntu-topBar {
-            grid-template-columns: 1fr !important;
-            gap: 16px !important;
-          }
-
-          .kyntu-leftActions,
-          .kyntu-rightActions {
-            width: 100% !important;
-            justify-content: center !important;
-          }
-
-          .kyntu-centerTitle {
-            grid-row: 1 !important;
-          }
-        }
-
-        @media (max-width: 820px) {
-          .kyntu-page {
-            padding: 16px !important;
-          }
-
-          .kyntu-topBar {
-            padding: 18px !important;
-            border-radius: 22px !important;
-          }
-
-          .kyntu-title {
-            font-size: 28px !important;
-          }
-
-          .kyntu-card {
-            padding: 24px 18px !important;
-            border-radius: 22px !important;
-          }
-
-          .kyntu-cardTitleRow {
-            flex-direction: column !important;
-            align-items: stretch !important;
-          }
-
-          .kyntu-viewToggle {
-            width: 100% !important;
-            justify-content: center !important;
-          }
-
-          .kyntu-cardsGrid {
-            grid-template-columns: 1fr !important;
-          }
-
-          .kyntu-metaGrid,
-          .kyntu-formatoGrid {
-            grid-template-columns: 1fr !important;
-          }
-
-          .kyntu-offerSection {
-            grid-template-columns: 1fr !important;
-          }
-        }
-
-        @media (max-width: 620px) {
-          .kyntu-page {
-            padding: 10px !important;
-          }
-
-          .kyntu-watermark {
-            width: 210px !important;
-            top: 8px !important;
-            left: -28px !important;
-          }
-
-          .kyntu-logo {
-            width: 190px !important;
-            margin-top: -42px !important;
-            margin-bottom: -42px !important;
-          }
-
-          .kyntu-input,
-          .kyntu-select {
-            width: 100% !important;
-          }
-        }
-      `}</style>
-    </div>
-  );
+      }
+    `}</style>
+  </AppLayout>
+);
 }
-
 const styles = {
-  page: {
-    minHeight: '100vh',
-    minHeight: '100dvh',
-    position: 'relative',
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    padding: '24px',
-    boxSizing: 'border-box',
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    background:
-      'radial-gradient(circle at 10% 8%, rgba(23,107,255,0.12), transparent 30%), radial-gradient(circle at 90% 82%, rgba(0,194,168,0.10), transparent 28%), linear-gradient(145deg, #f8fbff 0%, #eef5ff 48%, #f8fcfb 100%)',
-  },
-
-  backgroundGlow: {
-    position: 'fixed',
-    inset: 0,
-    pointerEvents: 'none',
-    background:
-      'radial-gradient(circle at 18% 18%, rgba(23,107,255,0.08), transparent 34%), radial-gradient(circle at 82% 76%, rgba(0,194,168,0.07), transparent 30%)',
-    zIndex: 0,
-  },
-
-  watermark: {
-    position: 'fixed',
-    top: '24px',
-    left: '32px',
-    width: '250px',
-    opacity: 0.035,
-    zIndex: 0,
-    pointerEvents: 'none',
-    userSelect: 'none',
-  },
-
-  topBar: {
-    position: 'relative',
-    zIndex: 2,
+  main: {
     width: '100%',
-    maxWidth: '1440px',
-    margin: '0 auto 24px',
-    display: 'grid',
-    gridTemplateColumns: '1fr auto 1fr',
-    alignItems: 'center',
-    gap: '20px',
-    padding: '18px 22px',
-    borderRadius: '24px',
-    background: 'rgba(255,255,255,0.94)',
-    border: '1px solid #e1e9f4',
-    boxShadow: '0 20px 55px rgba(28,69,128,0.11)',
-    backdropFilter: 'blur(18px)',
+    maxWidth: '1500px',
+    margin: '0 auto',
+    padding: '32px 24px 48px',
+    boxSizing: 'border-box',
   },
 
-  leftActions: {
+  headerSection: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: '10px',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: '24px',
+    marginBottom: '24px',
+    padding: '26px 28px',
+    borderRadius: '22px',
+    background:
+      'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(244,249,255,0.98))',
+    border: '1px solid #dce7f4',
+    boxShadow: '0 18px 45px rgba(32, 73, 130, 0.08)',
   },
 
-  centerTitle: {
-    minWidth: 0,
-    textAlign: 'center',
-  },
-
-  rightActions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: '10px',
-    flexWrap: 'wrap',
-  },
-
-  title: {
+  heading: {
     margin: 0,
-    color: '#061b41',
-    fontSize: 'clamp(26px, 3vw, 36px)',
+    color: '#071c41',
+    fontSize: 'clamp(25px, 3vw, 34px)',
     lineHeight: 1.15,
     fontWeight: 900,
     letterSpacing: '-0.035em',
   },
 
-  content: {
-    position: 'relative',
-    zIndex: 2,
-    width: '100%',
-    maxWidth: '1440px',
-    margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-  },
-
-  card: {
-    width: '100%',
-    padding: '32px',
-    borderRadius: '26px',
-    background: 'rgba(255,255,255,0.96)',
-    border: '1px solid #e1e9f4',
-    boxShadow: '0 24px 65px rgba(28,69,128,0.10)',
-    overflow: 'visible',
-  },
-
-  logo: {
-    display: 'block',
-    width: '230px',
-    maxWidth: '75%',
-    height: 'auto',
-    margin: '-52px auto -52px',
-    objectFit: 'contain',
-  },
-
-  cardTitleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '16px',
-    flexWrap: 'wrap',
-    marginBottom: '24px',
-  },
-
-  cardTitleInline: {
-    margin: 0,
-    color: '#061b41',
-    fontSize: '26px',
-    lineHeight: 1.25,
-    fontWeight: 900,
-    letterSpacing: '-0.025em',
+  subtitle: {
+    margin: '8px 0 0',
+    color: '#65758b',
+    fontSize: '14px',
+    lineHeight: 1.6,
   },
 
   viewToggle: {
     display: 'inline-flex',
     alignItems: 'stretch',
-    borderRadius: '12px',
-    border: '1px solid #d6e1ef',
-    overflow: 'hidden',
-    background: '#ffffff',
     flexShrink: 0,
+    overflow: 'hidden',
+    borderRadius: '12px',
+    border: '1px solid #d4dfec',
+    background: '#ffffff',
+    boxShadow: '0 7px 18px rgba(34, 67, 110, 0.06)',
   },
 
   viewToggleBtn: {
-    minHeight: '40px',
-    padding: '9px 14px',
+    minHeight: '42px',
+    padding: '9px 15px',
     border: 'none',
+    borderRight: '1px solid #e2e9f2',
     background: '#ffffff',
-    color: '#52627a',
+    color: '#607086',
     cursor: 'pointer',
-    fontWeight: 800,
     fontSize: '12px',
+    fontWeight: 800,
     whiteSpace: 'nowrap',
   },
 
   viewToggleBtnActive: {
-    background: 'linear-gradient(135deg, #176BFF, #438CFF)',
+    background: 'linear-gradient(135deg, #176bff, #438cff)',
     color: '#ffffff',
-    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
   },
 
   viewToggleBtnDisabled: {
@@ -1425,545 +2233,620 @@ const styles = {
     cursor: 'not-allowed',
   },
 
-  filtersBox: {
+  filterCard: {
     marginBottom: '24px',
-    padding: '18px',
-    borderRadius: '16px',
-    background: '#f7faff',
-    border: '1px solid #e0e9f5',
+    padding: '22px',
+    borderRadius: '20px',
+    background: '#ffffff',
+    border: '1px solid #dfe8f3',
+    boxShadow: '0 14px 38px rgba(32, 73, 130, 0.07)',
   },
 
-  filtersGrid: {
+  filterHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '18px',
+    marginBottom: '18px',
+  },
+
+  filterTitle: {
+    margin: 0,
+    color: '#071c41',
+    fontSize: '19px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+  },
+
+  filterSubtitle: {
+    margin: '5px 0 0',
+    color: '#748399',
+    fontSize: '13px',
+    lineHeight: 1.5,
+  },
+
+  clearFiltersButton: {
+    minHeight: '38px',
+    padding: '8px 14px',
+    flexShrink: 0,
+    borderRadius: '10px',
+    border: '1px solid #cfdbea',
+    background: '#f8fbff',
+    color: '#315173',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+
+  filterGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gridTemplateColumns: 'repeat(4, minmax(150px, 1fr))',
     gap: '12px',
   },
 
-  filterGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-
-  label: {
-    display: 'block',
-    color: '#28466c',
-    fontSize: '12px',
-    fontWeight: 800,
-    marginBottom: '4px',
-  },
-
-  input: {
+  filterInput: {
     width: '100%',
-    minHeight: '42px',
+    minWidth: 0,
+    minHeight: '43px',
     padding: '10px 12px',
-    borderRadius: '11px',
-    border: '1px solid #ccd9ea',
-    background: '#ffffff',
-    color: '#132b4f',
-    outline: 'none',
     boxSizing: 'border-box',
-    fontSize: '13px',
-  },
-
-  select: {
-    width: '100%',
-    minHeight: '42px',
-    padding: '10px 12px',
     borderRadius: '11px',
-    border: '1px solid #ccd9ea',
-    background: '#ffffff',
-    color: '#132b4f',
+    border: '1px solid #ccd9e8',
+    background: '#fbfdff',
+    color: '#183354',
     outline: 'none',
     fontSize: '13px',
-  },
-
-  selectCompact: {
-    width: '100%',
-    minHeight: '36px',
-    padding: '6px 8px',
-    borderRadius: '9px',
-    border: '1px solid #ccd9ea',
-    background: '#ffffff',
-    color: '#132b4f',
-    outline: 'none',
-    fontSize: '12px',
-  },
-
-  emptyText: {
-    margin: '16px 0 0',
-    padding: '24px',
-    borderRadius: '16px',
-    color: '#6a7a91',
-    background: '#f7f9fc',
-    border: '1px dashed #cad6e5',
-    textAlign: 'center',
   },
 
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
-    borderRadius: '16px',
-    border: '1px solid #e1e9f4',
+    marginBottom: '24px',
+    borderRadius: '18px',
+    border: '1px solid #dfe8f3',
     background: '#ffffff',
+    boxShadow: '0 16px 42px rgba(32, 73, 130, 0.07)',
   },
 
   table: {
     width: '100%',
-    tableLayout: 'fixed',
-    borderCollapse: 'collapse',
+    minWidth: '1380px',
+    borderCollapse: 'separate',
     borderSpacing: 0,
+    tableLayout: 'auto',
   },
 
-  colProducto: { width: '11%' },
-  colFormato: { width: '8%' },
-  colMarca: { width: '7%' },
-  colCantidad: { width: '6%' },
-  colPrecio: { width: '7%' },
-  colDetalle: { width: '15%' },
-  colComuna: { width: '8%' },
-  colFecha: { width: '7%' },
-  colEstado: { width: '6%' },
-  colOferta: { width: '12%' },
-  colDespacho: { width: '7%' },
-  colAccion: { width: '10%' },
-
-  thProducto: {
-    padding: '10px 6px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+  tableHeadRow: {
+    background: '#f3f7fc',
   },
 
-  thFormato: {
-    padding: '10px 6px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
+  tableHeader: {
+    padding: '13px 10px',
+    borderBottom: '1px solid #dce5f0',
+    color: '#52647b',
+    background: '#f3f7fc',
     textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-
-  thAccion: {
-    padding: '10px 6px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
+    verticalAlign: 'middle',
     fontSize: '11px',
+    lineHeight: 1.3,
     fontWeight: 900,
-    textAlign: 'center',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-
-  thFecha: {
-    padding: '10px 4px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.035em',
     whiteSpace: 'nowrap',
   },
 
-  thEstado: {
-    padding: '10px 4px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    whiteSpace: 'normal',
-    lineHeight: 1.2,
-  },
-
-  th: {
-    padding: '10px 6px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    whiteSpace: 'nowrap',
-  },
-
-  thDetalle: {
-    padding: '10px 6px',
-    color: '#52627a',
-    background: '#f4f7fb',
-    borderBottom: '1px solid #dfe8f3',
-    fontSize: '11px',
-    fontWeight: 900,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    whiteSpace: 'normal',
-    lineHeight: 1.2,
-  },
-
-  trRow: {
+  tableRow: {
     background: '#ffffff',
   },
 
-  td: {
-    padding: '9px 6px',
-    color: '#243a5a',
-    background: '#ffffff',
+  tableCell: {
+    padding: '12px 10px',
     borderBottom: '1px solid #e7edf5',
+    color: '#293f5f',
+    background: '#ffffff',
     textAlign: 'center',
     verticalAlign: 'middle',
     fontSize: '12px',
+    lineHeight: 1.45,
   },
 
-  tdProducto: {
-    padding: '9px 6px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
+  productCell: {
+    minWidth: '150px',
     textAlign: 'left',
-    verticalAlign: 'middle',
-    fontSize: '12px',
-    fontWeight: 700,
+  },
+
+  tableProductName: {
+    display: 'block',
+    color: '#102b50',
+    fontSize: '13px',
+    lineHeight: 1.4,
+    fontWeight: 900,
     overflowWrap: 'anywhere',
   },
 
-  tdFormato: {
-    padding: '9px 6px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    fontSize: '12px',
-    overflowWrap: 'anywhere',
-  },
-
-  tdFecha: {
-    padding: '9px 4px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
-    textAlign: 'center',
-    verticalAlign: 'middle',
+  tableProductBrand: {
+    display: 'block',
+    marginTop: '5px',
+    color: '#758399',
     fontSize: '11px',
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
+    lineHeight: 1.4,
+    overflowWrap: 'anywhere',
   },
 
-  tdEstado: {
-    padding: '9px 4px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    fontSize: '12px',
-  },
-
-  tdAccion: {
-    padding: '9px 4px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    fontSize: '12px',
-  },
-
-  tdDetalle: {
-    padding: '9px 6px',
-    color: '#243a5a',
-    background: '#ffffff',
-    borderBottom: '1px solid #e7edf5',
+  detailCell: {
+    width: '210px',
+    minWidth: '180px',
+    maxWidth: '240px',
     textAlign: 'left',
     verticalAlign: 'top',
-    fontSize: '12px',
+  },
+
+  centerCell: {
+    textAlign: 'center',
+    fontWeight: 800,
+  },
+
+  offerTableCell: {
+    width: '160px',
+    minWidth: '150px',
+  },
+
+  deliveryTableCell: {
+    width: '120px',
+    minWidth: '110px',
+  },
+
+  actionTableCell: {
+    width: '130px',
+    minWidth: '120px',
   },
 
   detalleCelda: {
-    color: '#243a5a',
+    display: '-webkit-box',
+    color: '#344a68',
     fontSize: '12px',
     lineHeight: 1.45,
+    overflow: 'hidden',
     overflowWrap: 'anywhere',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 4,
   },
 
   detalleEmpty: {
     color: '#9aa8ba',
   },
-
-  cardsGrid: {
+    grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-    gap: '18px',
-    width: '100%',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '20px',
+    marginBottom: '24px',
   },
 
-  productCard: {
+  card: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
-    padding: '20px',
+    minWidth: 0,
+    overflow: 'hidden',
     borderRadius: '20px',
+    border: '1px solid #dde7f2',
     background: '#ffffff',
-    border: '1px solid #e1e9f4',
-    boxShadow: '0 12px 30px rgba(28,69,128,0.06)',
-    maxWidth: '100%',
+    boxShadow: '0 16px 40px rgba(32, 73, 130, 0.08)',
   },
 
   cardHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: '12px',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: '16px',
+    padding: '20px',
+    borderBottom: '1px solid #e6edf5',
+    background:
+      'linear-gradient(135deg, #f8fbff 0%, #ffffff 100%)',
   },
 
-  cardHeaderMain: {
-    minWidth: 0,
-    flex: '1 1 180px',
-  },
-
-  productName: {
-    margin: 0,
-    color: '#061b41',
-    fontSize: '18px',
-    fontWeight: 900,
+  cardLabel: {
+    display: 'block',
+    marginBottom: '5px',
+    color: '#7c899b',
+    fontSize: '10px',
     lineHeight: 1.3,
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
   },
 
-  productMeta: {
-    margin: '6px 0 0',
-    color: '#718096',
+  cardTitle: {
+    margin: 0,
+    color: '#102b50',
+    fontSize: '20px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+    letterSpacing: '-0.02em',
+    overflowWrap: 'anywhere',
+  },
+
+  cardBrand: {
+    display: 'block',
+    marginTop: '6px',
+    color: '#6f7f94',
+    fontSize: '12px',
+    lineHeight: 1.4,
+  },
+
+  cardBody: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    gap: '16px',
+    padding: '20px',
+  },
+
+  formatCard: {
+    padding: '15px',
+    borderRadius: '14px',
+    border: '1px solid #e0e8f2',
+    background: '#f8fbff',
+  },
+
+  formatHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginBottom: '14px',
+    color: '#183354',
     fontSize: '13px',
   },
 
   metaGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: '10px 14px',
-    padding: '12px 14px',
-    borderRadius: '14px',
-    background: '#f7faff',
-    border: '1px solid #e0e9f5',
-  },
-
-  metaItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px',
-    minWidth: 0,
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: '14px',
   },
 
   metaLabel: {
-    color: '#6a7a91',
-    fontSize: '11px',
-    fontWeight: 800,
+    display: 'block',
+    marginBottom: '4px',
+    color: '#8290a3',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
+    letterSpacing: '0.055em',
   },
 
   metaValue: {
-    color: '#243a5a',
+    color: '#28415f',
     fontSize: '13px',
-    fontWeight: 600,
-    overflowWrap: 'anywhere',
-  },
-
-  formatosSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-
-  formatoCard: {
-    padding: '14px',
-    borderRadius: '14px',
-    background: '#fbfdff',
-    border: '1px solid #e3ebf6',
-  },
-
-  formatoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: '10px',
-  },
-
-  formatoField: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    minWidth: 0,
-  },
-
-  formatoLabel: {
-    color: '#6a7a91',
-    fontSize: '11px',
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    letterSpacing: '0.03em',
-  },
-
-  formatoValue: {
-    color: '#132b4f',
-    fontSize: '14px',
+    lineHeight: 1.45,
     fontWeight: 700,
     overflowWrap: 'anywhere',
   },
 
   detalleBox: {
-    marginTop: '12px',
-    padding: '12px 14px',
-    borderRadius: '12px',
-    background: 'linear-gradient(180deg, #eef5ff 0%, #f5f9ff 100%)',
-    border: '1px solid #cfe0fb',
+    marginTop: '13px',
+    padding: '12px',
+    borderRadius: '11px',
+    border: '1px solid #d9e5f3',
+    background: '#ffffff',
   },
 
   detalleLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    color: '#1a4f9c',
+    marginBottom: '6px',
+    color: '#315b8a',
     fontSize: '11px',
     fontWeight: 900,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    marginBottom: '6px',
   },
 
   detalleIcon: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '18px',
-    height: '18px',
-    borderRadius: '999px',
-    background: 'rgba(23,107,255,0.12)',
+    width: '17px',
+    height: '17px',
+    flexShrink: 0,
+    borderRadius: '50%',
+    background: '#e8f1ff',
     color: '#176bff',
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: 900,
   },
 
   detalleText: {
     margin: 0,
-    color: '#243a5a',
-    fontSize: '13px',
-    lineHeight: 1.5,
+    color: '#4d6078',
+    fontSize: '12px',
+    lineHeight: 1.55,
     overflowWrap: 'anywhere',
   },
 
-  offerSection: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) auto',
-    gap: '12px',
-    alignItems: 'end',
-    paddingTop: '8px',
-    borderTop: '1px solid #e7edf5',
+  offerHighlightBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '9px',
+    padding: '16px',
+    borderRadius: '15px',
+    border: '1px solid #cddfff',
+    background:
+      'linear-gradient(135deg, rgba(23,107,255,0.08), rgba(67,140,255,0.03))',
   },
 
-  offerField: {
+  offerHighlightBoxCompact: {
     display: 'flex',
     flexDirection: 'column',
     gap: '6px',
     minWidth: 0,
-  },
-
-  offerHighlightBox: {
-    padding: '12px 14px',
-    borderRadius: '14px',
-    background: 'linear-gradient(180deg, #eef5ff 0%, #f6faff 100%)',
-    border: '1.5px solid #9ec0f5',
-    boxShadow: '0 4px 14px rgba(23, 107, 255, 0.08)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    minWidth: 0,
-  },
-
-  offerHighlightBoxCompact: {
-    padding: '7px 8px',
-    borderRadius: '12px',
-    background: 'linear-gradient(180deg, #eef5ff 0%, #f8fbff 100%)',
-    border: '1.5px solid #9ec0f5',
-    boxShadow: '0 2px 8px rgba(23, 107, 255, 0.06)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    minWidth: 0,
+    padding: '10px',
+    borderRadius: '11px',
+    border: '1px solid #d2e1fa',
+    background: '#f5f9ff',
   },
 
   offerBlockHeader: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
   },
 
   offerBlockTitle: {
-    color: '#1a4f9c',
-    fontSize: '11px',
+    color: '#173c69',
+    fontSize: '12px',
+    lineHeight: 1.3,
     fontWeight: 900,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
   },
 
   offerBlockHint: {
-    color: '#52627a',
-    fontSize: '12px',
-    fontWeight: 600,
+    color: '#75869c',
+    fontSize: '10px',
     lineHeight: 1.4,
+    textAlign: 'right',
   },
 
   offerBlockHintCompact: {
-    color: '#52627a',
-    fontSize: '10px',
-    fontWeight: 700,
+    color: '#7a899d',
+    fontSize: '9px',
     lineHeight: 1.3,
   },
 
   offerInputGrid: {
     width: '100%',
-    minHeight: '44px',
-    padding: '11px 13px',
-    borderRadius: '11px',
-    border: '1.5px solid #6ea8ff',
-    background: '#ffffff',
-    color: '#061b41',
-    outline: 'none',
-    textAlign: 'right',
-    fontWeight: 800,
-    fontSize: '15px',
+    minHeight: '45px',
+    padding: '10px 13px',
     boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #a9c6ef',
+    background: '#ffffff',
+    color: '#102b50',
+    outline: 'none',
+    fontSize: '14px',
+    fontWeight: 800,
   },
 
   offerInputLista: {
     width: '100%',
-    minHeight: '38px',
-    padding: '8px 10px',
-    borderRadius: '10px',
-    border: '1.5px solid #6ea8ff',
-    background: '#ffffff',
-    color: '#061b41',
-    outline: 'none',
-    textAlign: 'right',
-    fontWeight: 800,
-    fontSize: '13px',
+    minWidth: 0,
+    minHeight: '37px',
+    padding: '8px 9px',
     boxSizing: 'border-box',
+    borderRadius: '9px',
+    border: '1px solid #afc8eb',
+    background: '#ffffff',
+    color: '#102b50',
+    outline: 'none',
+    fontSize: '11px',
+    fontWeight: 800,
+  },
+
+  sentOffer: {
+    color: '#176bff',
+    fontSize: '16px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+  },
+
+  deliveryBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '11px',
+    padding: '14px',
+    borderRadius: '14px',
+    border: '1px solid #e0e8f2',
+    background: '#fafcff',
+  },
+
+  deliveryBoxCompact: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '7px',
+  },
+
+  checkLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: '#314c6c',
+    cursor: 'pointer',
+    fontSize: '12px',
+    lineHeight: 1.4,
+    fontWeight: 800,
+  },
+
+  checkbox: {
+    width: '17px',
+    height: '17px',
+    flexShrink: 0,
+    cursor: 'pointer',
+    accentColor: '#176bff',
+  },
+
+  select: {
+    width: '100%',
+    minHeight: '42px',
+    padding: '9px 11px',
+    boxSizing: 'border-box',
+    borderRadius: '10px',
+    border: '1px solid #ccd9e8',
+    background: '#ffffff',
+    color: '#28415f',
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+
+  selectCompact: {
+    width: '100%',
+    minWidth: '88px',
+    minHeight: '34px',
+    padding: '6px 7px',
+    boxSizing: 'border-box',
+    borderRadius: '8px',
+    border: '1px solid #ccd9e8',
+    background: '#ffffff',
+    color: '#28415f',
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '10px',
+  },
+
+  cardFooter: {
+    padding: '16px 20px 20px',
+    borderTop: '1px solid #e6edf5',
+    background: '#fbfdff',
+  },
+
+  mainButton: {
+    width: '100%',
+    minHeight: '45px',
+    padding: '11px 18px',
+    border: 'none',
+    borderRadius: '11px',
+    background: 'linear-gradient(135deg, #176bff, #438cff)',
+    boxShadow: '0 10px 22px rgba(23,107,255,0.22)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 900,
+  },
+
+  mainButtonSmall: {
+    width: '100%',
+    minHeight: '36px',
+    padding: '8px 10px',
+    border: 'none',
+    borderRadius: '9px',
+    background: 'linear-gradient(135deg, #176bff, #438cff)',
+    boxShadow: '0 7px 16px rgba(23,107,255,0.18)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+  },
+
+  secondaryButton: {
+    width: '100%',
+    minHeight: '45px',
+    padding: '11px 18px',
+    borderRadius: '11px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 900,
+  },
+
+  smallButton: {
+    width: '100%',
+    minHeight: '36px',
+    padding: '8px 10px',
+    borderRadius: '9px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 900,
+  },
+
+  disabledButton: {
+    width: '100%',
+    minHeight: '45px',
+    padding: '11px 18px',
+    border: '1px solid #d9e1eb',
+    borderRadius: '11px',
+    background: '#edf1f6',
+    color: '#9aa7b7',
+    cursor: 'not-allowed',
+    fontSize: '13px',
+    fontWeight: 800,
+  },
+
+  emptyAction: {
+    color: '#9aa7b7',
+    fontSize: '10px',
+    fontWeight: 700,
+  },
+
+  contactTableRow: {
+    background: '#f8fbff',
+  },
+
+  contactTableCell: {
+    padding: '12px 18px 18px',
+    borderBottom: '1px solid #e4ebf4',
+    background: '#f8fbff',
+  },
+
+  contactBox: {
+    padding: '15px',
+    borderRadius: '13px',
+    border: '1px solid #b9d3f2',
+    background: '#f2f8ff',
+    color: '#234b77',
+    fontSize: '12px',
+    lineHeight: 1.5,
+  },
+
+  contactText: {
+    display: 'grid',
+    gap: '5px',
+    marginTop: '9px',
+  },
+
+  pagination: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+    marginTop: '8px',
+  },
+
+  pageButton: {
+    minWidth: '40px',
+    minHeight: '38px',
+    padding: '8px 12px',
+    borderRadius: '9px',
+    border: '1px solid #ccd9e8',
+    background: '#ffffff',
+    color: '#365372',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+
+  pageButtonActive: {
+    borderColor: '#176bff',
+    background: '#176bff',
+    color: '#ffffff',
+    boxShadow: '0 7px 16px rgba(23,107,255,0.2)',
   },
 
   srOnly: {
@@ -1977,199 +2860,70 @@ const styles = {
     whiteSpace: 'nowrap',
     border: 0,
   },
-
-  deliveryBoxCompact: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-    alignItems: 'stretch',
-  },
-
-  checkLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    color: '#315174',
-    fontSize: '13px',
-    fontWeight: 700,
-    cursor: 'pointer',
-  },
-
-  checkbox: {
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer',
-  },
-
-  offerActions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    minHeight: '42px',
-  },
-
-  mainButtonSmall: {
-    minHeight: '38px',
-    padding: '8px 11px',
-    border: 'none',
-    borderRadius: '11px',
-    background: 'linear-gradient(135deg, #176BFF, #438CFF)',
-    color: '#ffffff',
-    cursor: 'pointer',
-    fontWeight: 800,
-    fontSize: '11px',
-    boxShadow: '0 9px 18px rgba(23,107,255,0.18)',
-    whiteSpace: 'nowrap',
-  },
-
-  smallButton: {
-    minHeight: '40px',
-    padding: '9px 14px',
-    borderRadius: '10px',
-    background: '#f5f8fc',
-    color: '#315174',
-    border: '1px solid #dbe5f1',
-    cursor: 'pointer',
-    fontWeight: 800,
-    fontSize: '12px',
-    whiteSpace: 'nowrap',
-  },
-
-  secondaryButton: {
-    minHeight: '42px',
-    padding: '11px 17px',
-    borderRadius: '12px',
-    background: '#ffffff',
-    color: '#315174',
-    border: '1px solid #d6e1ef',
-    cursor: 'pointer',
-    fontWeight: 800,
-    fontSize: '13px',
-  },
-
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: '14px',
-    flexWrap: 'wrap',
-    marginTop: '24px',
-  },
-
-  pageText: {
-    color: '#52627a',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  sentOffer: {
-    color: '#315174',
-    fontWeight: 800,
-    fontSize: '14px',
-  },
-
-  emptyAction: {
-    color: '#9aa8ba',
-    fontSize: '13px',
-    fontWeight: 700,
-  },
-
-  contactBox: {
-    color: '#243a5a',
-    textAlign: 'left',
-    background: '#f7faff',
-    padding: '16px 18px',
-    borderRadius: '14px',
-    border: '1px solid #e0e9f5',
-  },
-
-  contactText: {
-    marginTop: '8px',
-    fontSize: '14px',
-    color: '#52627a',
-    lineHeight: 1.55,
-  },
-
-  tooltipIcon: {
-    color: '#176bff',
-    cursor: 'help',
-    fontWeight: 800,
-  },
-
-  estadoVerde: {
-    color: '#0a9e7a',
-    fontWeight: 800,
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(10,158,122,0.10)',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoAzul: {
-    color: '#176bff',
-    fontWeight: 800,
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(23,107,255,0.10)',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoNaranja: {
-    color: '#c9770a',
-    fontWeight: 800,
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(201,119,10,0.10)',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoConfirmada: {
-    color: '#1f8f4e',
-    fontWeight: 800,
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(31,143,78,0.10)',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoGris: {
-    color: '#6a7a91',
-    fontStyle: 'italic',
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: '#f3f6fa',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoRojo: {
-    color: '#c1342d',
-    fontWeight: 800,
-    fontSize: '12px',
-    padding: '6px 10px',
-    borderRadius: '999px',
-    background: 'rgba(193,52,45,0.10)',
-    whiteSpace: 'nowrap',
-  },
-
-  estadoDefault: {
-    color: '#315174',
-    fontWeight: 800,
-    fontSize: '12px',
-  },
-
-  estadoBadgeTabla: {
-    display: 'inline-block',
-    maxWidth: '68px',
-    whiteSpace: 'normal',
-    lineHeight: 1.25,
-    padding: '4px 5px',
-    fontSize: '10px',
-    textAlign: 'center',
-    wordBreak: 'break-word',
-  },
 };
+
+function getEstadoStyle(estado, compacto = false) {
+  const base = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: '100%',
+    padding: compacto ? '5px 8px' : '7px 10px',
+    borderRadius: '999px',
+    fontSize: compacto ? '9px' : '10px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+    textAlign: 'center',
+    whiteSpace: 'normal',
+  };
+
+  switch (estado) {
+    case 'Confirmada':
+      return {
+        ...base,
+        background: '#e8f8ef',
+        border: '1px solid #b8e4c9',
+        color: '#237444',
+      };
+
+    case 'En espera de confirmación':
+      return {
+        ...base,
+        background: '#fff6df',
+        border: '1px solid #f0d69a',
+        color: '#8a6214',
+      };
+
+    case 'Rechazada':
+      return {
+        ...base,
+        background: '#fff0f0',
+        border: '1px solid #f0bebe',
+        color: '#a43c3c',
+      };
+
+    case 'Cerrada':
+      return {
+        ...base,
+        background: '#edf0f4',
+        border: '1px solid #d3d9e1',
+        color: '#677486',
+      };
+
+    case 'Oferta enviada':
+      return {
+        ...base,
+        background: '#e9f2ff',
+        border: '1px solid #bed5f5',
+        color: '#225d9f',
+      };
+
+    default:
+      return {
+        ...base,
+        background: '#edf8f6',
+        border: '1px solid #bce3dc',
+        color: '#287568',
+      };
+  }
+}

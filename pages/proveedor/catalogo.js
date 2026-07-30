@@ -1,16 +1,27 @@
 // pages/proveedor/catalogo.js
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { Plus, Save, Trash2 } from 'lucide-react';
+
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
+import Notificaciones from '../../components/Notificaciones';
+import AppLayout from '../../components/Layout/AppLayout';
 
 export default function CatalogoProveedor() {
   const router = useRouter();
+
   const [proveedorId, setProveedorId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [productosNuevos, setProductosNuevos] = useState([
-    { nombre: '', marca: '', formato: '', cantidad_disponible: '' },
+    {
+      nombre: '',
+      marca: '',
+      formato: '',
+      cantidad_disponible: '',
+    },
   ]);
 
   const [universoProductos, setUniversoProductos] = useState([]);
@@ -18,6 +29,7 @@ export default function CatalogoProveedor() {
   const [cantidadesEditadas, setCantidadesEditadas] = useState({});
 
   const [mostrarSolicitud, setMostrarSolicitud] = useState(false);
+
   const [solicitud, setSolicitud] = useState({
     nombre: '',
     marca: '',
@@ -27,7 +39,8 @@ export default function CatalogoProveedor() {
 
   useEffect(() => {
     const cargarDatos = async () => {
-      const { data: userData, error } = await supabase.auth.getUser();
+      const { data: userData, error } =
+        await supabase.auth.getUser();
 
       if (error || !userData?.user) {
         alert('Debes iniciar sesión.');
@@ -35,9 +48,12 @@ export default function CatalogoProveedor() {
         return;
       }
 
-      const { perfil } = await resolveProveedorProfile(userData.user, {
-        select: 'id',
-      });
+      const { perfil } = await resolveProveedorProfile(
+        userData.user,
+        {
+          select: 'id',
+        }
+      );
 
       if (!perfil) {
         alert('No se encontró un perfil de proveedor.');
@@ -47,12 +63,18 @@ export default function CatalogoProveedor() {
 
       setProveedorId(perfil.id);
 
-      const { data: universoData, error: universoError } = await supabase
+      const {
+        data: universoData,
+        error: universoError,
+      } = await supabase
         .from('productos_proveedores')
         .select('nombre, formato, marca');
 
       if (universoError) {
-        alert('Error al cargar universo de productos: ' + universoError.message);
+        alert(
+          'Error al cargar universo de productos: ' +
+            universoError.message
+        );
       } else {
         setUniversoProductos(universoData || []);
       }
@@ -64,36 +86,58 @@ export default function CatalogoProveedor() {
     cargarDatos();
   }, [router]);
 
-  const cargarProductos = async (idProveedor = proveedorId) => {
+  const cargarProductos = async (
+    idProveedor = proveedorId
+  ) => {
     if (!idProveedor) return;
 
-    const { data: productosData, error: productosError } = await supabase
+    const {
+      data: productosData,
+      error: productosError,
+    } = await supabase
       .from('productos_proveedores')
       .select('*')
       .eq('proveedor_id', idProveedor);
 
     if (productosError) {
-      alert('Error al cargar productos: ' + productosError.message);
+      alert(
+        'Error al cargar productos: ' +
+          productosError.message
+      );
     } else {
       setProductosStock(productosData || []);
     }
   };
 
   const normalizarTexto = (valor) =>
-    (valor || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    (valor || '')
+      .toUpperCase()
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const normalizarFormato = (valor) =>
-    (valor || '').toUpperCase().replace(/\s+/g, '').trim();
+    (valor || '')
+      .toUpperCase()
+      .replace(/\s+/g, '')
+      .trim();
 
   const obtenerNombres = () =>
-    Array.from(new Set((universoProductos || []).map((p) => p.nombre))).filter(Boolean);
+    Array.from(
+      new Set(
+        (universoProductos || []).map(
+          (producto) => producto.nombre
+        )
+      )
+    ).filter(Boolean);
 
   const obtenerFormatos = (nombre) =>
     Array.from(
       new Set(
         (universoProductos || [])
-          .filter((p) => p.nombre === nombre)
-          .map((p) => p.formato)
+          .filter(
+            (producto) => producto.nombre === nombre
+          )
+          .map((producto) => producto.formato)
       )
     ).filter(Boolean);
 
@@ -101,12 +145,20 @@ export default function CatalogoProveedor() {
     Array.from(
       new Set(
         (universoProductos || [])
-          .filter((p) => p.nombre === nombre && p.formato === formato)
-          .map((p) => p.marca)
+          .filter(
+            (producto) =>
+              producto.nombre === nombre &&
+              producto.formato === formato
+          )
+          .map((producto) => producto.marca)
       )
     ).filter(Boolean);
 
-  const handleNuevoChange = (index, field, value) => {
+  const handleNuevoChange = (
+    index,
+    field,
+    value
+  ) => {
     const nuevos = [...productosNuevos];
 
     if (field === 'nombre') {
@@ -126,7 +178,12 @@ export default function CatalogoProveedor() {
   const agregarFila = () => {
     setProductosNuevos((prev) => [
       ...prev,
-      { nombre: '', marca: '', formato: '', cantidad_disponible: '' },
+      {
+        nombre: '',
+        marca: '',
+        formato: '',
+        cantidad_disponible: '',
+      },
     ]);
   };
 
@@ -134,73 +191,108 @@ export default function CatalogoProveedor() {
     if (!proveedorId) return;
 
     const productosValidos = productosNuevos.filter(
-      (p) =>
-        (p.nombre || '').trim() !== '' &&
-        (p.formato || '').trim() !== '' &&
-        (p.marca || '').trim() !== ''
+      (producto) =>
+        (producto.nombre || '').trim() !== '' &&
+        (producto.formato || '').trim() !== '' &&
+        (producto.marca || '').trim() !== ''
     );
 
     if (productosValidos.length === 0) {
-      alert('Debes seleccionar al menos un producto, formato y marca.');
+      alert(
+        'Debes seleccionar al menos un producto, formato y marca.'
+      );
       return;
     }
 
-    const productosConProveedor = productosValidos.map((producto) => ({
-      ...producto,
-      cantidad_disponible: Number(producto.cantidad_disponible) || 0,
-      proveedor_id: proveedorId,
-    }));
+    const productosConProveedor =
+      productosValidos.map((producto) => ({
+        ...producto,
+        cantidad_disponible:
+          Number(producto.cantidad_disponible) || 0,
+        proveedor_id: proveedorId,
+      }));
 
     const { error } = await supabase
       .from('productos_proveedores')
       .insert(productosConProveedor);
 
     if (error) {
-      alert('Error al agregar productos: ' + error.message);
+      alert(
+        'Error al agregar productos: ' +
+          error.message
+      );
     } else {
       alert('Productos agregados correctamente');
+
       setProductosNuevos([
-        { nombre: '', marca: '', formato: '', cantidad_disponible: '' },
+        {
+          nombre: '',
+          marca: '',
+          formato: '',
+          cantidad_disponible: '',
+        },
       ]);
+
       await cargarProductos();
     }
   };
 
-  const handleCantidadChange = (id, nuevaCantidad) => {
-    setCantidadesEditadas((prev) => ({ ...prev, [id]: nuevaCantidad }));
+  const handleCantidadChange = (
+    id,
+    nuevaCantidad
+  ) => {
+    setCantidadesEditadas((prev) => ({
+      ...prev,
+      [id]: nuevaCantidad,
+    }));
   };
 
   const actualizarCantidad = async (id) => {
-    const nuevaCantidad = cantidadesEditadas[id];
+    const nuevaCantidad =
+      cantidadesEditadas[id];
 
     if (nuevaCantidad === undefined) return;
 
     const valor = Number(nuevaCantidad);
 
     if (Number.isNaN(valor) || valor < 0) {
-      alert('La cantidad debe ser un número mayor o igual a 0.');
+      alert(
+        'La cantidad debe ser un número mayor o igual a 0.'
+      );
       return;
     }
 
     const { error } = await supabase
       .from('productos_proveedores')
-      .update({ cantidad_disponible: valor })
+      .update({
+        cantidad_disponible: valor,
+      })
       .eq('id', id);
 
     if (error) {
-      alert('Error al actualizar la cantidad: ' + error.message);
+      alert(
+        'Error al actualizar la cantidad: ' +
+          error.message
+      );
     } else {
       alert('Cantidad actualizada correctamente');
 
       setProductosStock((prev) =>
-        prev.map((p) =>
-          p.id === id ? { ...p, cantidad_disponible: valor } : p
+        prev.map((producto) =>
+          producto.id === id
+            ? {
+                ...producto,
+                cantidad_disponible: valor,
+              }
+            : producto
         )
       );
 
       setCantidadesEditadas((prev) => {
         const copy = { ...prev };
+
         delete copy[id];
+
         return copy;
       });
     }
@@ -219,57 +311,104 @@ export default function CatalogoProveedor() {
       .eq('id', id);
 
     if (error) {
-      alert('Error al eliminar el producto: ' + error.message);
+      alert(
+        'Error al eliminar el producto: ' +
+          error.message
+      );
     } else {
       alert('Producto eliminado correctamente');
 
-      setProductosStock((prev) => prev.filter((p) => p.id !== id));
+      setProductosStock((prev) =>
+        prev.filter(
+          (producto) => producto.id !== id
+        )
+      );
 
       setCantidadesEditadas((prev) => {
         const copy = { ...prev };
+
         delete copy[id];
+
         return copy;
       });
     }
   };
 
-  const handleSolicitudChange = (field, value) => {
+  const handleSolicitudChange = (
+    field,
+    value
+  ) => {
     const valorNormalizado =
-      field === 'cantidad_disponible' ? value : value.toUpperCase();
+      field === 'cantidad_disponible'
+        ? value
+        : value.toUpperCase();
 
-    setSolicitud((prev) => ({ ...prev, [field]: valorNormalizado }));
+    setSolicitud((prev) => ({
+      ...prev,
+      [field]: valorNormalizado,
+    }));
   };
 
   const enviarSolicitud = async () => {
     if (!proveedorId) return;
 
-    const nombre = normalizarTexto(solicitud.nombre);
-    const marca = normalizarTexto(solicitud.marca);
-    const formato = normalizarTexto(solicitud.formato);
-    const cantidadDisponible = Number(solicitud.cantidad_disponible) || 0;
+    const nombre = normalizarTexto(
+      solicitud.nombre
+    );
+
+    const marca = normalizarTexto(
+      solicitud.marca
+    );
+
+    const formato = normalizarTexto(
+      solicitud.formato
+    );
+
+    const cantidadDisponible =
+      Number(solicitud.cantidad_disponible) || 0;
 
     if (!nombre) {
-      alert('Debes ingresar al menos el nombre del producto.');
+      alert(
+        'Debes ingresar al menos el nombre del producto.'
+      );
       return;
     }
 
-    const nombreNormalizado = normalizarTexto(nombre);
-    const marcaNormalizada = normalizarTexto(marca);
-    const formatoNormalizado = normalizarFormato(formato);
+    const nombreNormalizado =
+      normalizarTexto(nombre);
 
-    const { data: productosCatalogo, error: errorCatalogo } = await supabase
+    const marcaNormalizada =
+      normalizarTexto(marca);
+
+    const formatoNormalizado =
+      normalizarFormato(formato);
+
+        const {
+      data: productosCatalogo,
+      error: errorCatalogo,
+    } = await supabase
       .from('catalogo_productos')
       .select('id, nombre, marca, formato');
 
     if (errorCatalogo) {
-      alert('Error al validar el catálogo: ' + errorCatalogo.message);
+      alert(
+        'Error al validar el catálogo: ' +
+          errorCatalogo.message
+      );
       return;
     }
 
-    const existeProducto = (productosCatalogo || []).some((producto) => {
-      const nombreCatalogo = normalizarTexto(producto.nombre);
-      const marcaCatalogo = normalizarTexto(producto.marca);
-      const formatoCatalogo = normalizarFormato(producto.formato);
+    const existeProducto = (
+      productosCatalogo || []
+    ).some((producto) => {
+      const nombreCatalogo =
+        normalizarTexto(producto.nombre);
+
+      const marcaCatalogo =
+        normalizarTexto(producto.marca);
+
+      const formatoCatalogo =
+        normalizarFormato(producto.formato);
 
       return (
         nombreCatalogo === nombreNormalizado &&
@@ -293,26 +432,41 @@ export default function CatalogoProveedor() {
           nombre,
           marca,
           formato,
-          cantidad_disponible: cantidadDisponible,
+          cantidad_disponible:
+            cantidadDisponible,
           estado: 'pendiente',
         },
       ]);
 
     if (error) {
-      alert('Error al enviar la solicitud: ' + error.message);
+      alert(
+        'Error al enviar la solicitud: ' +
+          error.message
+      );
     } else {
-      alert('Solicitud enviada al administrador.');
+      alert(
+        'Solicitud enviada al administrador.'
+      );
+
       setSolicitud({
         nombre: '',
         marca: '',
         formato: '',
         cantidad_disponible: '',
       });
+
       setMostrarSolicitud(false);
     }
   };
 
-  const volverAlPanel = () => router.push('/proveedor');
+  const cambiarPerfil = () =>
+    router.push('/seleccionar-perfil');
+
+  const irDatosContacto = () =>
+    router.push('/proveedor/datos-contacto');
+
+  const irDashboard = () =>
+    router.push('/proveedor/DashboardProveedor');
 
   const cerrarSesion = async () => {
     await supabase.auth.signOut();
@@ -322,158 +476,256 @@ export default function CatalogoProveedor() {
 
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.backgroundGlow}></div>
-        <p style={styles.loading}>Cargando...</p>
+      <div style={styles.loadingPage}>
+        <div style={styles.loadingSpinner} />
+
+        <p style={styles.loading}>
+          Cargando catálogo...
+        </p>
+
+        <style jsx>{`
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow}></div>
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        style={styles.watermark}
-      />
-
-      <div style={styles.topBar}>
-        <div style={styles.leftActions}>
-          <button onClick={volverAlPanel} style={styles.secondaryButton}>
-            Volver al panel
-          </button>
-        </div>
-
-        <div style={styles.centerTitle}>
-          <h1 style={styles.title}>Catálogo y Stock</h1>
-        </div>
-
-        <div style={styles.rightActions}>
-          <button onClick={cerrarSesion} style={styles.logoutButton}>
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-
-      <main style={styles.content}>
-        <section style={styles.card}>
+    <AppLayout
+      title="Catálogo y stock"
+      profileLabel="Proveedor"
+      showProfileSwitch
+      onChangeProfile={cambiarPerfil}
+      onUpdateData={irDatosContacto}
+      onDashboard={irDashboard}
+      onLogout={cerrarSesion}
+      notifications={
+        <Notificaciones
+          userId={proveedorId}
+          rol="proveedor"
+        />
+      }
+    >
+      <div
+        className="catalogo-content"
+        style={styles.content}
+      >
+        <section
+          className="catalogo-card"
+          style={styles.card}
+        >
           <img
             src="/icono_1.png"
             alt="Kyntü"
+            className="catalogo-logo"
             style={styles.logo}
           />
 
-          <h2 style={styles.cardTitle}>Agregar productos disponibles</h2>
+          <h2
+            className="catalogo-card-title"
+            style={styles.cardTitle}
+          >
+            Agregar productos disponibles
+          </h2>
 
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Producto</th>
-                  <th style={styles.th}>Formato</th>
-                  <th style={styles.th}>Marca</th>
-                  <th style={styles.th}>Cantidad</th>
+                  <th style={styles.th}>
+                    Producto
+                  </th>
+
+                  <th style={styles.th}>
+                    Formato
+                  </th>
+
+                  <th style={styles.th}>
+                    Marca
+                  </th>
+
+                  <th style={styles.th}>
+                    Cantidad
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                {productosNuevos.map((item, index) => {
-                  const nombres = obtenerNombres();
-                  const formatos = item.nombre ? obtenerFormatos(item.nombre) : [];
-                  const marcas =
-                    item.nombre && item.formato
-                      ? obtenerMarcas(item.nombre, item.formato)
-                      : [];
+                {productosNuevos.map(
+                  (item, index) => {
+                    const nombres =
+                      obtenerNombres();
 
-                  return (
-                    <tr key={index}>
-                      <td style={styles.td}>
-                        <select
-                          value={item.nombre}
-                          onChange={(e) =>
-                            handleNuevoChange(index, 'nombre', e.target.value)
-                          }
-                          style={styles.select}
-                        >
-                          <option value="">Selecciona</option>
-                          {nombres.map((n, idx) => (
-                            <option key={idx} value={n}>
-                              {n}
+                    const formatos =
+                      item.nombre
+                        ? obtenerFormatos(
+                            item.nombre
+                          )
+                        : [];
+
+                    const marcas =
+                      item.nombre &&
+                      item.formato
+                        ? obtenerMarcas(
+                            item.nombre,
+                            item.formato
+                          )
+                        : [];
+
+                    return (
+                      <tr key={index}>
+                        <td style={styles.td}>
+                          <select
+                            value={item.nombre}
+                            onChange={(e) =>
+                              handleNuevoChange(
+                                index,
+                                'nombre',
+                                e.target.value
+                              )
+                            }
+                            style={styles.select}
+                          >
+                            <option value="">
+                              Selecciona
                             </option>
-                          ))}
-                        </select>
-                      </td>
 
-                      <td style={styles.td}>
-                        <select
-                          value={item.formato}
-                          onChange={(e) =>
-                            handleNuevoChange(index, 'formato', e.target.value)
-                          }
-                          style={styles.select}
-                          disabled={!item.nombre}
-                        >
-                          <option value="">Selecciona</option>
-                          {formatos.map((f, idx) => (
-                            <option key={idx} value={f}>
-                              {f}
+                            {nombres.map(
+                              (nombre, idx) => (
+                                <option
+                                  key={idx}
+                                  value={nombre}
+                                >
+                                  {nombre}
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </td>
+
+                        <td style={styles.td}>
+                          <select
+                            value={item.formato}
+                            onChange={(e) =>
+                              handleNuevoChange(
+                                index,
+                                'formato',
+                                e.target.value
+                              )
+                            }
+                            style={styles.select}
+                            disabled={!item.nombre}
+                          >
+                            <option value="">
+                              Selecciona
                             </option>
-                          ))}
-                        </select>
-                      </td>
 
-                      <td style={styles.td}>
-                        <select
-                          value={item.marca}
-                          onChange={(e) =>
-                            handleNuevoChange(index, 'marca', e.target.value)
-                          }
-                          style={styles.select}
-                          disabled={!item.formato}
-                        >
-                          <option value="">Selecciona</option>
-                          {marcas.map((m, idx) => (
-                            <option key={idx} value={m}>
-                              {m}
+                            {formatos.map(
+                              (formato, idx) => (
+                                <option
+                                  key={idx}
+                                  value={formato}
+                                >
+                                  {formato}
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </td>
+
+                        <td style={styles.td}>
+                          <select
+                            value={item.marca}
+                            onChange={(e) =>
+                              handleNuevoChange(
+                                index,
+                                'marca',
+                                e.target.value
+                              )
+                            }
+                            style={styles.select}
+                            disabled={!item.formato}
+                          >
+                            <option value="">
+                              Selecciona
                             </option>
-                          ))}
-                        </select>
-                      </td>
 
-                      <td style={styles.td}>
-                        <input
-                          type="number"
-                          value={item.cantidad_disponible}
-                          onChange={(e) =>
-                            handleNuevoChange(
-                              index,
-                              'cantidad_disponible',
-                              e.target.value
-                            )
-                          }
-                          style={styles.quantityInput}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
+                            {marcas.map(
+                              (marca, idx) => (
+                                <option
+                                  key={idx}
+                                  value={marca}
+                                >
+                                  {marca}
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </td>
+
+                        <td style={styles.td}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={
+                              item.cantidad_disponible
+                            }
+                            onChange={(e) =>
+                              handleNuevoChange(
+                                index,
+                                'cantidad_disponible',
+                                e.target.value
+                              )
+                            }
+                            style={
+                              styles.quantityInput
+                            }
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
+                )}
               </tbody>
             </table>
           </div>
 
-          <div style={styles.actionRow}>
-            <button onClick={agregarFila} style={styles.smallButton}>
-              +
+          <div
+            className="catalogo-action-row"
+            style={styles.actionRow}
+          >
+            <button
+              type="button"
+              onClick={agregarFila}
+              className="catalogo-icon-button"
+              style={styles.smallButton}
+              aria-label="Agregar otra fila"
+              title="Agregar otra fila"
+            >
+              <Plus size={20} />
             </button>
 
-            <button onClick={guardarProductos} style={styles.mainButton}>
+            <button
+              type="button"
+              onClick={guardarProductos}
+              className="catalogo-button"
+              style={styles.mainButton}
+            >
               Agregar productos
             </button>
 
             <button
-              onClick={() => setMostrarSolicitud((prev) => !prev)}
+              type="button"
+              onClick={() =>
+                setMostrarSolicitud(
+                  (prev) => !prev
+                )
+              }
+              className="catalogo-button"
               style={styles.secondaryButton}
             >
               {mostrarSolicitud
@@ -484,7 +736,9 @@ export default function CatalogoProveedor() {
 
           {mostrarSolicitud && (
             <div style={styles.requestBox}>
-              <h3 style={styles.requestTitle}>Solicitud de nuevo producto</h3>
+              <h3 style={styles.requestTitle}>
+                Solicitud de nuevo producto
+              </h3>
 
               <div style={styles.formGrid}>
                 <input
@@ -492,7 +746,10 @@ export default function CatalogoProveedor() {
                   placeholder="Nombre"
                   value={solicitud.nombre}
                   onChange={(e) =>
-                    handleSolicitudChange('nombre', e.target.value)
+                    handleSolicitudChange(
+                      'nombre',
+                      e.target.value
+                    )
                   }
                   style={styles.input}
                 />
@@ -502,7 +759,10 @@ export default function CatalogoProveedor() {
                   placeholder="Marca"
                   value={solicitud.marca}
                   onChange={(e) =>
-                    handleSolicitudChange('marca', e.target.value)
+                    handleSolicitudChange(
+                      'marca',
+                      e.target.value
+                    )
                   }
                   style={styles.input}
                 />
@@ -512,29 +772,52 @@ export default function CatalogoProveedor() {
                   placeholder="Formato"
                   value={solicitud.formato}
                   onChange={(e) =>
-                    handleSolicitudChange('formato', e.target.value)
+                    handleSolicitudChange(
+                      'formato',
+                      e.target.value
+                    )
                   }
                   style={styles.input}
                 />
 
                 <input
                   type="number"
+                  min="0"
                   placeholder="Cantidad"
-                  value={solicitud.cantidad_disponible}
+                  value={
+                    solicitud.cantidad_disponible
+                  }
                   onChange={(e) =>
-                    handleSolicitudChange('cantidad_disponible', e.target.value)
+                    handleSolicitudChange(
+                      'cantidad_disponible',
+                      e.target.value
+                    )
                   }
                   style={styles.input}
                 />
               </div>
 
-              <div style={styles.actionRow}>
-                <button onClick={enviarSolicitud} style={styles.mainButton}>
+              <div
+                className="catalogo-action-row"
+                style={styles.actionRow}
+              >
+                <button
+                  type="button"
+                  onClick={enviarSolicitud}
+                  className="catalogo-button"
+                  style={styles.mainButton}
+                >
                   Enviar solicitud
                 </button>
 
                 <button
-                  onClick={() => router.push('/proveedor/solicitudes')}
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      '/proveedor/solicitudes'
+                    )
+                  }
+                  className="catalogo-button"
                   style={styles.secondaryButton}
                 >
                   Estado solicitudes
@@ -544,309 +827,430 @@ export default function CatalogoProveedor() {
           )}
         </section>
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Mis productos disponibles</h2>
+        <section
+          className="catalogo-card"
+          style={styles.card}
+        >
+          <h2
+            className="catalogo-card-title"
+            style={styles.cardTitle}
+          >
+            Mis productos disponibles
+          </h2>
 
           {productosStock.length === 0 ? (
-            <p style={styles.emptyText}>No tienes productos en stock.</p>
+            <p style={styles.emptyText}>
+              No tienes productos en stock.
+            </p>
           ) : (
             <div style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Producto</th>
-                    <th style={styles.th}>Marca</th>
-                    <th style={styles.th}>Formato</th>
-                    <th style={styles.th}>Cantidad</th>
-                    <th style={styles.th}>Acciones</th>
+                    <th style={styles.th}>
+                      Producto
+                    </th>
+
+                    <th style={styles.th}>
+                      Marca
+                    </th>
+
+                    <th style={styles.th}>
+                      Formato
+                    </th>
+
+                    <th style={styles.th}>
+                      Cantidad
+                    </th>
+
+                    <th style={styles.th}>
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {productosStock.map((producto) => (
-                    <tr key={producto.id}>
-                      <td style={styles.td}>{producto.nombre}</td>
-                      <td style={styles.td}>{producto.marca}</td>
-                      <td style={styles.td}>{producto.formato}</td>
-                      <td style={styles.td}>
-                        <input
-                          type="number"
-                          value={
-                            cantidadesEditadas[producto.id] !== undefined
-                              ? cantidadesEditadas[producto.id]
-                              : producto.cantidad_disponible
-                          }
-                          onChange={(e) =>
-                            handleCantidadChange(producto.id, e.target.value)
-                          }
-                          style={styles.quantityInput}
-                        />
-                      </td>
+                  {productosStock.map(
+                    (producto) => (
+                      <tr key={producto.id}>
+                        <td style={styles.td}>
+                          {producto.nombre}
+                        </td>
 
-                      <td style={styles.td}>
-                        <div style={styles.iconActions}>
-                          <button
-                            onClick={() => actualizarCantidad(producto.id)}
-                            style={styles.iconButton}
-                            title="Guardar cambios"
-                          >
-                            💾
-                          </button>
+                        <td style={styles.td}>
+                          {producto.marca}
+                        </td>
 
-                          <button
-                            onClick={() => eliminarProducto(producto.id)}
-                            style={styles.deleteButton}
-                            title="Eliminar producto"
+                        <td style={styles.td}>
+                          {producto.formato}
+                        </td>
+
+                        <td style={styles.td}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={
+                              cantidadesEditadas[
+                                producto.id
+                              ] !== undefined
+                                ? cantidadesEditadas[
+                                    producto.id
+                                  ]
+                                : producto.cantidad_disponible
+                            }
+                            onChange={(e) =>
+                              handleCantidadChange(
+                                producto.id,
+                                e.target.value
+                              )
+                            }
+                            style={
+                              styles.quantityInput
+                            }
+                          />
+                        </td>
+
+                        <td style={styles.td}>
+                          <div
+                            style={styles.iconActions}
                           >
-                            ❌
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                actualizarCantidad(
+                                  producto.id
+                                )
+                              }
+                              className="catalogo-icon-button"
+                              style={
+                                styles.iconButton
+                              }
+                              title="Guardar cambios"
+                              aria-label="Guardar cambios"
+                            >
+                              <Save size={18} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                eliminarProducto(
+                                  producto.id
+                                )
+                              }
+                              className="catalogo-icon-button"
+                              style={
+                                styles.deleteButton
+                              }
+                              title="Eliminar producto"
+                              aria-label="Eliminar producto"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </section>
-      </main>
-    </div>
+      </div>
+
+      <style jsx>{`
+        .catalogo-button,
+        .catalogo-icon-button {
+          transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease,
+            background 0.2s ease;
+        }
+
+        .catalogo-button:hover,
+        .catalogo-icon-button:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 12px 25px
+            rgba(31, 69, 122, 0.12);
+        }
+
+        select:focus,
+        input:focus {
+          border-color: #176bff !important;
+          box-shadow: 0 0 0 3px
+            rgba(23, 107, 255, 0.12);
+        }
+
+        @media (max-width: 760px) {
+          .catalogo-content {
+            gap: 18px !important;
+          }
+
+          .catalogo-card {
+            padding: 22px 16px !important;
+            border-radius: 20px !important;
+          }
+
+          .catalogo-action-row {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+
+          .catalogo-action-row button {
+            width: 100% !important;
+          }
+
+          .catalogo-action-row
+            button:first-child {
+            width: 46px !important;
+            justify-self: center;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .catalogo-logo {
+            width: 110px !important;
+          }
+
+          .catalogo-card-title {
+            font-size: 23px !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .catalogo-button,
+          .catalogo-icon-button {
+            transition: none;
+          }
+        }
+      `}</style>
+    </AppLayout>
   );
 }
-
 const styles = {
-  page: {
+  loadingPage: {
     minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #1f5cff 0%, #071426 42%, #050b18 100%)',
-    position: 'relative',
-    overflowX: 'hidden',
-    padding: '24px',
-    boxSizing: 'border-box',
-    fontFamily: 'Arial, Helvetica, sans-serif',
-  },
-
-  backgroundGlow: {
-    position: 'absolute',
-    inset: 0,
-    background:
-      'radial-gradient(circle at 18% 18%, rgba(31, 92, 255, 0.38), transparent 32%), radial-gradient(circle at 80% 75%, rgba(0, 255, 195, 0.10), transparent 28%)',
-    zIndex: 1,
-  },
-
-  watermark: {
-    position: 'absolute',
-    top: '35px',
-    left: '45px',
-    width: '260px',
-    opacity: 0.08,
-    zIndex: 1,
-    filter: 'drop-shadow(0 0 18px rgba(0,255,210,0.55))',
-    pointerEvents: 'none',
-  },
-
-  topBar: {
-    position: 'relative',
-    zIndex: 3,
-    display: 'grid',
-    gridTemplateColumns: '1fr auto 1fr',
+    minHeight: '100dvh',
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: '32px',
-  },
-
-  leftActions: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-  },
-
-  centerTitle: {
-    display: 'flex',
     justifyContent: 'center',
+    gap: '14px',
+    background:
+      'linear-gradient(145deg, #f8fbff 0%, #eef5ff 48%, #f8fcfb 100%)',
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
 
-  rightActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
+  loadingSpinner: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '50%',
+    border: '4px solid #dce8f8',
+    borderTopColor: '#176bff',
+    animation: 'spin 0.8s linear infinite',
   },
 
-  title: {
-    color: '#ffffff',
-    fontSize: '38px',
-    fontWeight: 800,
+  loading: {
     margin: 0,
-    textAlign: 'center',
-    textShadow: '0 3px 12px rgba(0,0,0,0.35)',
+    color: '#49617f',
+    fontSize: '15px',
+    fontWeight: 800,
   },
 
   content: {
-    position: 'relative',
-    zIndex: 3,
-    maxWidth: '1100px',
+    width: '100%',
+    maxWidth: '1180px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '26px',
+    gap: '24px',
   },
 
   card: {
     width: '100%',
-    background: 'rgba(5, 12, 29, 0.86)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    borderRadius: '28px',
-    boxShadow: '0 28px 80px rgba(0, 0, 0, 0.35)',
-    padding: '34px',
+    padding: '30px',
     boxSizing: 'border-box',
-    backdropFilter: 'blur(10px)',
+    borderRadius: '26px',
+    background: 'rgba(255, 255, 255, 0.96)',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 22px 60px rgba(31, 69, 122, 0.1)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
   },
 
   logo: {
-    width: '220px',
-    marginBottom: '-18px',
-    filter: 'drop-shadow(0 0 28px rgba(0,255,210,0.45))',
+    width: '145px',
+    height: 'auto',
+    objectFit: 'contain',
+    marginBottom: '4px',
   },
 
   cardTitle: {
-    color: '#ffffff',
-    fontSize: '28px',
     margin: '0 0 24px',
-    fontWeight: 800,
+    color: '#061b41',
+    fontSize: 'clamp(24px, 3vw, 30px)',
+    lineHeight: 1.2,
+    fontWeight: 900,
+    letterSpacing: '-0.03em',
     textAlign: 'center',
   },
 
   tableWrapper: {
     width: '100%',
     overflowX: 'auto',
+    borderRadius: '16px',
+    border: '1px solid #e2eaf4',
+    background: '#ffffff',
   },
 
   table: {
     width: '100%',
-    borderCollapse: 'separate',
-    borderSpacing: '0 10px',
+    minWidth: '680px',
+    borderCollapse: 'collapse',
   },
 
   th: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: '13px',
-    padding: '8px',
+    padding: '13px 12px',
+    background: '#f4f8fd',
+    color: '#60748f',
+    borderBottom: '1px solid #dfe8f3',
+    fontSize: '12px',
+    fontWeight: 900,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
   },
 
   td: {
-    color: '#ffffff',
-    padding: '8px',
+    padding: '12px',
+    color: '#274363',
+    borderBottom: '1px solid #edf1f6',
+    fontSize: '13px',
+    fontWeight: 650,
     textAlign: 'center',
-    background: 'rgba(255, 255, 255, 0.045)',
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    background: '#ffffff',
   },
 
   select: {
     width: '100%',
     minWidth: '140px',
-    padding: '11px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: '#10192b',
-    color: '#ffffff',
+    minHeight: '42px',
+    padding: '10px 12px',
+    boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #d6e1ef',
+    background: '#ffffff',
+    color: '#274363',
     outline: 'none',
+    fontSize: '13px',
   },
 
   input: {
     width: '100%',
-    padding: '12px 14px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    outline: 'none',
-    fontSize: '14px',
-    textTransform: 'uppercase',
+    minHeight: '44px',
+    padding: '11px 13px',
     boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #d6e1ef',
+    background: '#ffffff',
+    color: '#274363',
+    outline: 'none',
+    fontSize: '13px',
+    textTransform: 'uppercase',
   },
 
   quantityInput: {
-    width: '90px',
-    padding: '10px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
+    width: '92px',
+    minHeight: '42px',
+    padding: '10px 8px',
+    boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #d6e1ef',
+    background: '#ffffff',
+    color: '#274363',
     outline: 'none',
+    fontSize: '13px',
+    fontWeight: 800,
     textAlign: 'center',
   },
 
   actionRow: {
+    width: '100%',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     gap: '12px',
     flexWrap: 'wrap',
-    marginTop: '18px',
+    marginTop: '20px',
   },
 
   mainButton: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#fff',
-    border: 'none',
-    padding: '13px 28px',
+    minHeight: '44px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px 24px',
     borderRadius: '12px',
+    border: 'none',
+    background:
+      'linear-gradient(135deg, #176bff 0%, #2e6bff 100%)',
+    color: '#ffffff',
     cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '14px',
-    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+    fontSize: '13px',
+    fontWeight: 900,
+    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.24)',
   },
 
   secondaryButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    padding: '12px 22px',
+    minHeight: '44px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '11px 20px',
     borderRadius: '12px',
+    border: '1px solid #d6e1ef',
+    background: '#ffffff',
+    color: '#49617f',
     cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '14px',
-  },
-
-  logoutButton: {
-    background: 'rgba(255, 80, 80, 0.14)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 80, 80, 0.25)',
-    padding: '12px 22px',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 700,
-    fontSize: '14px',
+    fontSize: '13px',
+    fontWeight: 900,
   },
 
   smallButton: {
-    background: 'linear-gradient(135deg, #176BFF, #2E6BFF)',
-    color: '#ffffff',
-    border: 'none',
-    width: '42px',
-    height: '42px',
+    width: '44px',
+    height: '44px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
     borderRadius: '12px',
+    border: 'none',
+    background:
+      'linear-gradient(135deg, #176bff 0%, #2e6bff 100%)',
+    color: '#ffffff',
     cursor: 'pointer',
-    fontWeight: 800,
-    fontSize: '20px',
-    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.32)',
+    boxShadow: '0 10px 24px rgba(23, 107, 255, 0.24)',
   },
 
   requestBox: {
     width: '100%',
     marginTop: '24px',
     padding: '22px',
-    borderRadius: '20px',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    background: 'rgba(255, 255, 255, 0.045)',
     boxSizing: 'border-box',
+    borderRadius: '18px',
+    border: '1px solid #dfe8f3',
+    background: '#f7faff',
   },
 
   requestTitle: {
-    color: '#ffffff',
-    margin: '0 0 16px',
+    margin: '0 0 18px',
+    color: '#17365e',
+    fontSize: '18px',
+    fontWeight: 900,
     textAlign: 'center',
   },
 
@@ -863,37 +1267,36 @@ const styles = {
   },
 
   iconButton: {
-    background: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    width: '38px',
-    height: '38px',
-    borderRadius: '10px',
+    width: '40px',
+    height: '40px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '11px',
+    border: '1px solid #cfe0ff',
+    background: '#edf4ff',
+    color: '#176bff',
     cursor: 'pointer',
   },
 
   deleteButton: {
-    background: 'rgba(255, 80, 80, 0.14)',
-    color: '#ffffff',
-    border: '1px solid rgba(255, 80, 80, 0.25)',
-    width: '38px',
-    height: '38px',
-    borderRadius: '10px',
+    width: '40px',
+    height: '40px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '11px',
+    border: '1px solid #ffd7d4',
+    background: '#fff3f2',
+    color: '#c1342d',
     cursor: 'pointer',
   },
 
   emptyText: {
-    color: 'rgba(255, 255, 255, 0.72)',
     margin: 0,
-  },
-
-  loading: {
-    position: 'relative',
-    zIndex: 3,
-    color: '#ffffff',
+    padding: '26px',
+    color: '#71829a',
+    fontSize: '14px',
     textAlign: 'center',
-    paddingTop: '80px',
-    fontSize: '18px',
-    fontWeight: 700,
   },
 };
