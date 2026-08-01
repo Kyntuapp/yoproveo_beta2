@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
-import { Eye, EyeOff } from "lucide-react";
-import KyntuModal, {
-  createModalState,
-} from '../pages/KyntuModal';
+import { Eye, EyeOff } from 'lucide-react';
+import KyntuModal, { createModalState } from '../pages/KyntuModal';
+import { registrarAceptacionesLegales } from '../utils/aceptacionesLegales';
 
 export default function Register() {
   const router = useRouter();
@@ -56,9 +55,14 @@ export default function Register() {
       const quiereProveedorNuevo =
         isProveedor && !tiposExistentes.has('proveedor');
 
+      let activeSession = null;
+
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        },
       });
 
       let authIdParaInsert = authIdExistente;
@@ -73,14 +77,22 @@ export default function Register() {
               password,
             });
 
-          if (signInError || !signInData?.user) {
-            setErrorMessage(
-              'Este correo ya tiene una cuenta. Verifica tu contraseña para agregar el perfil.'
-            );
+          if (signInError || !signInData?.user || !signInData?.session) {
+            const msg = signInError?.message?.toLowerCase() ?? '';
+            if (msg.includes('confirm')) {
+              setErrorMessage(
+                'Debes confirmar tu correo antes de agregar un nuevo perfil.'
+              );
+            } else {
+              setErrorMessage(
+                'Este correo ya tiene una cuenta. Verifica tu contraseña para agregar el perfil.'
+              );
+            }
             setLoading(false);
             return;
           }
 
+          activeSession = signInData.session;
           authIdParaInsert = authIdExistente ?? signInData.user.id;
         } else if (isAlready) {
           setErrorMessage('Este correo ya tiene una cuenta registrada.');
@@ -92,6 +104,7 @@ export default function Register() {
           return;
         }
       } else {
+        activeSession = data?.session ?? null;
         const user = data?.user;
 
         if (!user && !authIdExistente) {
@@ -102,24 +115,8 @@ export default function Register() {
 
         if (authIdExistente) {
           authIdParaInsert = authIdExistente;
-        } else if (user?.identities?.length > 0) {
-          authIdParaInsert = user.id;
         } else if (user) {
-          const { data: signInData, error: signInError } =
-            await supabase.auth.signInWithPassword({
-              email: normalizedEmail,
-              password,
-            });
-
-          if (signInError || !signInData?.user) {
-            setErrorMessage(
-              'No se pudo verificar la cuenta. Inicia sesión e intenta nuevamente.'
-            );
-            setLoading(false);
-            return;
-          }
-
-          authIdParaInsert = signInData.user.id;
+          authIdParaInsert = user.id;
         }
       }
 
@@ -201,58 +198,54 @@ export default function Register() {
         }
       }
 
-      const aceptacionesToInsert = [
-  {
-    usuario_id: authIdParaInsert,
-    tipo_documento: 'terminos',
-    version: '1.0',
-  },
-  {
-    usuario_id: authIdParaInsert,
-    tipo_documento: 'privacidad',
-    version: '1.0',
-  },
-];
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
-const { error: aceptacionError } = await supabase
-  .from('aceptaciones_documentos')
-  .upsert(aceptacionesToInsert, {
-    onConflict: 'usuario_id,tipo_documento,version',
-    ignoreDuplicates: true,
-  });
+      const sessionUserId =
+        activeSession?.user?.id ?? currentSession?.user?.id ?? null;
 
-if (aceptacionError) {
-  console.error(
-    'Error guardando aceptación de documentos:',
-    aceptacionError
-  );
+      if (sessionUserId) {
+        if (sessionUserId !== authIdParaInsert) {
+          setErrorMessage(
+            'La sesión activa no coincide con el usuario registrado.'
+          );
+          setLoading(false);
+          return;
+        }
 
-  setErrorMessage(
-    'El perfil fue creado, pero no se pudo registrar la aceptación de los documentos legales.'
-  );
+        const registroAceptaciones = await registrarAceptacionesLegales(
+          supabase,
+          sessionUserId
+        );
 
-  setLoading(false);
-  return;
-}
+        if (!registroAceptaciones.ok) {
+          setErrorMessage(registroAceptaciones.message);
+          setLoading(false);
+          return;
+        }
+      }
 
-   setModal({
-      open: true,
-      type: 'success',
-      title: authIdExistente
-        ? 'Perfil agregado'
-        : 'Registro exitoso',
-      message: authIdExistente
-        ? 'El nuevo perfil fue agregado correctamente.'
-        : 'Tu cuenta fue creada correctamente. Revisa tu correo para confirmar la cuenta.',
-      confirmText: 'Aceptar',
-      cancelText: 'Cancelar',
-      showCancel: false,
-      onConfirm: () => {
-        setModal(createModalState());
-        router.push('/login');
-      },
-      onCancel: null,
-    });
+      const esRegistroNuevo = !authIdExistente && !activeSession && !currentSession;
+
+      setModal({
+        open: true,
+        type: 'success',
+        title: authIdExistente ? 'Perfil agregado' : 'Registro exitoso',
+        message: authIdExistente
+          ? 'El nuevo perfil fue agregado correctamente.'
+          : esRegistroNuevo
+            ? 'Tu cuenta fue creada correctamente. Revisa tu correo para confirmar la cuenta.'
+            : 'Tu cuenta fue creada correctamente.',
+        confirmText: 'Aceptar',
+        cancelText: 'Cancelar',
+        showCancel: false,
+        onConfirm: () => {
+          setModal(createModalState());
+          router.push('/login');
+        },
+        onCancel: null,
+      });
     } catch (err) {
       console.error(err);
       setErrorMessage('Ocurrió un error inesperado.');
@@ -261,107 +254,102 @@ if (aceptacionError) {
     }
   };
 
-
-
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <img
-  src="/icono_1.png"
-  alt="Kyntü"
-  style={styles.logo}
-/>
+        <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
 
-<h1 style={styles.title}>Registro</h1>
+        <h1 style={styles.title}>Registro</h1>
 
-      <input
-        type="email"
-        placeholder="Correo"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={styles.input}
-      />
-   <div style={styles.passwordContainer}>
-  <input
-    type={showPassword ? "text" : "password"}
-    placeholder="Contraseña"
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    style={styles.passwordInput}
-  />
-
-  <button
-    type="button"
-    onClick={() => setShowPassword((v) => !v)}
-    style={styles.eyeButton}
-  >
-    {showPassword ? (
-      <EyeOff size={20} strokeWidth={2} />
-    ) : (
-      <Eye size={20} strokeWidth={2} />
-    )}
-  </button>
-</div>
-
-      <div style={styles.checkboxContainer}>
-        <label>
+        <input
+          type="email"
+          placeholder="Correo"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={styles.input}
+        />
+        <div style={styles.passwordContainer}>
           <input
-            type="checkbox"
-            checked={isComprador}
-            onChange={(e) => setIsComprador(e.target.checked)}
-          />{' '}
-          Soy Comprador
-        </label>
-        <label style={{ marginLeft: '20px' }}>
-          <input
-            type="checkbox"
-            checked={isProveedor}
-            onChange={(e) => setIsProveedor(e.target.checked)}
-          />{' '}
-          Soy Proveedor
-        </label>
-      </div>
-
-      <div style={styles.termsContainer}>
-        <label style={styles.termsLabel}>
-          <input
-            type="checkbox"
-            checked={acceptTerms}
-            onChange={(e) => setAcceptTerms(e.target.checked)}
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.passwordInput}
           />
 
-          <span>
-            He leído y acepto los{' '}
-            <a
-              href="/terminos"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.termsLink}
-            >
-              Términos y Condiciones
-            </a>{' '}
-            y la{' '}
-            <a
-              href="/privacidad"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Política de Privacidad
-            </a>.
-          </span>
-        </label>
-      </div>
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            style={styles.eyeButton}
+          >
+            {showPassword ? (
+              <EyeOff size={20} strokeWidth={2} />
+            ) : (
+              <Eye size={20} strokeWidth={2} />
+            )}
+          </button>
+        </div>
 
-      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
+        <div style={styles.checkboxContainer}>
+          <label>
+            <input
+              type="checkbox"
+              checked={isComprador}
+              onChange={(e) => setIsComprador(e.target.checked)}
+            />{' '}
+            Soy Comprador
+          </label>
+          <label style={{ marginLeft: '20px' }}>
+            <input
+              type="checkbox"
+              checked={isProveedor}
+              onChange={(e) => setIsProveedor(e.target.checked)}
+            />{' '}
+            Soy Proveedor
+          </label>
+        </div>
 
-      <div style={styles.buttonGroup}>
-        <button onClick={handleRegister} style={styles.button} disabled={loading}>
-          {loading ? 'Registrando...' : 'Registrarse'}
-        </button>
-        <button onClick={() => router.push('/')} style={styles.secondaryButton}>
-          Volver
-        </button>
-      </div>
+        <div style={styles.termsContainer}>
+          <label style={styles.termsLabel}>
+            <input
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+            />
+
+            <span>
+              He leído y acepto los{' '}
+              <a
+                href="/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.termsLink}
+              >
+                Términos y Condiciones
+              </a>{' '}
+              y la{' '}
+              <a
+                href="/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Política de Privacidad
+              </a>
+              .
+            </span>
+          </label>
+        </div>
+
+        {errorMessage && <p style={styles.error}>{errorMessage}</p>}
+
+        <div style={styles.buttonGroup}>
+          <button onClick={handleRegister} style={styles.button} disabled={loading}>
+            {loading ? 'Registrando...' : 'Registrarse'}
+          </button>
+          <button onClick={() => router.push('/')} style={styles.secondaryButton}>
+            Volver
+          </button>
+        </div>
       </div>
       <KyntuModal
         open={modal.open}
@@ -375,7 +363,6 @@ if (aceptacionError) {
         onCancel={modal.onCancel}
       />
     </div>
-    
   );
 }
 
@@ -452,69 +439,66 @@ const styles = {
     fontWeight: 900,
   },
   card: {
-  width: '100%',
-  maxWidth: '430px',
-  background: '#ffffff',
-  border: '1px solid #e5ebf5',
-  borderRadius: '28px',
-  padding: '38px 34px',
-  boxShadow: '0 30px 90px rgba(20, 55, 120, 0.12)',
-  textAlign: 'center',
-},
-logo: {
-  width: '270px',
-  display: 'block',
-  margin: '-49px auto -75px',
-},
-passwordContainer: {
-  position: 'relative',
-  width: '100%',
-  maxWidth: '340px',
-  margin: '10px auto',
-},
-
-passwordInput: {
-  width: '100%',
-  padding: '14px 48px 14px 16px',
-  borderRadius: '12px',
-  border: '1px solid #dbe4f0',
-  background: '#fff',
-  color: '#061b41',
-  fontSize: '15px',
-  boxSizing: 'border-box',
-},
-
-eyeButton: {
-  position: 'absolute',
-  top: '50%',
-  right: '14px',
-  transform: 'translateY(-50%)',
-  border: 'none',
-  background: 'transparent',
-  cursor: 'pointer',
-  color: '#6b7280',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-},
-termsContainer: {
-  marginTop: 12,
-  marginBottom: 8,
-  textAlign: "left",
-},
-
-termsLabel: {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: "10px",
-  fontSize: "14px",
-  color: "#4b5563",
-  lineHeight: "1.5",
-},
-termsLink: {
-  color: "#176BFF",
-  fontWeight: 700,
-  textDecoration: "none",
-}
+    width: '100%',
+    maxWidth: '430px',
+    background: '#ffffff',
+    border: '1px solid #e5ebf5',
+    borderRadius: '28px',
+    padding: '38px 34px',
+    boxShadow: '0 30px 90px rgba(20, 55, 120, 0.12)',
+    textAlign: 'center',
+  },
+  logo: {
+    width: '270px',
+    display: 'block',
+    margin: '-49px auto -75px',
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+    maxWidth: '340px',
+    margin: '10px auto',
+  },
+  passwordInput: {
+    width: '100%',
+    padding: '14px 48px 14px 16px',
+    borderRadius: '12px',
+    border: '1px solid #dbe4f0',
+    background: '#fff',
+    color: '#061b41',
+    fontSize: '15px',
+    boxSizing: 'border-box',
+  },
+  eyeButton: {
+    position: 'absolute',
+    top: '50%',
+    right: '14px',
+    transform: 'translateY(-50%)',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+  },
+  termsContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  termsLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    fontSize: '14px',
+    color: '#4b5563',
+    lineHeight: '1.5',
+  },
+  termsLink: {
+    color: '#176BFF',
+    fontWeight: 700,
+    textDecoration: 'none',
+  },
 };
