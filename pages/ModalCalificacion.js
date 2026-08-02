@@ -2,6 +2,7 @@ export default function ModalCalificacion({
   open,
   estrellas,
   comentario,
+  guardando = false,
   onClose,
   onGuardar,
   onEstrellasChange,
@@ -29,9 +30,12 @@ export default function ModalCalificacion({
                 key={n}
                 type="button"
                 onClick={() => onEstrellasChange(n)}
+                disabled={guardando}
                 style={{
                   ...styles.starButton,
                   color: n <= estrellas ? '#f59e0b' : '#cbd5e1',
+                  opacity: guardando ? 0.6 : 1,
+                  cursor: guardando ? 'not-allowed' : 'pointer',
                 }}
               >
                 ★
@@ -45,15 +49,28 @@ export default function ModalCalificacion({
             onChange={(e) => onComentarioChange(e.target.value)}
             placeholder="Escribe una reseña opcional..."
             style={styles.input}
+            disabled={guardando}
           />
 
           <div style={styles.actions}>
-            <button onClick={onClose} style={styles.cancelButton}>
+            <button
+              onClick={onClose}
+              style={styles.cancelButton}
+              disabled={guardando}
+            >
               Cancelar
             </button>
 
-            <button onClick={onGuardar} style={styles.confirmButton}>
-              Enviar calificación
+            <button
+              onClick={onGuardar}
+              style={{
+                ...styles.confirmButton,
+                opacity: guardando ? 0.7 : 1,
+                cursor: guardando ? 'wait' : 'pointer',
+              }}
+              disabled={guardando}
+            >
+              {guardando ? 'Enviando…' : 'Enviar calificación'}
             </button>
           </div>
         </div>

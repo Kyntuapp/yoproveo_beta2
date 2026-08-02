@@ -81,9 +81,11 @@ const showModal = ({ type = 'info', title, message, confirmText = 'Aceptar', onC
 const [ratingModal, setRatingModal] = useState({
   open: false,
   oferta: null,
+  fechaLista: null,
   estrellas: 5,
   comentario: '',
 });
+const [guardandoCalificacion, setGuardandoCalificacion] = useState(false);
 
  const comunasFiltradas = comunasChile.filter((c) =>
   c
@@ -1046,12 +1048,31 @@ const publicarLista = async (listaId) => {
       ...new Set(visibles.map((o) => o.proveedor_id)),
     ];
 
-    const { data: calificaciones } = await supabase
-      .from("calificaciones_proveedor")
-      .select("proveedor_id, estrellas")
-      .in("proveedor_id", proveedorIds);
+    const ofertaIds = visibles.map((o) => o.id).filter(Boolean);
 
+    let calificaciones = [];
 
+    if (ofertaIds.length > 0) {
+      const { data: calificacionesData, error: calificacionesError } =
+        await supabase
+          .from('calificaciones_proveedor')
+          .select('oferta_id, proveedor_id, estrellas')
+          .in('oferta_id', ofertaIds);
+
+      if (calificacionesError) {
+        alert(
+          'Error cargando calificaciones: ' +
+            calificacionesError.message
+        );
+        return;
+      }
+
+      calificaciones = calificacionesData || [];
+    }
+
+    const ofertasConCalificacion = new Set(
+      (calificaciones || []).map((c) => String(c.oferta_id))
+    );
 
     const promedioProveedor = {};
 
@@ -1076,6 +1097,9 @@ const publicarLista = async (listaId) => {
           ...o,
           promedio_estrellas:
             promedioProveedor[o.proveedor_id] || 0,
+          tiene_calificacion: ofertasConCalificacion.has(
+            String(o.id)
+          ),
         }));
       const clave = `${item.producto}__${listaId}`;
 
@@ -1286,7 +1310,38 @@ if (data.checkout_url) {
 
   // FIN PARTE 2
 
-const confirmarRecepcion = async (oferta) => {
+const cerrarModalCalificacion = () => {
+  setRatingModal({
+    open: false,
+    oferta: null,
+    fechaLista: null,
+    estrellas: 5,
+    comentario: '',
+  });
+};
+
+const actualizarOfertaAPagada = async (ofertaId) => {
+  const { data, error } = await supabase
+    .from('ofertas_productos')
+    .update({ estado: 'pagada' })
+    .eq('id', ofertaId)
+    .select('id');
+
+  if (error) {
+    return { ok: false, error };
+  }
+
+  if (!data?.length) {
+    return {
+      ok: false,
+      error: new Error('No se encontró la oferta para actualizar.'),
+    };
+  }
+
+  return { ok: true, error: null };
+};
+
+const confirmarRecepcion = async (oferta, fechaLista) => {
   const { error } = await supabase
     .from('ofertas_productos')
     .update({ estado: 'recepcion_conforme' })
@@ -1297,9 +1352,14 @@ const confirmarRecepcion = async (oferta) => {
     return;
   }
 
+  if (fechaLista) {
+    await verOfertas(fechaLista);
+  }
+
   setRatingModal({
     open: true,
     oferta,
+    fechaLista: fechaLista || null,
     estrellas: 5,
     comentario: '',
   });
@@ -1307,37 +1367,147 @@ const confirmarRecepcion = async (oferta) => {
 
 const guardarCalificacion = async () => {
   const oferta = ratingModal.oferta;
+  const fechaLista = ratingModal.fechaLista;
 
-  if (!oferta) return;
+  if (!oferta || guardandoCalificacion) return;
 
-  const { error } = await supabase
-    .from('calificaciones_proveedor')
-    .insert({
-      oferta_id: oferta.id,
-      proveedor_id: oferta.proveedor_id,
-      comprador_id: usuarioId,
-      estrellas: ratingModal.estrellas,
-      comentario: ratingModal.comentario,
-    });
-
-  if (error) {
-    showError('Error al guardar calificación: ' + error.message);
+  if (!usuarioId) {
+    showError('No se pudo identificar al comprador.');
     return;
   }
 
-  setRatingModal({
-    open: false,
-    oferta: null,
-    estrellas: 5,
-    comentario: '',
-  });
+  if (!oferta.proveedor_id) {
+    showError('No se pudo identificar al proveedor.');
+    return;
+  }
 
-  showModal({
-    type: 'success',
-    title: 'Calificación enviada',
-    message: 'Gracias por calificar al proveedor.',
-    confirmText: 'Aceptar',
-  });
+  setGuardandoCalificacion(true);
+
+  try {
+    const { data: calificacionExistente, error: checkError } =
+      await supabase
+        .from('calificaciones_proveedor')
+        .select('id')
+        .eq('oferta_id', oferta.id)
+        .maybeSingle();
+
+    if (checkError) {
+      showError(
+        'Error al verificar calificación: ' + checkError.message
+      );
+      return;
+    }
+
+    if (calificacionExistente) {
+      const { ok, error: updateError } = await actualizarOfertaAPagada(
+        oferta.id
+      );
+
+      if (fechaLista) {
+        await verOfertas(fechaLista);
+      }
+
+      cerrarModalCalificacion();
+
+      if (!ok) {
+        showError(
+          'Esta oferta ya fue calificada, pero no se pudo actualizar el estado final: ' +
+            (updateError?.message || 'error desconocido')
+        );
+        return;
+      }
+
+      showModal({
+        type: 'success',
+        title: 'Calificación registrada',
+        message:
+          'Esta oferta ya había sido calificada. Se actualizó el estado de la licitación.',
+        confirmText: 'Aceptar',
+      });
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('calificaciones_proveedor')
+      .insert({
+        oferta_id: oferta.id,
+        proveedor_id: oferta.proveedor_id,
+        comprador_id: usuarioId,
+        estrellas: ratingModal.estrellas,
+        comentario: ratingModal.comentario,
+      });
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        const { ok, error: updateError } = await actualizarOfertaAPagada(
+          oferta.id
+        );
+
+        if (fechaLista) {
+          await verOfertas(fechaLista);
+        }
+
+        cerrarModalCalificacion();
+
+        if (!ok) {
+          showError(
+            'La calificación ya existía, pero no se pudo cerrar la licitación: ' +
+              (updateError?.message || 'error desconocido')
+          );
+          return;
+        }
+
+        showModal({
+          type: 'success',
+          title: 'Calificación registrada',
+          message:
+            'Esta oferta ya había sido calificada. Se actualizó el estado de la licitación.',
+          confirmText: 'Aceptar',
+        });
+        return;
+      }
+
+      showError(
+        'Error al guardar calificación: ' + insertError.message
+      );
+      return;
+    }
+
+    const { ok, error: updateError } = await actualizarOfertaAPagada(
+      oferta.id
+    );
+
+    if (!ok) {
+      if (fechaLista) {
+        await verOfertas(fechaLista);
+      }
+
+      cerrarModalCalificacion();
+
+      showError(
+        'La calificación se guardó, pero no se pudo cerrar la licitación: ' +
+          (updateError?.message || 'error desconocido') +
+          '. Al recargar, la oferta quedará marcada como calificada.'
+      );
+      return;
+    }
+
+    if (fechaLista) {
+      await verOfertas(fechaLista);
+    }
+
+    cerrarModalCalificacion();
+
+    showModal({
+      type: 'success',
+      title: 'Calificación enviada',
+      message:
+        'Gracias por calificar al proveedor. Licitación adjudicada.',
+      confirmText: 'Aceptar',
+    });
+  } finally {
+    setGuardandoCalificacion(false);
+  }
 };
 
     const rechazarOferta = async (oferta, producto, fecha) => {
@@ -1899,6 +2069,10 @@ const guardarCalificacion = async () => {
                                               const isProviderPaid =
                                                 estado === 'pagada';
 
+                                              const isAdjudicada =
+                                                isProviderPaid ||
+                                                Boolean(of.tiene_calificacion);
+
                                               const isRejected =
                                                 estado === 'rechazada';
 
@@ -1972,7 +2146,16 @@ const guardarCalificacion = async () => {
                                                     />
                                                   )}
 
-                                                  {isPendingPayment && (
+                                                  {isAdjudicada && (
+                                                    <p
+                                                      className="kyntu-confirmedText"
+                                                      style={styles.confirmedText}
+                                                    >
+                                                      Licitación adjudicada
+                                                    </p>
+                                                  )}
+
+                                                  {isPendingPayment && !isAdjudicada && (
                                                     <>
                                                       <p className="kyntu-pendingPaymentText" style={styles.pendingPaymentText}>
                                                         ⏳ Pago pendiente
@@ -1990,7 +2173,8 @@ const guardarCalificacion = async () => {
                                                     </>
                                                   )}
 
-                                                  {isPaymentReceived  && (
+                                                  {isPaymentReceived &&
+                                                    !isAdjudicada && (
                                                     <>
                                                       <p className="kyntu-confirmedText" style={styles.confirmedText}>
                                                         💳 Pago recibido correctamente.
@@ -2026,7 +2210,10 @@ const guardarCalificacion = async () => {
                                                       <button
                                                         onClick={(e) => {
                                                           e.stopPropagation();
-                                                          confirmarRecepcion(of);
+                                                          confirmarRecepcion(
+                                                            of,
+                                                            fecha
+                                                          );
                                                         }}
                                                         className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
                                                       >
@@ -2035,7 +2222,9 @@ const guardarCalificacion = async () => {
                                                     </>
                                                   )}
 
-                                                  {isReceptionConfirmed && (
+                                                  {isReceptionConfirmed &&
+                                                    !isAdjudicada &&
+                                                    !of.tiene_calificacion && (
                                                     <>
                                                       <p className="kyntu-confirmedText" style={styles.confirmedText}>
                                                         ✅ Recepción conforme registrada.
@@ -2048,11 +2237,13 @@ const guardarCalificacion = async () => {
                                                         setRatingModal({
                                                           open: true,
                                                           oferta: of,
+                                                          fechaLista: fecha,
                                                           estrellas: 5,
                                                           comentario: '',
                                                         });
                                                       }}
                                                       className="kyntu-mainButtonSmall" style={styles.mainButtonSmall}
+                                                      disabled={guardandoCalificacion}
                                                     >
                                                       Calificar proveedor
                                                     </button>
@@ -2393,14 +2584,8 @@ const guardarCalificacion = async () => {
   open={ratingModal.open}
   estrellas={ratingModal.estrellas}
   comentario={ratingModal.comentario}
-  onClose={() =>
-    setRatingModal({
-      open: false,
-      oferta: null,
-      estrellas: 5,
-      comentario: '',
-    })
-  }
+  guardando={guardandoCalificacion}
+  onClose={cerrarModalCalificacion}
   onGuardar={guardarCalificacion}
   onEstrellasChange={(estrellas) =>
     setRatingModal((prev) => ({
