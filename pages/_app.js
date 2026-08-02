@@ -51,7 +51,7 @@ function MyApp({ Component, pageProps }) {
 
     let cancelled = false;
 
-    const verificarAcceso = async () => {
+    const verificarAccesoInicial = async () => {
       if (verificandoAccesoRef.current) return;
       verificandoAccesoRef.current = true;
       setAccessReady(false);
@@ -61,7 +61,9 @@ function MyApp({ Component, pageProps }) {
         if (cancelled || !sesionValida) return;
 
         if (esRutaExentaLegal) {
-          setAccessReady(true);
+          if (!cancelled) {
+            setAccessReady(true);
+          }
           return;
         }
 
@@ -101,11 +103,14 @@ function MyApp({ Component, pageProps }) {
       }
     };
 
-    verificarAcceso();
+    const revalidarSesionEnSegundoPlano = async () => {
+      if (cancelled || verificandoAccesoRef.current) return;
+      await validarSesion(supabase, router);
+    };
 
-    const interval = setInterval(() => {
-      verificarAcceso();
-    }, 60000);
+    verificarAccesoInicial();
+
+    const interval = setInterval(revalidarSesionEnSegundoPlano, 60000);
 
     return () => {
       cancelled = true;
@@ -114,10 +119,8 @@ function MyApp({ Component, pageProps }) {
   }, [
     router.isReady,
     router.pathname,
-    router.asPath,
     esRutaPublicaActual,
     esRutaExentaLegal,
-    router,
   ]);
 
   const mostrarContenido = esRutaPublicaActual || accessReady;
