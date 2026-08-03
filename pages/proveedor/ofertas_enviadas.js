@@ -12,15 +12,32 @@ import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
-import OfertaAccionesBar from '../../components/OfertaAccionesBar';
-import OfertaConversacion from '../../components/OfertaConversacion';
+import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
 import CompradorContacto from '../../components/CompradorContacto';
 import {
+  chatSoloLecturaPorAdjudicacion,
   esOfertaAdjudicada,
+  MENSAJE_CHAT_CERRADO_ADJUDICACION,
+  textoEstadoOfertaProveedor,
   contarMensajesNoLeidos,
-  panelConversacionId,
+  contarMensajesNoLeidosConversacion,
+  fetchConteosNoLeidosPorOfertas,
+  subscribeMensajesConversacion,
   subscribeMensajesOferta,
 } from '../../lib/ofertaMensajes';
+
+function formatearFechaCorta(fecha) {
+  if (!fecha) return '—';
+
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return '—';
+
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+
+  return `${dd}-${mm}-${yyyy}`;
+}
 
 export default function OfertasEnviadas() {
   const router = useRouter();
@@ -50,6 +67,7 @@ export default function OfertasEnviadas() {
   const [deepLinkPendienteId, setDeepLinkPendienteId] = useState(null);
 
   const scrolledToOfertaRef = useRef(null);
+  const conversacionPorOfertaRef = useRef({});
   const itemsPorPagina = 20;
 
   useEffect(() => {
@@ -138,8 +156,19 @@ export default function OfertasEnviadas() {
         });
       }
 
+      const adjudicadasPorLista = {};
+
+      (ofertasData || []).forEach((oferta) => {
+        if (esOfertaAdjudicada(oferta.estado) && oferta.lista_id) {
+          adjudicadasPorLista[String(oferta.lista_id)] = true;
+        }
+      });
+
       const enriquecidas = (ofertasData || []).map((oferta) => {
         const lista = mapLista[oferta.lista_id] || {};
+        const solicitudAdjudicada = Boolean(
+          adjudicadasPorLista[String(oferta.lista_id)]
+        );
 
         return {
           ...oferta,
@@ -155,6 +184,11 @@ export default function OfertasEnviadas() {
             .trim(),
           comuna: lista.comuna_despacho || '—',
           fecha_creacion: lista.fecha_creacion || null,
+          solicitud_adjudicada: solicitudAdjudicada,
+          chat_solo_lectura: chatSoloLecturaPorAdjudicacion({
+            estado: oferta.estado,
+            solicitud_adjudicada: solicitudAdjudicada,
+          }),
         };
       });
 
@@ -288,24 +322,8 @@ export default function OfertasEnviadas() {
       ? ''
       : new Intl.NumberFormat('es-CL').format(numero);
 
-  const estadoTexto = (estado) => {
-    switch ((estado || '').toLowerCase()) {
-      case 'pendiente':
-        return 'Oferta enviada';
-
-      case 'en_espera_confirmacion':
-        return 'Aceptada';
-
-      case 'confirmada':
-        return 'Confirmada';
-
-      case 'rechazada':
-        return 'Rechazada';
-
-      default:
-        return estado || '—';
-    }
-  };
+  const estadoTexto = (estado, solicitudAdjudicada = false) =>
+    textoEstadoOfertaProveedor(estado, solicitudAdjudicada);
 
   const getEstadoStyle = (estado) => {
     switch ((estado || '').toLowerCase()) {
@@ -355,7 +373,7 @@ export default function OfertasEnviadas() {
         comprador: esOfertaAdjudicada(item.estado)
           ? 'CONTACTO DISPONIBLE'
           : 'CONTRAPARTE',
-        estado: estadoTexto(item.estado),
+        estado: estadoTexto(item.estado, item.solicitud_adjudicada),
       };
 
       return Object.entries(filtros).every(
@@ -407,36 +425,22 @@ export default function OfertasEnviadas() {
     }
 
     let activo = true;
+    const cleanups = [];
 
-    const cargarConteos = async () => {
-      const entries = await Promise.all(
-        ofertasPaginadas.map(async (oferta) => {
-          if (
-            String(oferta.id) ===
-            String(conversacionAbiertaId)
-          ) {
-            return [oferta.id, 0];
-          }
+    const ofertasVisibles = ofertasPaginadas.filter(
+      (oferta) =>
+        String(oferta.id) !==
+        String(conversacionAbiertaId)
+    );
 
-          const cantidad =
-            await contarMensajesNoLeidos(
-              oferta.id,
-              authUserId
-            );
-
-          return [oferta.id, cantidad];
-        })
-      );
-
-      if (!activo) return;
-
+    const actualizarOfertas = (ofertaIds, cantidad) => {
       setNoLeidosPorOferta((prev) => {
-        const siguiente = { ...prev };
         let cambio = false;
+        const siguiente = { ...prev };
 
-        for (const [id, cantidad] of entries) {
-          if (prev[id] !== cantidad) {
-            siguiente[id] = cantidad;
+        for (const ofertaId of ofertaIds) {
+          if (prev[ofertaId] !== cantidad) {
+            siguiente[ofertaId] = cantidad;
             cambio = true;
           }
         }
@@ -445,31 +449,93 @@ export default function OfertasEnviadas() {
       });
     };
 
-    cargarConteos();
+    (async () => {
+      const { conteos, conversacionPorOferta } =
+        await fetchConteosNoLeidosPorOfertas(
+          ofertasVisibles,
+          authUserId
+        );
 
-    const cleanups = ofertasPaginadas
-      .filter(
-        (oferta) =>
-          String(oferta.id) !==
-          String(conversacionAbiertaId)
-      )
-      .map((oferta) =>
-        subscribeMensajesOferta(oferta.id, () => {
-          contarMensajesNoLeidos(
-            oferta.id,
-            authUserId
-          ).then((cantidad) => {
-            setNoLeidosPorOferta((prev) =>
-              prev[oferta.id] === cantidad
-                ? prev
-                : {
-                    ...prev,
-                    [oferta.id]: cantidad,
-                  }
-            );
-          });
-        })
-      );
+      if (!activo) return;
+
+      conversacionPorOfertaRef.current = {
+        ...conversacionPorOfertaRef.current,
+        ...conversacionPorOferta,
+      };
+
+      setNoLeidosPorOferta((prev) => {
+        const siguiente = { ...prev };
+        let cambio = false;
+
+        for (const oferta of ofertasPaginadas) {
+          const cantidad =
+            String(oferta.id) ===
+            String(conversacionAbiertaId)
+              ? 0
+              : conteos[oferta.id] ?? prev[oferta.id] ?? 0;
+
+          if (prev[oferta.id] !== cantidad) {
+            siguiente[oferta.id] = cantidad;
+            cambio = true;
+          }
+        }
+
+        return cambio ? siguiente : prev;
+      });
+
+      const conversacionAOfertas = new Map();
+      const ofertasLegacy = [];
+
+      ofertasVisibles.forEach((oferta) => {
+        const conversacionId =
+          conversacionPorOferta[oferta.id];
+
+        if (conversacionId) {
+          const actuales =
+            conversacionAOfertas.get(conversacionId) || [];
+          actuales.push(oferta.id);
+          conversacionAOfertas.set(conversacionId, actuales);
+        } else {
+          ofertasLegacy.push(oferta.id);
+        }
+      });
+
+      if (!activo) return;
+
+      conversacionAOfertas.forEach((ofertaIds, conversacionId) => {
+        cleanups.push(
+          subscribeMensajesConversacion(
+            conversacionId,
+            () => {
+              contarMensajesNoLeidosConversacion(
+                conversacionId
+              ).then((cantidad) => {
+                if (!activo) return;
+                actualizarOfertas(ofertaIds, cantidad);
+              });
+            }
+          )
+        );
+      });
+
+      ofertasLegacy.forEach((ofertaId) => {
+        cleanups.push(
+          subscribeMensajesOferta(ofertaId, () => {
+            contarMensajesNoLeidos(
+              ofertaId,
+              authUserId
+            ).then((cantidad) => {
+              if (!activo) return;
+              actualizarOfertas([ofertaId], cantidad);
+            });
+          })
+        );
+      });
+
+      if (!activo) {
+        cleanups.forEach((limpiar) => limpiar());
+      }
+    })();
 
     return () => {
       activo = false;
@@ -790,6 +856,20 @@ export default function OfertasEnviadas() {
               style={styles.tableWrapper}
             >
               <table style={styles.table}>
+                <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '7%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '9%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th style={styles.th}>
@@ -919,13 +999,7 @@ export default function OfertasEnviadas() {
                           </td>
 
                           <td style={styles.td}>
-                            {item.fecha_creacion
-                              ? new Date(
-                                  item.fecha_creacion
-                                ).toLocaleString(
-                                  'es-CL'
-                                )
-                              : '—'}
+                            {formatearFechaCorta(item.fecha_creacion)}
                           </td>
 
                           <td style={styles.td}>
@@ -935,27 +1009,31 @@ export default function OfertasEnviadas() {
                               )}
                             >
                               {estadoTexto(
-                                item.estado
+                                item.estado,
+                                item.solicitud_adjudicada
                               )}
                             </span>
                           </td>
 
-                          <td style={styles.td}>
-                            <OfertaAccionesBar
-                              tooltipChat="Hablar con el comprador"
-                              noLeidos={noLeidos}
-                              chatAbierto={
-                                conversacionAbierta
+                          <td style={styles.conversacionCell}>
+                            <button
+                              type="button"
+                              aria-expanded={conversacionAbierta}
+                              onClick={() =>
+                                toggleConversacion(item.id)
                               }
-                              panelId={panelConversacionId(
-                                item.id
-                              )}
-                              onToggleChat={() =>
-                                toggleConversacion(
-                                  item.id
-                                )
-                              }
-                            />
+                              style={styles.chatToggleButton}
+                            >
+                              {conversacionAbierta
+                                ? 'Ocultar'
+                                : 'Ver conversación'}
+                              {noLeidos > 0 &&
+                                !conversacionAbierta && (
+                                  <span style={styles.chatBadge}>
+                                    {noLeidos > 9 ? '9+' : noLeidos}
+                                  </span>
+                                )}
+                            </button>
                           </td>
 
                           <td style={styles.td}>
@@ -1040,7 +1118,8 @@ export default function OfertasEnviadas() {
                                     )}
                                   >
                                     {estadoTexto(
-                                      item.estado
+                                      item.estado,
+                                      item.solicitud_adjudicada
                                     )}
                                   </span>
                                 </div>
@@ -1056,21 +1135,23 @@ export default function OfertasEnviadas() {
                                 </p>
 
                                 {authUserId && (
-                                  <OfertaConversacion
+                                  <OfertaConversacionContenedor
                                     ofertaId={item.id}
-                                    authUserId={
-                                      authUserId
+                                    authUserId={authUserId}
+                                    estadoOferta={item.estado}
+                                    soloLectura={item.chat_solo_lectura}
+                                    mensajeCierre={
+                                      item.chat_solo_lectura
+                                        ? MENSAJE_CHAT_CERRADO_ADJUDICACION
+                                        : ''
                                     }
-                                    estadoOferta={
-                                      item.estado
-                                    }
-                                    panelId={panelConversacionId(
-                                      item.id
-                                    )}
-                                    onLeidosActualizados={
-                                      handleLeidosActualizados
-                                    }
+                                    ocultarBarra
+                                    chatAbierto
                                     participanteLabel="Comprador"
+                                    variant="dark"
+                                    onLeidosActualizados={() =>
+                                      handleLeidosActualizados(item.id)
+                                    }
                                   />
                                 )}
                               </div>
@@ -1202,6 +1283,13 @@ export default function OfertasEnviadas() {
           }
         }
 
+        @media (max-width: 1280px) {
+          .kyntu-tableWrapper {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+
         @media (max-width: 820px) {
           .kyntu-main {
             padding: 22px 14px 38px !important;
@@ -1218,19 +1306,25 @@ export default function OfertasEnviadas() {
               minmax(130px, 1fr)
             ) !important;
           }
-        }
-
-        @media (max-width: 560px) {
-          .kyntu-filterGrid {
-            grid-template-columns: 1fr !important;
-          }
-
-          .kyntu-filterCard {
-            padding: 17px !important;
-          }
 
           .kyntu-tableWrapper {
             border-radius: 14px !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .kyntu-filterGrid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 375px) {
+          .kyntu-main {
+            padding: 18px 10px 32px !important;
+          }
+
+          .kyntu-filterCard {
+            padding: 14px !important;
           }
         }
       `}</style>
@@ -1399,6 +1493,7 @@ const styles = {
 
   tableWrapper: {
     width: '100%',
+    maxWidth: '100%',
     overflowX: 'auto',
     marginBottom: '24px',
     borderRadius: '18px',
@@ -1406,14 +1501,14 @@ const styles = {
     background: '#ffffff',
     boxShadow:
       '0 16px 42px rgba(32, 73, 130, 0.07)',
+    boxSizing: 'border-box',
   },
 
   table: {
     width: '100%',
-    minWidth: '1450px',
     borderCollapse: 'separate',
     borderSpacing: 0,
-    tableLayout: 'auto',
+    tableLayout: 'fixed',
   },
 
   tableRow: {
@@ -1436,7 +1531,7 @@ const styles = {
   },
 
   td: {
-    padding: '12px 10px',
+    padding: '12px 8px',
     borderBottom: '1px solid #e7edf5',
     background: '#ffffff',
     color: '#293f5f',
@@ -1444,11 +1539,15 @@ const styles = {
     verticalAlign: 'middle',
     fontSize: '12px',
     lineHeight: 1.45,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
 
   productCell: {
-    minWidth: '150px',
+    minWidth: 0,
     textAlign: 'left',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
   },
 
   productName: {
@@ -1510,18 +1609,71 @@ const styles = {
   },
 
   smallButton: {
-    minWidth: '94px',
-    minHeight: '36px',
-    padding: '8px 11px',
+    minWidth: '78px',
+    maxWidth: '100%',
+    minHeight: '34px',
+    padding: '7px 8px',
     borderRadius: '9px',
     border: '1px solid #a9c5e8',
     background: '#f5f9ff',
     color: '#24507f',
     cursor: 'pointer',
     fontSize: '10px',
-    lineHeight: 1.3,
+    lineHeight: 1.25,
     fontWeight: 900,
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
+    boxSizing: 'border-box',
+  },
+
+  conversacionCell: {
+    padding: '10px 6px',
+    borderBottom: '1px solid #e7edf5',
+    background: '#ffffff',
+    textAlign: 'center',
+    verticalAlign: 'middle',
+    minWidth: 0,
+  },
+
+  chatToggleButton: {
+    position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '112px',
+    minHeight: '34px',
+    padding: '7px 8px',
+    margin: '0 auto',
+    borderRadius: '9px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+    whiteSpace: 'normal',
+    textAlign: 'center',
+    boxSizing: 'border-box',
+  },
+
+  chatBadge: {
+    position: 'absolute',
+    top: '-6px',
+    right: '-4px',
+    minWidth: '16px',
+    height: '16px',
+    padding: '0 4px',
+    borderRadius: '999px',
+    background: '#2563EB',
+    color: '#ffffff',
+    border: '2px solid #ffffff',
+    fontSize: '9px',
+    fontWeight: 800,
+    lineHeight: '12px',
+    textAlign: 'center',
+    boxSizing: 'border-box',
+    pointerEvents: 'none',
   },
 
   emptyAction: {

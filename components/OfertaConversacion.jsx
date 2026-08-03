@@ -1,28 +1,129 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   detectarDatosContacto,
+  enviarMensajeConversacion,
+  enviarMensajeConversacionSolicitud,
   enviarMensajeOferta,
+  esErrorChatPreOfertaNoDisponible,
   esErrorServicioConversacionNoDisponible,
   esOfertaAdjudicada,
+  fetchMensajesConversacion,
   fetchMensajesOferta,
+  marcarMensajesLeidosConversacion,
   marcarMensajesLeidosOferta,
   mensajeErrorCargaConversacion,
+  mensajeErrorChatPreOferta,
   mensajeErrorEnvioConversacion,
   registrarErrorConversacion,
+  subscribeMensajesConversacion,
   subscribeMensajesOferta,
 } from '../lib/ofertaMensajes';
 
 const AVISO_CONTACTO =
   'No compartas datos de contacto. Toda la comunicación debe realizarse a través de Kyntü hasta la adjudicación.';
 
-export default function OfertaConversacion({
+const ERROR_CONFIGURACION =
+  'No fue posible iniciar el chat. Configuración inválida.';
+
+/**
+ * @typedef {'oferta'|'conversacion'|'solicitud'} ModoChat
+ */
+
+/**
+ * @param {{
+ *   modoChat?: ModoChat,
+ *   ofertaId?: string,
+ *   conversacionId?: string,
+ *   listasComprasId?: string,
+ * }} params
+ */
+function validarConfiguracionModoChat({
+  modoChat,
   ofertaId,
+  conversacionId,
+  listasComprasId,
+}) {
+  const tieneOferta = Boolean(ofertaId);
+  const tieneConversacion = Boolean(conversacionId);
+  const tieneSolicitud = Boolean(listasComprasId);
+  const idsPresentes = [
+    tieneOferta,
+    tieneConversacion,
+    tieneSolicitud,
+  ].filter(Boolean).length;
+
+  if (modoChat) {
+    if (modoChat === 'oferta') {
+      if (!tieneOferta || tieneConversacion || tieneSolicitud) {
+        return { valido: false, modo: null };
+      }
+      return { valido: true, modo: 'oferta' };
+    }
+
+    if (modoChat === 'conversacion') {
+      if (!tieneConversacion || tieneOferta || tieneSolicitud) {
+        return { valido: false, modo: null };
+      }
+      return { valido: true, modo: 'conversacion' };
+    }
+
+    if (modoChat === 'solicitud') {
+      if (!tieneSolicitud || tieneOferta || tieneConversacion) {
+        return { valido: false, modo: null };
+      }
+      return { valido: true, modo: 'solicitud' };
+    }
+
+    return { valido: false, modo: null };
+  }
+
+  if (idsPresentes > 1) {
+    registrarErrorConversacion(
+      'modo',
+      new Error(
+        `Identificadores incompatibles: ofertaId=${Boolean(ofertaId)}, conversacionId=${Boolean(conversacionId)}, listasComprasId=${Boolean(listasComprasId)}`
+      )
+    );
+    return { valido: false, modo: null };
+  }
+
+  if (tieneOferta) return { valido: true, modo: 'oferta' };
+  if (tieneConversacion) return { valido: true, modo: 'conversacion' };
+  if (tieneSolicitud) return { valido: true, modo: 'solicitud' };
+  return { valido: false, modo: null };
+}
+
+/**
+ * @param {import('../lib/ofertaMensajes').MensajeConversacion[]} prev
+ * @param {import('../lib/ofertaMensajes').MensajeConversacion[]} incoming
+ */
+function mergeMensajes(prev, incoming) {
+  const map = new Map(prev.map((msg) => [msg.id, msg]));
+
+  for (const msg of incoming) {
+    if (!msg?.id) continue;
+    map.set(msg.id, msg);
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+}
+
+export default function OfertaConversacion({
+  modoChat,
+  ofertaId,
+  conversacionId,
+  listasComprasId,
   authUserId,
   estadoOferta,
   variant = 'dark',
   panelId,
   onLeidosActualizados,
+  onConversacionCreada,
   participanteLabel = 'Contraparte',
+  soloLectura = false,
+  mensajeCierre = '',
 }) {
   const [mensajes, setMensajes] = useState([]);
   const [texto, setTexto] = useState('');
@@ -34,8 +135,25 @@ export default function OfertaConversacion({
 
   const historialRef = useRef(null);
   const enviandoRef = useRef(false);
+  const omitirCargaTrasCreacionRef = useRef(false);
+  const operacionGenRef = useRef(0);
+
   const adjudicada = esOfertaAdjudicada(estadoOferta);
   const palette = variant === 'light' ? lightStyles : darkStyles;
+
+  const configuracion = useMemo(
+    () =>
+      validarConfiguracionModoChat({
+        modoChat,
+        ofertaId,
+        conversacionId,
+        listasComprasId,
+      }),
+    [modoChat, conversacionId, listasComprasId, ofertaId]
+  );
+
+  const modo = configuracion.valido ? configuracion.modo : null;
+  const configuracionInvalida = !configuracion.valido;
 
   const scrollAlFinal = useCallback(() => {
     const contenedor = historialRef.current;
@@ -43,62 +161,255 @@ export default function OfertaConversacion({
     contenedor.scrollTop = contenedor.scrollHeight;
   }, []);
 
-  const cargarYMarcarLeidos = useCallback(async () => {
-    if (!ofertaId) return;
+  const mensajeErrorCarga = useCallback(
+    (err) =>
+      modo === 'oferta'
+        ? mensajeErrorCargaConversacion(err)
+        : mensajeErrorChatPreOferta(err, { contexto: 'carga' }),
+    [modo]
+  );
 
-    setCargando(true);
-    setError('');
+  const mensajeErrorEnvio = useCallback(
+    (err) =>
+      modo === 'oferta'
+        ? mensajeErrorEnvioConversacion(err)
+        : mensajeErrorChatPreOferta(err, { contexto: 'envio' }),
+    [modo]
+  );
 
-    try {
-      const data = await fetchMensajesOferta(ofertaId);
-      setMensajes(data);
-      setServicioDisponible(true);
-      await marcarMensajesLeidosOferta(ofertaId);
-      if (onLeidosActualizados) onLeidosActualizados(ofertaId);
-    } catch (err) {
-      registrarErrorConversacion('cargar', err);
+  const esErrorInfraestructura = useCallback(
+    (err) =>
+      modo === 'oferta'
+        ? esErrorServicioConversacionNoDisponible(err)
+        : esErrorChatPreOfertaNoDisponible(err),
+    [modo]
+  );
 
-      if (esErrorServicioConversacionNoDisponible(err)) {
-        setServicioDisponible(false);
-        setError('');
-      } else {
-        setError(mensajeErrorCargaConversacion(err));
-      }
-    } finally {
-      setCargando(false);
+  const notificarLeidos = useCallback(() => {
+    if (!onLeidosActualizados || !modo) return;
+
+    if (modo === 'oferta') {
+      onLeidosActualizados(ofertaId);
+      return;
     }
-  }, [ofertaId, onLeidosActualizados]);
+
+    if (modo === 'conversacion') {
+      onLeidosActualizados(conversacionId);
+      return;
+    }
+
+    onLeidosActualizados(listasComprasId);
+  }, [
+    conversacionId,
+    listasComprasId,
+    modo,
+    ofertaId,
+    onLeidosActualizados,
+  ]);
+
+  const cargarYMarcarLeidos = useCallback(async () => {
+    if (configuracionInvalida || !modo) {
+      setCargando(false);
+      setError(ERROR_CONFIGURACION);
+      return;
+    }
+
+    const gen = ++operacionGenRef.current;
+
+    if (modo === 'oferta') {
+      setCargando(true);
+      setError('');
+
+      try {
+        const data = await fetchMensajesOferta(ofertaId);
+        if (gen !== operacionGenRef.current) return;
+
+        setMensajes(data);
+        setServicioDisponible(true);
+        await marcarMensajesLeidosOferta(ofertaId);
+        if (gen !== operacionGenRef.current) return;
+
+        notificarLeidos();
+      } catch (err) {
+        if (gen !== operacionGenRef.current) return;
+
+        registrarErrorConversacion('cargar', err);
+
+        if (esErrorInfraestructura(err)) {
+          setServicioDisponible(false);
+          setError('');
+        } else {
+          setError(mensajeErrorCarga(err));
+        }
+      } finally {
+        if (gen === operacionGenRef.current) {
+          setCargando(false);
+        }
+      }
+
+      return;
+    }
+
+    if (modo === 'conversacion') {
+      if (omitirCargaTrasCreacionRef.current) {
+        omitirCargaTrasCreacionRef.current = false;
+        setCargando(false);
+        setError('');
+        setServicioDisponible(true);
+
+        try {
+          await marcarMensajesLeidosConversacion(conversacionId);
+          if (gen === operacionGenRef.current) {
+            notificarLeidos();
+          }
+        } catch (err) {
+          registrarErrorConversacion('marcar-leidos-transicion', err);
+        }
+
+        return;
+      }
+
+      setCargando(true);
+      setError('');
+
+      try {
+        const data = await fetchMensajesConversacion(conversacionId);
+        if (gen !== operacionGenRef.current) return;
+
+        setMensajes((prev) => mergeMensajes(prev, data));
+        setServicioDisponible(true);
+        await marcarMensajesLeidosConversacion(conversacionId);
+        if (gen !== operacionGenRef.current) return;
+
+        notificarLeidos();
+      } catch (err) {
+        if (gen !== operacionGenRef.current) return;
+
+        registrarErrorConversacion('cargar', err);
+
+        if (esErrorInfraestructura(err)) {
+          setServicioDisponible(false);
+          setError('');
+        } else {
+          setError(mensajeErrorCarga(err));
+        }
+      } finally {
+        if (gen === operacionGenRef.current) {
+          setCargando(false);
+        }
+      }
+
+      return;
+    }
+
+    if (modo === 'solicitud') {
+      setMensajes([]);
+      setCargando(false);
+      setError('');
+      setServicioDisponible(true);
+    }
+  }, [
+    configuracionInvalida,
+    conversacionId,
+    esErrorInfraestructura,
+    listasComprasId,
+    mensajeErrorCarga,
+    modo,
+    notificarLeidos,
+    ofertaId,
+  ]);
 
   const recargarSinMarcar = useCallback(async () => {
-    if (!ofertaId) return;
+    if (configuracionInvalida || !modo) return;
 
-    try {
-      const data = await fetchMensajesOferta(ofertaId);
-      setMensajes(data);
-      setServicioDisponible(true);
-    } catch (err) {
-      registrarErrorConversacion('actualizar', err);
+    const gen = ++operacionGenRef.current;
 
-      if (esErrorServicioConversacionNoDisponible(err)) {
-        setServicioDisponible(false);
-        setError('');
-      } else {
-        setError(mensajeErrorCargaConversacion(err));
+    if (modo === 'oferta') {
+      try {
+        const data = await fetchMensajesOferta(ofertaId);
+        if (gen !== operacionGenRef.current) return;
+
+        setMensajes(data);
+        setServicioDisponible(true);
+      } catch (err) {
+        if (gen !== operacionGenRef.current) return;
+
+        registrarErrorConversacion('actualizar', err);
+
+        if (esErrorInfraestructura(err)) {
+          setServicioDisponible(false);
+          setError('');
+        } else {
+          setError(mensajeErrorCarga(err));
+        }
+      }
+
+      return;
+    }
+
+    if (modo === 'conversacion') {
+      try {
+        const data = await fetchMensajesConversacion(conversacionId);
+        if (gen !== operacionGenRef.current) return;
+
+        setMensajes((prev) => mergeMensajes(prev, data));
+        setServicioDisponible(true);
+      } catch (err) {
+        if (gen !== operacionGenRef.current) return;
+
+        registrarErrorConversacion('actualizar', err);
+
+        if (esErrorInfraestructura(err)) {
+          setServicioDisponible(false);
+          setError('');
+        } else {
+          setError(mensajeErrorCarga(err));
+        }
       }
     }
-  }, [ofertaId]);
+  }, [
+    configuracionInvalida,
+    conversacionId,
+    esErrorInfraestructura,
+    mensajeErrorCarga,
+    modo,
+    ofertaId,
+  ]);
 
   useEffect(() => {
+    if (configuracionInvalida) {
+      setCargando(false);
+      setError(ERROR_CONFIGURACION);
+      return;
+    }
+
     cargarYMarcarLeidos();
-  }, [cargarYMarcarLeidos]);
+  }, [cargarYMarcarLeidos, configuracionInvalida]);
 
   useEffect(() => {
-    if (!ofertaId) return undefined;
+    if (configuracionInvalida || !modo) return undefined;
 
-    return subscribeMensajesOferta(ofertaId, () => {
-      cargarYMarcarLeidos();
-    });
-  }, [cargarYMarcarLeidos, ofertaId]);
+    if (modo === 'oferta') {
+      return subscribeMensajesOferta(ofertaId, () => {
+        cargarYMarcarLeidos();
+      });
+    }
+
+    if (modo === 'conversacion') {
+      return subscribeMensajesConversacion(conversacionId, () => {
+        cargarYMarcarLeidos();
+      });
+    }
+
+    return undefined;
+  }, [
+    cargarYMarcarLeidos,
+    configuracionInvalida,
+    conversacionId,
+    modo,
+    ofertaId,
+    recargarSinMarcar,
+  ]);
 
   useEffect(() => {
     if (!cargando) {
@@ -120,26 +431,83 @@ export default function OfertaConversacion({
 
   const handleEnviar = async () => {
     const valor = texto.trim();
-    if (!valor || enviandoRef.current || !servicioDisponible) return;
+
+    if (
+      !valor ||
+      soloLectura ||
+      enviandoRef.current ||
+      !servicioDisponible ||
+      configuracionInvalida ||
+      !modo
+    ) {
+      return;
+    }
 
     enviandoRef.current = true;
     setEnviando(true);
     setError('');
 
     try {
-      await enviarMensajeOferta(ofertaId, valor);
-      setTexto('');
-      setAdvertenciaContacto('');
-      await recargarSinMarcar();
-      scrollAlFinal();
+      if (modo === 'oferta') {
+        await enviarMensajeOferta(ofertaId, valor);
+        setTexto('');
+        setAdvertenciaContacto('');
+        await recargarSinMarcar();
+        scrollAlFinal();
+        return;
+      }
+
+      if (modo === 'conversacion') {
+        const resultado = await enviarMensajeConversacion(
+          conversacionId,
+          valor
+        );
+
+        setTexto('');
+        setAdvertenciaContacto('');
+
+        if (resultado.mensaje) {
+          setMensajes((prev) =>
+            mergeMensajes(prev, [resultado.mensaje])
+          );
+        } else {
+          await recargarSinMarcar();
+        }
+
+        scrollAlFinal();
+        return;
+      }
+
+      if (modo === 'solicitud') {
+        const resultado = await enviarMensajeConversacionSolicitud(
+          listasComprasId,
+          valor
+        );
+
+        setTexto('');
+        setAdvertenciaContacto('');
+
+        if (resultado.mensaje) {
+          setMensajes((prev) =>
+            mergeMensajes(prev, [resultado.mensaje])
+          );
+        }
+
+        if (resultado.conversacion_id) {
+          omitirCargaTrasCreacionRef.current = true;
+          onConversacionCreada?.(resultado.conversacion_id);
+        }
+
+        scrollAlFinal();
+      }
     } catch (err) {
       registrarErrorConversacion('enviar', err);
 
-      if (esErrorServicioConversacionNoDisponible(err)) {
+      if (esErrorInfraestructura(err)) {
         setServicioDisponible(false);
         setError('');
       } else {
-        setError(mensajeErrorEnvioConversacion(err));
+        setError(mensajeErrorEnvio(err));
       }
     } finally {
       setEnviando(false);
@@ -160,6 +528,18 @@ export default function OfertaConversacion({
     return participanteLabel;
   };
 
+  const mensajeServicioNoDisponible =
+    modo === 'oferta'
+      ? 'El servicio de conversación aún no está disponible.'
+      : 'El chat pre-oferta aún no está habilitado.';
+
+  const inputDeshabilitado =
+    soloLectura ||
+    enviando ||
+    !servicioDisponible ||
+    configuracionInvalida ||
+    !modo;
+
   return (
     <div
       id={panelId}
@@ -171,12 +551,12 @@ export default function OfertaConversacion({
       </div>
 
       <div ref={historialRef} style={palette.historial}>
-        {cargando ? (
+        {configuracionInvalida ? (
+          <p style={palette.estadoTexto}>{ERROR_CONFIGURACION}</p>
+        ) : cargando ? (
           <p style={palette.estadoTexto}>Cargando conversación…</p>
         ) : !servicioDisponible ? (
-          <p style={palette.estadoTexto}>
-            El servicio de conversación aún no está disponible.
-          </p>
+          <p style={palette.estadoTexto}>{mensajeServicioNoDisponible}</p>
         ) : mensajes.length === 0 ? (
           <p style={palette.estadoTexto}>
             Aún no hay mensajes. Escribe para iniciar la conversación.
@@ -213,7 +593,7 @@ export default function OfertaConversacion({
         )}
       </div>
 
-      {!adjudicada && (
+      {!soloLectura && !adjudicada && (
         <p style={palette.avisoContacto}>{AVISO_CONTACTO}</p>
       )}
 
@@ -223,31 +603,37 @@ export default function OfertaConversacion({
 
       {error && <p style={palette.error}>{error}</p>}
 
-      <div style={palette.inputRow}>
-        <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onClick={(e) => e.stopPropagation()}
-          placeholder="Escribe un mensaje…"
-          rows={2}
-          style={palette.textarea}
-          disabled={enviando || !servicioDisponible}
-        />
-        <button
-          type="button"
-          onClick={handleEnviar}
-          disabled={enviando || !servicioDisponible || !texto.trim()}
-          style={{
-            ...palette.enviarBtn,
-            ...(enviando || !servicioDisponible || !texto.trim()
-              ? palette.enviarBtnDisabled
-              : {}),
-          }}
-        >
-          {enviando ? '…' : 'Enviar'}
-        </button>
-      </div>
+      {soloLectura && mensajeCierre && (
+        <p style={palette.avisoCierre}>{mensajeCierre}</p>
+      )}
+
+      {!soloLectura && (
+        <div style={palette.inputRow}>
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Escribe un mensaje…"
+            rows={2}
+            style={palette.textarea}
+            disabled={inputDeshabilitado}
+          />
+          <button
+            type="button"
+            onClick={handleEnviar}
+            disabled={inputDeshabilitado || !texto.trim()}
+            style={{
+              ...palette.enviarBtn,
+              ...(inputDeshabilitado || !texto.trim()
+                ? palette.enviarBtnDisabled
+                : {}),
+            }}
+          >
+            {enviando ? '…' : 'Enviar'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -342,6 +728,13 @@ const darkStyles = {
     color: 'rgba(255,255,255,0.55)',
     fontSize: '10px',
     lineHeight: 1.4,
+  },
+  avisoCierre: {
+    margin: '10px 0 0',
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: '11px',
+    lineHeight: 1.45,
+    fontStyle: 'italic',
   },
   advertencia: {
     margin: '6px 0 0',
@@ -443,6 +836,10 @@ const lightStyles = {
   avisoContacto: {
     ...darkStyles.avisoContacto,
     color: '#8a94a6',
+  },
+  avisoCierre: {
+    ...darkStyles.avisoCierre,
+    color: '#65758b',
   },
   textarea: {
     ...darkStyles.textarea,

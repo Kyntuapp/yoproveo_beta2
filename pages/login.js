@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { Eye, EyeOff } from 'lucide-react';
+import { navegarTrasAutenticacion } from '../utils/aceptacionesLegales';
 
 export default function Login() {
   const router = useRouter();
@@ -32,9 +33,16 @@ export default function Login() {
         password,
       });
 
-      if (error || !data?.user) {
+      if (error || !data?.user || !data?.session) {
         console.warn('Error de login:', error);
-        setErrorMessage('Correo o contraseña incorrectos');
+        const msg = error?.message?.toLowerCase() ?? '';
+        if (msg.includes('confirm')) {
+          setErrorMessage('Debes confirmar tu correo antes de iniciar sesión.');
+        } else if (error?.message) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage('Correo o contraseña incorrectos');
+        }
         setLoading(false);
         return;
       }
@@ -46,25 +54,14 @@ export default function Login() {
       localStorage.setItem('login_time', Date.now().toString());
       localStorage.setItem('last_activity', Date.now().toString());
 
-      const { data: perfiles, error: perfilesError } = await supabase
-        .from('perfiles')
-        .select('tipo')
-        .eq('email', normalizedEmail);
+      const navegacion = await navegarTrasAutenticacion(
+        supabase,
+        router,
+        normalizedEmail
+      );
 
-      if (perfilesError) {
-        setErrorMessage('Error al obtener perfiles.');
-        setLoading(false);
-        return;
-      }
-
-      const tiposUnicos = [...new Set(perfiles.map((p) => p.tipo))];
-
-      if (tiposUnicos.length === 1) {
-        router.push(`/${tiposUnicos[0]}`);
-      } else if (tiposUnicos.length > 1) {
-        router.push('/seleccionar-perfil');
-      } else {
-        setErrorMessage('No tienes perfiles asignados.');
+      if (!navegacion.ok) {
+        setErrorMessage(navegacion.message || 'No fue posible continuar.');
       }
     } catch (err) {
       console.error(err);

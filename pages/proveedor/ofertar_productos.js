@@ -1,12 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
+import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
+import {
+  fetchSolicitudesAdjudicadasIds,
+  resolverConversacionesPorSolicitudes,
+} from '../../lib/ofertaMensajes';
+import Tooltip from '../../components/Tooltip';
 
 const VISTA_STORAGE_KEY = 'kyntu_proveedor_vista_ofertas';
-const MOBILE_BREAKPOINT = 820;
+
+const MENSAJE_AYUDA_OFERTA =
+  'Debes ofertar por el total de productos solicitados';
+
+const FILTROS_INICIALES = {
+  producto: '',
+  marca: '',
+  comuna: '',
+};
 
 function formatearFechaCorta(fecha) {
   if (!fecha) return '—';
@@ -19,6 +33,15 @@ function formatearFechaCorta(fecha) {
   const yyyy = d.getFullYear();
 
   return `${dd}-${mm}-${yyyy}`;
+}
+
+function puedeMostrarChatSolicitud(item) {
+  return item.solicitud_abierta !== false;
+}
+
+function etiquetaChatSolicitud(conversacionId, chatAbierto) {
+  if (chatAbierto) return 'Ocultar chat';
+  return conversacionId ? 'Ver conversación' : 'Conversar';
 }
 
 function leerVistaPreferida() {
@@ -67,35 +90,23 @@ function normalizarFormatosItem(item) {
   ];
 }
 
-function expandirItemsNormalizados(listasItems) {
-  return listasItems.flatMap((item) => {
-    const formatos = normalizarFormatosItem(item);
-    const totalFormatos = formatos.length;
+const LISTA_GRID_COLUMNS =
+  'minmax(150px, 1.5fr) minmax(80px, 0.7fr) minmax(65px, 0.5fr) minmax(100px, 0.8fr) minmax(140px, 1.2fr) minmax(110px, 0.9fr) minmax(85px, 0.7fr) minmax(145px, 1fr) minmax(95px, 0.7fr) minmax(130px, 0.9fr)';
 
-    return formatos.map((fmt, fmtIndex) => ({
-      rowKey: `${item.id}-${fmtIndex}`,
-      itemId: item.id,
-      esPrimeraFilaFormato: fmtIndex === 0,
-      totalFormatos,
-      producto: item.producto,
-      marca: item.marca,
-      formato: fmt.formato,
-      cantidad: fmt.cantidad,
-      precio: fmt.precio,
-      detalle_pedido: fmt.detalle_pedido,
-      comuna: item.comuna_despacho,
-      comprador_email: item.comprador_email,
-      fecha: item.fecha_creacion,
-      fecha_cierre: item.fecha_cierre,
-      estado: item.estado,
-      estado_oferta: item.estado_oferta,
-      ya_oferto: item.ya_oferto,
-      oferta: item.oferta,
-      incluye_despacho: item.incluye_despacho,
-      tiempo_despacho_horas: item.tiempo_despacho_horas,
-      usuario_id: item.usuario_id,
-    }));
-  });
+function DetallePedidoCelda({ detalle }) {
+  if (!detalle) {
+    return <span style={styles.detalleEmpty}>—</span>;
+  }
+
+  return (
+    <span
+      className="kyntu-detalleCelda"
+      style={styles.detalleCelda}
+      title={detalle}
+    >
+      {detalle}
+    </span>
+  );
 }
 
 function DetallePedidoBloque({ detalle }) {
@@ -115,22 +126,6 @@ function DetallePedidoBloque({ detalle }) {
         {detalle}
       </p>
     </div>
-  );
-}
-
-function DetallePedidoCelda({ detalle }) {
-  if (!detalle) {
-    return <span style={styles.detalleEmpty}>—</span>;
-  }
-
-  return (
-    <span
-      className="kyntu-detalleCelda"
-      style={styles.detalleCelda}
-      title={detalle}
-    >
-      {detalle}
-    </span>
   );
 }
 
@@ -169,10 +164,24 @@ function BloqueOferta({
     );
   }
 
+  const ayudaOfertaId = `ayuda-oferta-${fila.itemId}`;
+
   return (
     <div className="kyntu-offerHighlight" style={boxStyle}>
       <div style={styles.offerBlockHeader}>
-        <span style={styles.offerBlockTitle}>Tu oferta</span>
+        <div style={styles.offerBlockTitleRow}>
+          <span style={styles.offerBlockTitle}>Tu oferta</span>
+
+          <Tooltip label={MENSAJE_AYUDA_OFERTA}>
+            <button
+              type="button"
+              aria-label={`Ayuda: ${MENSAJE_AYUDA_OFERTA}`}
+              style={styles.offerHelpButton}
+            >
+              ⓘ
+            </button>
+          </Tooltip>
+        </div>
 
         {!compacto && (
           <span style={styles.offerBlockHint}>
@@ -187,6 +196,10 @@ function BloqueOferta({
         </span>
       )}
 
+      <span id={ayudaOfertaId} style={styles.srOnly}>
+        {MENSAJE_AYUDA_OFERTA}
+      </span>
+
       <label htmlFor={inputId} style={styles.srOnly}>
         Ingresar monto total de la oferta
       </label>
@@ -198,6 +211,7 @@ function BloqueOferta({
         onChange={(e) => onChange(fila.itemId, e.target.value)}
         placeholder="Monto total"
         aria-label="Ingresar monto total de la oferta"
+        aria-describedby={ayudaOfertaId}
         className="kyntu-offerInput"
         style={
           compacto
@@ -209,11 +223,7 @@ function BloqueOferta({
   );
 }
 
-function SelectorVista({
-  vista,
-  onChange,
-  deshabilitarLista,
-}) {
+function SelectorVista({ vista, onChange }) {
   return (
     <div
       className="kyntu-viewToggle"
@@ -229,14 +239,10 @@ function SelectorVista({
           ...(vista === 'lista'
             ? styles.viewToggleBtnActive
             : {}),
-          ...(deshabilitarLista
-            ? styles.viewToggleBtnDisabled
-            : {}),
         }}
         aria-label="Ver como lista"
         aria-pressed={vista === 'lista'}
         title="Ver como lista"
-        disabled={deshabilitarLista}
         onClick={() => onChange('lista')}
       >
         ☰ Lista
@@ -262,21 +268,384 @@ function SelectorVista({
   );
 }
 
+function ListaColumnHeader() {
+  return (
+    <div
+      className="kyntu-listaHeaderGrid"
+      style={styles.listaHeaderGrid}
+      aria-hidden="true"
+    >
+      <div style={styles.listaHeaderCell}>Producto</div>
+      <div style={styles.listaHeaderCell}>Formato</div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Cantidad
+      </div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Precio referencia
+      </div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Detalle del pedido
+      </div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Comuna
+      </div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Fecha
+      </div>
+      <div style={styles.listaHeaderCell}>Tu oferta</div>
+      <div
+        className="kyntu-col-secondary"
+        style={styles.listaHeaderCell}
+      >
+        Despacho
+      </div>
+      <div style={styles.listaHeaderCell}>Acción</div>
+    </div>
+  );
+}
+
+function SolicitudListaRowCard({
+  item,
+  detalleContactoId,
+  authUserId,
+  chatAbiertoSolicitudId,
+  onToggleChatSolicitud,
+  conversacionId,
+  onConversacionDetectada,
+  onToggleContacto,
+  onChangeOferta,
+  onDespacho,
+  onTiempoDespacho,
+  onOfertar,
+  formatearNumero,
+}) {
+  const formatos = normalizarFormatosItem(item);
+  const totalFormatos = formatos.length;
+  const filaOferta = {
+    ...item,
+    itemId: item.id,
+  };
+
+  const puedeOfertar =
+    !item.ya_oferto &&
+    item.estado !== 'cerrada';
+  const esConfirmada =
+    item.estado_oferta === 'confirmada';
+  const chatAbierto = chatAbiertoSolicitudId === item.id;
+  const puedeMostrarChat = puedeMostrarChatSolicitud(item);
+  const rowSpanEnd = totalFormatos + 1;
+
+  return (
+    <article
+      className="kyntu-solicitudRowCard"
+      style={styles.solicitudRowCard}
+    >
+      <div
+        className="kyntu-listaRowGrid"
+        style={{
+          ...styles.listaRowGrid,
+          gridTemplateRows: `repeat(${totalFormatos}, auto)`,
+        }}
+      >
+        <div
+          style={{
+            ...styles.listaCell,
+            ...styles.listaProductCell,
+            gridColumn: 1,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          <strong style={styles.tableProductName}>
+            {item.producto || '—'}
+          </strong>
+          <span style={styles.tableProductBrand}>
+            Marca: {item.marca || '—'}
+          </span>
+        </div>
+
+        {formatos.map((formato, fmtIndex) => {
+          const filaNum = fmtIndex + 1;
+
+          return (
+            <React.Fragment key={`${item.id}-fmt-${fmtIndex}`}>
+              <div
+                style={{
+                  ...styles.listaCell,
+                  gridColumn: 2,
+                  gridRow: filaNum,
+                }}
+              >
+                {formato.formato || '—'}
+              </div>
+
+              <div
+                className="kyntu-col-secondary"
+                style={{
+                  ...styles.listaCell,
+                  gridColumn: 3,
+                  gridRow: filaNum,
+                }}
+              >
+                {formato.cantidad ?? '—'}
+              </div>
+
+              <div
+                className="kyntu-col-secondary"
+                style={{
+                  ...styles.listaCell,
+                  gridColumn: 4,
+                  gridRow: filaNum,
+                }}
+              >
+                {formato.precio !== '' &&
+                formato.precio !== null &&
+                formato.precio !== undefined
+                  ? `$${formatearNumero(formato.precio)}`
+                  : '—'}
+              </div>
+
+              <div
+                className="kyntu-col-secondary"
+                style={{
+                  ...styles.listaCell,
+                  ...styles.listaDetailCell,
+                  gridColumn: 5,
+                  gridRow: filaNum,
+                }}
+              >
+                <DetallePedidoCelda
+                  detalle={formato.detalle_pedido}
+                />
+              </div>
+            </React.Fragment>
+          );
+        })}
+
+        <div
+          className="kyntu-col-secondary"
+          style={{
+            ...styles.listaCell,
+            gridColumn: 6,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          {item.comuna_despacho || '—'}
+        </div>
+
+        <div
+          className="kyntu-col-secondary"
+          style={{
+            ...styles.listaCell,
+            gridColumn: 7,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          {formatearFechaCorta(item.fecha_creacion)}
+        </div>
+
+        <div
+          style={{
+            ...styles.listaCell,
+            ...styles.listaOfferCell,
+            gridColumn: 8,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          <BloqueOferta
+            fila={filaOferta}
+            variant="lista"
+            onChange={onChangeOferta}
+            formatearNumero={formatearNumero}
+          />
+        </div>
+
+        <div
+          className="kyntu-col-secondary"
+          style={{
+            ...styles.listaCell,
+            ...styles.listaDeliveryCell,
+            gridColumn: 9,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          {item.ya_oferto || item.estado === 'cerrada' ? (
+            <span style={styles.metaValue}>No</span>
+          ) : (
+            <div style={styles.deliveryBoxCompact}>
+              <label style={styles.checkLabelCompact}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(item.incluye_despacho)}
+                  onChange={(e) =>
+                    onDespacho(item.id, e.target.checked)
+                  }
+                  style={styles.checkbox}
+                />
+                Incluye despacho
+              </label>
+
+              {item.incluye_despacho && (
+                <select
+                  value={item.tiempo_despacho_horas || ''}
+                  onChange={(e) =>
+                    onTiempoDespacho(
+                      item.id,
+                      e.target.value
+                    )
+                  }
+                  className="kyntu-select"
+                  style={styles.selectCompact}
+                >
+                  <option value="">Tiempo</option>
+                  <option value="24">24 h</option>
+                  <option value="48">48 h</option>
+                  <option value="72">72 h</option>
+                  <option value="96">72+ h</option>
+                </select>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            ...styles.listaCell,
+            ...styles.listaActionCell,
+            gridColumn: 10,
+            gridRow: `1 / ${rowSpanEnd}`,
+          }}
+        >
+          <div
+            className="kyntu-actionButtons"
+            style={styles.actionButtonsStack}
+          >
+            {puedeMostrarChat && (
+              <button
+                type="button"
+                onClick={() => onToggleChatSolicitud(item.id)}
+                className="kyntu-chatButton"
+                style={styles.chatButtonSmall}
+              >
+                {etiquetaChatSolicitud(conversacionId, chatAbierto)}
+              </button>
+            )}
+
+            {esConfirmada ? (
+              <button
+                type="button"
+                onClick={() => onToggleContacto(item.id)}
+                className="kyntu-smallButton"
+                style={styles.smallButton}
+              >
+                {detalleContactoId === item.id
+                  ? 'Ocultar contacto'
+                  : 'Ver contacto'}
+              </button>
+            ) : puedeOfertar ? (
+              <button
+                type="button"
+                onClick={() => onOfertar(item.id)}
+                className="kyntu-mainButtonSmall"
+                style={styles.mainButtonSmall}
+              >
+                Enviar oferta
+              </button>
+            ) : (
+              <span style={styles.emptyAction}>
+                No disponible
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {authUserId && (
+        <OfertaConversacionContenedor
+          listasComprasId={item.id}
+          authUserId={authUserId}
+          chatAbierto={chatAbierto && puedeMostrarChat}
+          onToggleChat={onToggleChatSolicitud}
+          onConversacionDetectada={onConversacionDetectada}
+          participanteLabel="Comprador"
+          tooltipChat="Hablar con el comprador"
+          variant="light"
+          ocultarBarra
+        />
+      )}
+
+      {esConfirmada &&
+        detalleContactoId === item.id && (
+          <div style={styles.listaContactPanel}>
+            <div style={styles.contactBox}>
+              <strong>Datos de contacto</strong>
+
+              <div style={styles.contactText}>
+                <p>
+                  <strong>Correo:</strong>{' '}
+                  {item.comprador_email}
+                </p>
+
+                <p>
+                  <strong>Precio aceptado:</strong> $
+                  {formatearNumero(item.oferta)}
+                </p>
+
+                <p>
+                  <strong>Dirección de despacho:</strong>{' '}
+                  {item.comuna_despacho}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+    </article>
+  );
+}
+
 export default function OfertarProductos() {
   const [listas, setListas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [proveedorPerfilId, setProveedorPerfilId] =
     useState(null);
+  const [authUserId, setAuthUserId] = useState(null);
+  const [chatAbiertoSolicitudId, setChatAbiertoSolicitudId] =
+    useState(null);
+  const [conversacionesPorSolicitud, setConversacionesPorSolicitud] =
+    useState({});
+
+  const handleConversacionDetectada = useCallback(
+    (solicitudId, conversacionId) => {
+      setConversacionesPorSolicitud((prev) => {
+        const siguiente = conversacionId || null;
+
+        if (prev[solicitudId] === siguiente) return prev;
+
+        return {
+          ...prev,
+          [solicitudId]: siguiente,
+        };
+      });
+    },
+    []
+  );
 
   const [filtros, setFiltros] = useState({
-    producto: '',
-    formato: '',
-    marca: '',
-    cantidad: '',
-    precio: '',
-    comuna: '',
-    fecha: '',
-    estado: '',
+    ...FILTROS_INICIALES,
   });
 
   const [paginaActual, setPaginaActual] = useState(1);
@@ -284,8 +653,6 @@ export default function OfertarProductos() {
     useState(null);
 
   const [vista, setVista] = useState('lista');
-  const [vistaLista, setVistaLista] = useState(true);
-  const [esMobile, setEsMobile] = useState(false);
 
   const itemsPorPagina = 20;
   const router = useRouter();
@@ -300,44 +667,27 @@ export default function OfertarProductos() {
     }
   }, [vista]);
 
-  useEffect(() => {
-    const evaluarViewport = () => {
-      const mobile =
-        window.innerWidth <= MOBILE_BREAKPOINT;
-
-      setEsMobile(mobile);
-      setVistaLista(!mobile);
-    };
-
-    evaluarViewport();
-
-    window.addEventListener(
-      'resize',
-      evaluarViewport
-    );
-
-    return () =>
-      window.removeEventListener(
-        'resize',
-        evaluarViewport
-      );
-  }, []);
-
-  const vistaEfectiva =
-    esMobile || !vistaLista
-      ? 'cuadricula'
-      : vista;
-
   const cambiarVista = (nuevaVista) => {
-    if (
-      nuevaVista === 'lista' &&
-      !vistaLista
-    ) {
-      return;
-    }
-
     setVista(nuevaVista);
   };
+
+  const toggleChatSolicitud = (listasComprasId) => {
+    setChatAbiertoSolicitudId((prev) =>
+      prev === listasComprasId ? null : listasComprasId
+    );
+  };
+
+  useEffect(() => {
+    if (!router.isReady || router.query?.notif !== 'chat') return;
+
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (!listIdParam) return;
+
+    setChatAbiertoSolicitudId(listIdParam);
+  }, [router.isReady, router.query]);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -375,6 +725,8 @@ export default function OfertarProductos() {
       setProveedorPerfilId(
         perfilProv.id
       );
+
+      setAuthUserId(userData.user.id);
 
       const {
         data: listasData,
@@ -526,6 +878,10 @@ export default function OfertarProductos() {
             ])
         );
 
+      const listaIdsEnriquecer = listasAjenas.map((item) => item.id);
+      const solicitudesAdjudicadas =
+        await fetchSolicitudesAdjudicadasIds(listaIdsEnriquecer);
+
       const enriquecida =
         listasAjenas
           .map((item) => {
@@ -548,8 +904,23 @@ export default function OfertarProductos() {
                   item.id
               );
 
+            const estadoLista = item.lista_id
+              ? estadoPorLista[item.lista_id] ?? null
+              : 'publicada';
+            const solicitudAdjudicada = solicitudesAdjudicadas.has(
+              String(item.id)
+            );
+            const solicitudAbierta =
+              !solicitudAdjudicada &&
+              (!item.lista_id ||
+                estadoPorLista[item.lista_id] === 'publicada');
+
             return {
               ...item,
+
+              estado: estadoLista,
+              solicitud_abierta: solicitudAbierta,
+              solicitud_adjudicada: solicitudAdjudicada,
 
               comprador_email:
                 item.comprador_email ||
@@ -578,9 +949,16 @@ export default function OfertarProductos() {
           })
           .filter(
             (item) =>
-              !item.ya_oferto
+              !item.ya_oferto && !item.solicitud_adjudicada
           );
 
+      const conversacionesMap =
+        await resolverConversacionesPorSolicitudes(
+          enriquecida.map((item) => item.id),
+          perfilProv.id
+        );
+
+      setConversacionesPorSolicitud(conversacionesMap);
       setListas(enriquecida);
     };
 
@@ -720,6 +1098,18 @@ export default function OfertarProductos() {
     ) {
       alert(
         'Selecciona el tiempo de despacho.'
+      );
+
+      return;
+    }
+
+    if (producto.solicitud_adjudicada) {
+      alert(
+        'Esta solicitud ya fue adjudicada y no admite nuevas ofertas.'
+      );
+
+      setListas((prev) =>
+        prev.filter((item) => item.id !== producto.id)
       );
 
       return;
@@ -961,118 +1351,168 @@ export default function OfertarProductos() {
   ) => {
     setFiltros((prev) => ({
       ...prev,
-      [campo]:
-        valor.toUpperCase(),
+      [campo]: valor,
     }));
 
     setPaginaActual(1);
   };
 
-  const obtenerEstado = (
-    item
-  ) => {
-    if (
-      item.estado ===
-      'cerrada'
-    ) {
-      return 'Cerrada';
-    }
-
-    switch (
-      item.estado_oferta
-    ) {
-      case 'confirmada':
-        return 'Confirmada';
-
-      case 'en_espera_confirmacion':
-        return 'En espera de confirmación';
-
-      case 'rechazada':
-        return 'Rechazada';
-
-      case 'pendiente':
-      case null:
-      case undefined:
-        if (item.ya_oferto) {
-          return 'Oferta enviada';
-        }
-
-        break;
-
-      default:
-        if (item.ya_oferto) {
-          return 'Oferta enviada';
-        }
-    }
-
-    return 'Recibiendo ofertas';
+  const limpiarFiltros = () => {
+    setFiltros({
+      ...FILTROS_INICIALES,
+    });
+    setPaginaActual(1);
   };
+
+  const quitarFiltro = (campo) => {
+    setFiltros((prev) => ({
+      ...prev,
+      [campo]: '',
+    }));
+    setPaginaActual(1);
+  };
+
+  const marcasUnicas = useMemo(() => {
+    const mapa = new Map();
+
+    listas.forEach((item) => {
+      const valor = (item.marca || '')
+        .toString()
+        .trim();
+
+      if (!valor) {
+        return;
+      }
+
+      const clave = normalizarTexto(valor);
+
+      if (!mapa.has(clave)) {
+        mapa.set(clave, valor);
+      }
+    });
+
+    return Array.from(mapa.values()).sort(
+      (a, b) =>
+        normalizarTexto(a).localeCompare(
+          normalizarTexto(b)
+        )
+    );
+  }, [listas]);
+
+  const comunasUnicas = useMemo(() => {
+    const mapa = new Map();
+
+    listas.forEach((item) => {
+      const valor = (item.comuna_despacho || '')
+        .toString()
+        .trim();
+
+      if (!valor) {
+        return;
+      }
+
+      const clave = normalizarTexto(valor);
+
+      if (!mapa.has(clave)) {
+        mapa.set(clave, valor);
+      }
+    });
+
+    return Array.from(mapa.values()).sort(
+      (a, b) =>
+        normalizarTexto(a).localeCompare(
+          normalizarTexto(b)
+        )
+    );
+  }, [listas]);
+
   const listasFiltradas = useMemo(() => {
-  return listas.filter((item) => {
-    const coincideProducto = normalizarTexto(item.producto).includes(
-      normalizarTexto(filtros.producto)
+    const terminoProducto = normalizarTexto(
+      filtros.producto
+    );
+    const terminoMarca = normalizarTexto(
+      filtros.marca
+    );
+    const terminoComuna = normalizarTexto(
+      filtros.comuna
     );
 
-    const coincideFormato = normalizarTexto(item.formato).includes(
-      normalizarTexto(filtros.formato)
-    );
+    return listas.filter((item) => {
+      const coincideProducto =
+        !terminoProducto ||
+        normalizarTexto(item.producto).includes(
+          terminoProducto
+        );
 
-    const coincideMarca = normalizarTexto(item.marca).includes(
-      normalizarTexto(filtros.marca)
-    );
+      const coincideMarca =
+        !terminoMarca ||
+        normalizarTexto(item.marca) ===
+          terminoMarca;
 
-    const coincideCantidad = String(item.cantidad ?? "").includes(
-      filtros.cantidad
-    );
+      const coincideComuna =
+        !terminoComuna ||
+        normalizarTexto(
+          item.comuna_despacho
+        ) === terminoComuna;
 
-    const coincidePrecio = String(item.precio ?? "").includes(
-      filtros.precio
-    );
-
-    const coincideComuna = normalizarTexto(
-      item.comuna_despacho
-    ).includes(normalizarTexto(filtros.comuna));
-
-    const fechaTexto = item.fecha_creacion
-      ? formatearFechaCorta(item.fecha_creacion)
-      : "";
-
-    const coincideFecha = fechaTexto.includes(filtros.fecha);
-
-    const estado = obtenerEstado(item);
-
-    const coincideEstado =
-      !filtros.estado ||
-      normalizarTexto(estado).includes(
-        normalizarTexto(filtros.estado)
+      return (
+        coincideProducto &&
+        coincideMarca &&
+        coincideComuna
       );
+    });
+  }, [listas, filtros]);
 
-    return (
-      coincideProducto &&
-      coincideFormato &&
-      coincideMarca &&
-      coincideCantidad &&
-      coincidePrecio &&
-      coincideComuna &&
-      coincideFecha &&
-      coincideEstado
-    );
-  });
-}, [listas, filtros]);
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(
+      listasFiltradas.length / itemsPorPagina
+    )
+  );
 
-const filas = useMemo(
-  () => expandirItemsNormalizados(listasFiltradas),
-  [listasFiltradas]
-);
+  const listasPaginadas = listasFiltradas.slice(
+    (paginaActual - 1) * itemsPorPagina,
+    paginaActual * itemsPorPagina
+  );
 
-const totalPaginas = Math.ceil(
-  filas.length / itemsPorPagina
-);
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
 
-const filasPaginadas = filas.slice(
-  (paginaActual - 1) * itemsPorPagina,
-  paginaActual * itemsPorPagina
-);
+  const filtrosActivos = useMemo(() => {
+    const chips = [];
+
+    if (filtros.producto.trim()) {
+      chips.push({
+        key: 'producto',
+        label: 'Producto',
+        value: filtros.producto.trim(),
+      });
+    }
+
+    if (filtros.marca.trim()) {
+      chips.push({
+        key: 'marca',
+        label: 'Marca',
+        value: filtros.marca.trim(),
+      });
+    }
+
+    if (filtros.comuna.trim()) {
+      chips.push({
+        key: 'comuna',
+        label: 'Comuna',
+        value: filtros.comuna.trim(),
+      });
+    }
+
+    return chips;
+  }, [filtros]);
+
+  const hayFiltrosActivos =
+    filtrosActivos.length > 0;
 
 const cambiarPagina = (numero) => {
   if (
@@ -1146,629 +1586,240 @@ return (
         </div>
 
         <SelectorVista
-          vista={vistaEfectiva}
+          vista={vista}
           onChange={cambiarVista}
-          deshabilitarLista={!vistaLista}
         />
       </section>
             <section
         className="kyntu-filterCard"
         style={styles.filterCard}
       >
-        <div style={styles.filterHeader}>
-          <div>
-            <h2 style={styles.filterTitle}>
-              Filtros
-            </h2>
+        <div
+          className="kyntu-filterToolbar"
+          style={styles.filterToolbar}
+        >
+          <div
+            className="kyntu-filterFieldsGrid"
+            style={styles.filterFieldsGrid}
+          >
+            <div style={styles.filterGroup}>
+              <label
+                htmlFor="filtro-producto"
+                style={styles.filterFieldLabel}
+              >
+                Producto
+              </label>
 
-            <p style={styles.filterSubtitle}>
-              Encuentra rápidamente las solicitudes
-              que te interesan.
-            </p>
+              <input
+                id="filtro-producto"
+                type="search"
+                style={styles.filterInput}
+                placeholder="Buscar producto"
+                value={filtros.producto}
+                onChange={(e) =>
+                  manejarCambioFiltro(
+                    'producto',
+                    e.target.value
+                  )
+                }
+                aria-label="Buscar producto"
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label
+                htmlFor="filtro-marca"
+                style={styles.filterFieldLabel}
+              >
+                Marca
+              </label>
+
+              <select
+                id="filtro-marca"
+                style={styles.filterSelect}
+                value={filtros.marca}
+                onChange={(e) =>
+                  manejarCambioFiltro(
+                    'marca',
+                    e.target.value
+                  )
+                }
+                aria-label="Filtrar por marca"
+              >
+                <option value="">
+                  Todas las marcas
+                </option>
+
+                {marcasUnicas.map((marca) => (
+                  <option
+                    key={marca}
+                    value={marca}
+                  >
+                    {marca}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label
+                htmlFor="filtro-comuna"
+                style={styles.filterFieldLabel}
+              >
+                Comuna
+              </label>
+
+              <select
+                id="filtro-comuna"
+                style={styles.filterSelect}
+                value={filtros.comuna}
+                onChange={(e) =>
+                  manejarCambioFiltro(
+                    'comuna',
+                    e.target.value
+                  )
+                }
+                aria-label="Filtrar por comuna"
+              >
+                <option value="">
+                  Todas las comunas
+                </option>
+
+                {comunasUnicas.map((comuna) => (
+                  <option
+                    key={comuna}
+                    value={comuna}
+                  >
+                    {comuna}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <button
-            type="button"
-            style={styles.clearFiltersButton}
-            onClick={() => {
-              setFiltros({
-                producto: "",
-                formato: "",
-                marca: "",
-                cantidad: "",
-                precio: "",
-                comuna: "",
-                fecha: "",
-                estado: "",
-              });
+          {hayFiltrosActivos && (
+            <button
+              type="button"
+              className="kyntu-clearFiltersBtn"
+              style={styles.clearFiltersButton}
+              onClick={limpiarFiltros}
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
 
-              setPaginaActual(1);
-            }}
+        {hayFiltrosActivos && (
+          <div
+            className="kyntu-filterChips"
+            style={styles.filterChipsRow}
           >
-            Limpiar filtros
-          </button>
-        </div>
+            {filtrosActivos.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                style={styles.filterChip}
+                onClick={() =>
+                  quitarFiltro(chip.key)
+                }
+                aria-label={`Quitar filtro ${chip.label}: ${chip.value}`}
+              >
+                <span style={styles.filterChipText}>
+                  {chip.label}: {chip.value}
+                </span>
 
-        <div
-          className="kyntu-filterGrid"
-          style={styles.filterGrid}
-        >
-          <input
-            style={styles.filterInput}
-            placeholder="Producto"
-            value={filtros.producto}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "producto",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Formato"
-            value={filtros.formato}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "formato",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Marca"
-            value={filtros.marca}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "marca",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Cantidad"
-            value={filtros.cantidad}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "cantidad",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Precio"
-            value={filtros.precio}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "precio",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Comuna"
-            value={filtros.comuna}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "comuna",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Fecha"
-            value={filtros.fecha}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "fecha",
-                e.target.value
-              )
-            }
-          />
-
-          <input
-            style={styles.filterInput}
-            placeholder="Estado"
-            value={filtros.estado}
-            onChange={(e) =>
-              manejarCambioFiltro(
-                "estado",
-                e.target.value
-              )
-            }
-          />
-        </div>
+                <span
+                  style={styles.filterChipRemove}
+                  aria-hidden="true"
+                >
+                  ×
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
-            {vistaEfectiva === 'lista' ? (
-        <div
-          className="kyntu-tableWrapper"
-          style={styles.tableWrapper}
+            {vista === 'lista' ? (
+        <section
+          className="kyntu-listaSectionCard"
+          style={styles.listaSectionCard}
         >
-          <table
-            className="kyntu-table"
-            style={styles.table}
+          <div
+            className="kyntu-listaScrollWrap"
+            style={styles.listaScrollWrap}
           >
-            <thead>
-              <tr style={styles.tableHeadRow}>
-                <th style={styles.tableHeader}>
-                  Producto
-                </th>
+            <div
+              className="kyntu-listaInner"
+              style={styles.listaInner}
+            >
+              <ListaColumnHeader />
 
-                <th style={styles.tableHeader}>
-                  Formato
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Cantidad
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Precio referencia
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Detalle del pedido
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Comuna
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Fecha
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Días restantes
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Estado
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Tu oferta
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Despacho
-                </th>
-
-                <th style={styles.tableHeader}>
-                  Acción
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filasPaginadas.map((fila) => {
-                const estado =
-                  obtenerEstado(fila);
-
-                const puedeOfertar =
-                  !fila.ya_oferto &&
-                  fila.estado !==
-                    'cerrada';
-
-                const esConfirmada =
-                  fila.estado_oferta ===
-                  'confirmada';
-
-                return (
-                  <React.Fragment
-                    key={fila.rowKey}
-                  >
-                    <tr
-                      className="kyntu-tableRow"
-                      style={styles.tableRow}
-                    >
-                      {fila.esPrimeraFilaFormato && (
-                        <td
-                          rowSpan={
-                            fila.totalFormatos
-                          }
-                          style={{
-                            ...styles.tableCell,
-                            ...styles.productCell,
-                          }}
-                        >
-                          <strong
-                            style={
-                              styles.tableProductName
-                            }
-                          >
-                            {fila.producto ||
-                              '—'}
-                          </strong>
-
-                          <span
-                            style={
-                              styles.tableProductBrand
-                            }
-                          >
-                            Marca:{' '}
-                            {fila.marca ||
-                              '—'}
-                          </span>
-                        </td>
-                      )}
-
-                      <td
-                        style={
-                          styles.tableCell
-                        }
-                      >
-                        {fila.formato ||
-                          '—'}
-                      </td>
-
-                      <td
-                        style={
-                          styles.tableCell
-                        }
-                      >
-                        {fila.cantidad ??
-                          '—'}
-                      </td>
-
-                      <td
-                        style={
-                          styles.tableCell
-                        }
-                      >
-                        {fila.precio !==
-                          '' &&
-                        fila.precio !==
-                          null &&
-                        fila.precio !==
-                          undefined
-                          ? `$${formatearNumero(
-                              fila.precio
-                            )}`
-                          : '—'}
-                      </td>
-
-                      <td
-                        style={{
-                          ...styles.tableCell,
-                          ...styles.detailCell,
-                        }}
-                      >
-                        <DetallePedidoCelda
-                          detalle={
-                            fila.detalle_pedido
-                          }
-                        />
-                      </td>
-
-                      {fila.esPrimeraFilaFormato && (
-                        <>
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={
-                              styles.tableCell
-                            }
-                          >
-                            {fila.comuna ||
-                              '—'}
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={
-                              styles.tableCell
-                            }
-                          >
-                            {formatearFechaCorta(
-                              fila.fecha
-                            )}
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={{
-                              ...styles.tableCell,
-                              ...styles.centerCell,
-                            }}
-                          >
-                            {calcularDiasRestantes(
-                              fila.fecha_cierre
-                            )}
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={
-                              styles.tableCell
-                            }
-                          >
-                            <span
-                              style={getEstadoStyle(
-                                estado,
-                                true
-                              )}
-                            >
-                              {estado}
-                            </span>
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={{
-                              ...styles.tableCell,
-                              ...styles.offerTableCell,
-                            }}
-                          >
-                            <BloqueOferta
-                              fila={fila}
-                              variant="lista"
-                              onChange={
-                                manejarCambioOferta
-                              }
-                              formatearNumero={
-                                formatearNumero
-                              }
-                            />
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={{
-                              ...styles.tableCell,
-                              ...styles.deliveryTableCell,
-                            }}
-                          >
-                            {fila.ya_oferto ||
-                            fila.estado ===
-                              'cerrada' ? (
-                              <span
-                                style={
-                                  styles.metaValue
-                                }
-                              >
-                                No
-                              </span>
-                            ) : (
-                              <div
-                                style={
-                                  styles.deliveryBoxCompact
-                                }
-                              >
-                                <label
-                                  style={
-                                    styles.checkLabel
-                                  }
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={Boolean(
-                                      fila.incluye_despacho
-                                    )}
-                                    onChange={(
-                                      e
-                                    ) =>
-                                      manejarDespacho(
-                                        fila.itemId,
-                                        e.target
-                                          .checked
-                                      )
-                                    }
-                                    style={
-                                      styles.checkbox
-                                    }
-                                  />
-
-                                  {fila.incluye_despacho
-                                    ? 'Sí'
-                                    : 'No'}
-                                </label>
-
-                                {fila.incluye_despacho && (
-                                  <select
-                                    value={
-                                      fila.tiempo_despacho_horas ||
-                                      ''
-                                    }
-                                    onChange={(
-                                      e
-                                    ) =>
-                                      manejarTiempoDespacho(
-                                        fila.itemId,
-                                        e.target
-                                          .value
-                                      )
-                                    }
-                                    className="kyntu-select"
-                                    style={
-                                      styles.selectCompact
-                                    }
-                                  >
-                                    <option value="">
-                                      Plazo
-                                    </option>
-
-                                    <option value="24">
-                                      24 h
-                                    </option>
-
-                                    <option value="48">
-                                      48 h
-                                    </option>
-
-                                    <option value="72">
-                                      72 h
-                                    </option>
-
-                                    <option value="96">
-                                      72+ h
-                                    </option>
-                                  </select>
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          <td
-                            rowSpan={
-                              fila.totalFormatos
-                            }
-                            style={{
-                              ...styles.tableCell,
-                              ...styles.actionTableCell,
-                            }}
-                          >
-                            {esConfirmada ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDetalleContactoId(
-                                    detalleContactoId ===
-                                      fila.itemId
-                                      ? null
-                                      : fila.itemId
-                                  )
-                                }
-                                className="kyntu-smallButton"
-                                style={
-                                  styles.smallButton
-                                }
-                              >
-                                Ver contacto
-                              </button>
-                            ) : puedeOfertar ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  ofertarProducto(
-                                    fila.itemId
-                                  )
-                                }
-                                className="kyntu-mainButtonSmall"
-                                style={
-                                  styles.mainButtonSmall
-                                }
-                              >
-                                Enviar oferta
-                              </button>
-                            ) : (
-                              <span
-                                style={
-                                  styles.emptyAction
-                                }
-                              >
-                                No disponible
-                              </span>
-                            )}
-                          </td>
-                        </>
-                      )}
-                    </tr>
-
-                    {fila.esPrimeraFilaFormato &&
-                      esConfirmada &&
-                      detalleContactoId ===
-                        fila.itemId && (
-                        <tr
-                          style={
-                            styles.contactTableRow
-                          }
-                        >
-                          <td
-                            colSpan="12"
-                            style={
-                              styles.contactTableCell
-                            }
-                          >
-                            <div
-                              style={
-                                styles.contactBox
-                              }
-                            >
-                              <strong>
-                                Datos de
-                                contacto
-                              </strong>
-
-                              <div
-                                style={
-                                  styles.contactText
-                                }
-                              >
-                                <p>
-                                  <strong>
-                                    Correo:
-                                  </strong>{' '}
-                                  {
-                                    fila.comprador_email
-                                  }
-                                </p>
-
-                                <p>
-                                  <strong>
-                                    Precio
-                                    aceptado:
-                                  </strong>{' '}
-                                  $
-                                  {formatearNumero(
-                                    fila.oferta
-                                  )}
-                                </p>
-
-                                <p>
-                                  <strong>
-                                    Dirección de
-                                    despacho:
-                                  </strong>{' '}
-                                  {fila.comuna}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+              <div
+                className="kyntu-listaRowsStack"
+                style={styles.listaRowsStack}
+              >
+                {listasPaginadas.map((item) => (
+                  <SolicitudListaRowCard
+                    key={item.id}
+                    item={item}
+                    authUserId={authUserId}
+                    chatAbiertoSolicitudId={
+                      chatAbiertoSolicitudId
+                    }
+                    onToggleChatSolicitud={
+                      toggleChatSolicitud
+                    }
+                    conversacionId={
+                      conversacionesPorSolicitud[item.id] ||
+                      null
+                    }
+                    onConversacionDetectada={
+                      handleConversacionDetectada
+                    }
+                    detalleContactoId={
+                      detalleContactoId
+                    }
+                    onToggleContacto={(id) =>
+                      setDetalleContactoId(
+                        detalleContactoId === id
+                          ? null
+                          : id
+                      )
+                    }
+                    onChangeOferta={
+                      manejarCambioOferta
+                    }
+                    onDespacho={manejarDespacho}
+                    onTiempoDespacho={
+                      manejarTiempoDespacho
+                    }
+                    onOfertar={ofertarProducto}
+                    formatearNumero={
+                      formatearNumero
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
       ) : (
             <div
         className="kyntu-grid"
         style={styles.grid}
       >
-        {listasFiltradas.map((item) => {
-          const estado = obtenerEstado(item);
-
+        {listasPaginadas.map((item) => {
           const puedeOfertar =
             !item.ya_oferto &&
             item.estado !== "cerrada";
 
           const esConfirmada =
             item.estado_oferta === "confirmada";
+          const chatAbierto =
+            chatAbiertoSolicitudId === item.id;
+          const conversacionId =
+            conversacionesPorSolicitud[item.id] || null;
+          const puedeMostrarChat = puedeMostrarChatSolicitud(item);
 
           return (
             <article
@@ -1790,15 +1841,6 @@ return (
                     {item.marca || "Sin marca"}
                   </span>
                 </div>
-
-                <span
-                  style={getEstadoStyle(
-                    estado,
-                    false
-                  )}
-                >
-                  {estado}
-                </span>
               </div>
 
               <div style={styles.cardBody}>
@@ -1925,26 +1967,6 @@ return (
                       )}
                     </div>
                   </div>
-
-                  <div>
-                    <span
-                      style={
-                        styles.metaLabel
-                      }
-                    >
-                      Días restantes
-                    </span>
-
-                    <div
-                      style={
-                        styles.metaValue
-                      }
-                    >
-                      {calcularDiasRestantes(
-                        item.fecha_cierre
-                      )}
-                    </div>
-                  </div>
                 </div>
 
                 <BloqueOferta
@@ -1957,6 +1979,23 @@ return (
                     formatearNumero
                   }
                 />
+
+                {authUserId && (
+                  <OfertaConversacionContenedor
+                    listasComprasId={item.id}
+                    authUserId={authUserId}
+                    chatAbierto={chatAbierto && puedeMostrarChat}
+                    onToggleChat={toggleChatSolicitud}
+                    onConversacionDetectada={
+                      handleConversacionDetectada
+                    }
+                    participanteLabel="Comprador"
+                    tooltipChat="Hablar con el comprador"
+                    variant="light"
+                    ocultarBarra
+                  />
+                )}
+
                               {!item.ya_oferto &&
                   item.estado !== "cerrada" && (
                     <div style={styles.deliveryBox}>
@@ -2048,7 +2087,23 @@ return (
                   )}
               </div>
 
-              <div style={styles.cardFooter}>
+              <div
+                className="kyntu-cardFooterActions"
+                style={styles.cardFooterActions}
+              >
+                {puedeMostrarChat && (
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() => toggleChatSolicitud(item.id)}
+                  >
+                    {etiquetaChatSolicitud(
+                      conversacionId,
+                      chatAbierto
+                    )}
+                  </button>
+                )}
+
                 {esConfirmada ? (
                   <button
                     type="button"
@@ -2147,12 +2202,54 @@ return (
 
     <style jsx>{`
       @media (max-width: 820px) {
-        .kyntu-filterGrid {
+        .kyntu-filterCard {
+          padding: 18px 16px !important;
+        }
+
+        .kyntu-filterToolbar {
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 12px !important;
+        }
+
+        .kyntu-filterFieldsGrid {
           grid-template-columns: 1fr !important;
+        }
+
+        .kyntu-clearFiltersBtn {
+          width: 100% !important;
         }
 
         .kyntu-grid {
           grid-template-columns: 1fr !important;
+        }
+
+        .kyntu-listaSectionCard {
+          padding: 20px 16px !important;
+        }
+
+        .kyntu-col-secondary {
+          display: none !important;
+        }
+
+        .kyntu-listaInner {
+          min-width: 720px !important;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .kyntu-listaSectionCard {
+          padding: 16px 12px !important;
+        }
+
+        .kyntu-actionButtons {
+          gap: 5px !important;
+        }
+      }
+
+      @media (max-width: 375px) {
+        .kyntu-cardFooterActions {
+          gap: 6px !important;
         }
       }
     `}</style>
@@ -2228,60 +2325,102 @@ const styles = {
     boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)',
   },
 
-  viewToggleBtnDisabled: {
-    opacity: 0.45,
-    cursor: 'not-allowed',
-  },
-
   filterCard: {
-    marginBottom: '24px',
-    padding: '22px',
+    marginTop: '8px',
+    marginBottom: '28px',
+    padding: '20px 22px',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
     borderRadius: '20px',
     background: '#ffffff',
     border: '1px solid #dfe8f3',
-    boxShadow: '0 14px 38px rgba(32, 73, 130, 0.07)',
+    boxShadow: '0 8px 24px rgba(32, 73, 130, 0.06)',
   },
 
-  filterHeader: {
+  filterToolbar: {
     display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: '18px',
-    marginBottom: '18px',
+    alignItems: 'flex-end',
+    gap: '14px',
+    flexWrap: 'wrap',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
 
-  filterTitle: {
-    margin: 0,
-    color: '#071c41',
-    fontSize: '19px',
-    lineHeight: 1.25,
-    fontWeight: 900,
+  filterFieldsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr)',
+    gap: '12px',
+    flex: '1 1 520px',
+    minWidth: 0,
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
   },
 
-  filterSubtitle: {
-    margin: '5px 0 0',
-    color: '#748399',
-    fontSize: '13px',
-    lineHeight: 1.5,
+  filterChipsRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginTop: '16px',
+    paddingTop: '2px',
+  },
+
+  filterChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    minHeight: '34px',
+    padding: '6px 10px',
+    borderRadius: '999px',
+    border: '1px solid #cfdbea',
+    background: '#f8fbff',
+    color: '#315173',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
+
+  filterChipText: {
+    lineHeight: 1.2,
+  },
+
+  filterChipRemove: {
+    color: '#6d8198',
+    fontSize: '16px',
+    lineHeight: 1,
+    fontWeight: 800,
+  },
+
+  filterGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    minWidth: 0,
+  },
+
+  filterFieldLabel: {
+    color: '#607086',
+    fontSize: '11px',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
   },
 
   clearFiltersButton: {
-    minHeight: '38px',
-    padding: '8px 14px',
+    minHeight: '43px',
+    padding: '10px 14px',
     flexShrink: 0,
-    borderRadius: '10px',
+    borderRadius: '11px',
     border: '1px solid #cfdbea',
     background: '#f8fbff',
     color: '#315173',
     cursor: 'pointer',
     fontSize: '12px',
     fontWeight: 800,
-  },
-
-  filterGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(150px, 1fr))',
-    gap: '12px',
+    whiteSpace: 'nowrap',
   },
 
   filterInput: {
@@ -2298,61 +2437,165 @@ const styles = {
     fontSize: '13px',
   },
 
-  tableWrapper: {
+  filterSelect: {
     width: '100%',
+    minWidth: 0,
+    minHeight: '43px',
+    padding: '10px 12px',
+    boxSizing: 'border-box',
+    borderRadius: '11px',
+    border: '1px solid #ccd9e8',
+    background: '#fbfdff',
+    color: '#183354',
+    outline: 'none',
+    fontSize: '13px',
+  },
+
+  listaSectionCard: {
+    width: '100%',
+    maxWidth: '100%',
+    marginBottom: '28px',
+    padding: '24px',
+    boxSizing: 'border-box',
+    borderRadius: '26px',
+    background: 'rgba(255,255,255,0.96)',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 24px 65px rgba(28,69,128,0.10)',
+    overflow: 'visible',
+  },
+
+  listaScrollWrap: {
+    width: '100%',
+    maxWidth: '100%',
     overflowX: 'auto',
-    marginBottom: '24px',
-    borderRadius: '18px',
-    border: '1px solid #dfe8f3',
-    background: '#ffffff',
-    boxShadow: '0 16px 42px rgba(32, 73, 130, 0.07)',
+    boxSizing: 'border-box',
+    WebkitOverflowScrolling: 'touch',
   },
 
-  table: {
+  listaInner: {
     width: '100%',
-    minWidth: '1380px',
-    borderCollapse: 'separate',
-    borderSpacing: 0,
-    tableLayout: 'auto',
+    minWidth: '1120px',
+    boxSizing: 'border-box',
   },
 
-  tableHeadRow: {
+  listaHeaderGrid: {
+    display: 'grid',
+    gridTemplateColumns: LISTA_GRID_COLUMNS,
+    gap: '8px 10px',
+    alignItems: 'center',
+    marginBottom: '12px',
+    padding: '10px 12px',
+    borderRadius: '12px',
     background: '#f3f7fc',
+    border: '1px solid #e3ebf5',
+    boxSizing: 'border-box',
   },
 
-  tableHeader: {
-    padding: '13px 10px',
-    borderBottom: '1px solid #dce5f0',
+  listaHeaderCell: {
     color: '#52647b',
-    background: '#f3f7fc',
-    textAlign: 'center',
-    verticalAlign: 'middle',
     fontSize: '11px',
     lineHeight: 1.3,
     fontWeight: 900,
     textTransform: 'uppercase',
     letterSpacing: '0.035em',
+    textAlign: 'center',
     whiteSpace: 'nowrap',
   },
 
-  tableRow: {
-    background: '#ffffff',
+  listaRowsStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    width: '100%',
+    boxSizing: 'border-box',
   },
 
-  tableCell: {
-    padding: '12px 10px',
-    borderBottom: '1px solid #e7edf5',
-    color: '#293f5f',
+  solicitudRowCard: {
+    padding: '12px 14px',
+    borderRadius: '20px',
     background: '#ffffff',
-    textAlign: 'center',
-    verticalAlign: 'middle',
+    border: '1px solid #e1e9f4',
+    boxShadow: '0 12px 30px rgba(28,69,128,0.06)',
+    boxSizing: 'border-box',
+  },
+
+  listaRowGrid: {
+    display: 'grid',
+    gridTemplateColumns: LISTA_GRID_COLUMNS,
+    gap: '8px 10px',
+    alignItems: 'center',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+
+  listaCell: {
+    minWidth: 0,
+    color: '#293f5f',
     fontSize: '12px',
     lineHeight: 1.45,
+    textAlign: 'center',
+    verticalAlign: 'middle',
   },
 
-  productCell: {
-    minWidth: '150px',
+  listaProductCell: {
     textAlign: 'left',
+    alignSelf: 'center',
+  },
+
+  listaDetailCell: {
+    textAlign: 'left',
+    verticalAlign: 'top',
+  },
+
+  listaOfferCell: {
+    minWidth: '145px',
+  },
+
+  listaDeliveryCell: {
+    minWidth: '95px',
+  },
+
+  listaActionCell: {
+    minWidth: '118px',
+  },
+
+  actionButtonsStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    width: '100%',
+    minWidth: 0,
+  },
+
+  chatButtonSmall: {
+    width: '100%',
+    minHeight: '34px',
+    padding: '7px 8px',
+    borderRadius: '9px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+    whiteSpace: 'normal',
+    textAlign: 'center',
+  },
+
+  cardFooterActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    padding: '16px 20px 20px',
+    borderTop: '1px solid #e6edf5',
+    background: '#fbfdff',
+  },
+
+  listaContactPanel: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #e7edf5',
   },
 
   tableProductName: {
@@ -2373,49 +2616,42 @@ const styles = {
     overflowWrap: 'anywhere',
   },
 
-  detailCell: {
-    width: '210px',
-    minWidth: '180px',
-    maxWidth: '240px',
-    textAlign: 'left',
-    verticalAlign: 'top',
-  },
-
-  centerCell: {
-    textAlign: 'center',
-    fontWeight: 800,
-  },
-
-  offerTableCell: {
-    width: '160px',
-    minWidth: '150px',
-  },
-
-  deliveryTableCell: {
-    width: '120px',
-    minWidth: '110px',
-  },
-
-  actionTableCell: {
-    width: '130px',
-    minWidth: '120px',
-  },
-
   detalleCelda: {
     display: '-webkit-box',
     color: '#344a68',
-    fontSize: '12px',
-    lineHeight: 1.45,
+    fontSize: '11px',
+    lineHeight: 1.4,
+    textAlign: 'left',
     overflow: 'hidden',
     overflowWrap: 'anywhere',
+    WebkitLineClamp: 3,
     WebkitBoxOrient: 'vertical',
-    WebkitLineClamp: 4,
   },
 
   detalleEmpty: {
     color: '#9aa8ba',
   },
-    grid: {
+
+  deliveryBoxCompact: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    minWidth: 0,
+  },
+
+  checkLabelCompact: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#314c6c',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.3,
+    fontWeight: 800,
+    textAlign: 'left',
+  },
+
+  grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
     gap: '20px',
@@ -2599,6 +2835,30 @@ const styles = {
     fontWeight: 900,
   },
 
+  offerBlockTitleRow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+
+  offerHelpButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    padding: 0,
+    borderRadius: '999px',
+    border: '1px solid #c5d8f2',
+    background: '#f0f6ff',
+    color: '#4a719e',
+    cursor: 'pointer',
+    fontSize: '11px',
+    lineHeight: 1,
+    fontWeight: 800,
+    flexShrink: 0,
+  },
+
   offerBlockHint: {
     color: '#75869c',
     fontSize: '10px',
@@ -2656,13 +2916,6 @@ const styles = {
     borderRadius: '14px',
     border: '1px solid #e0e8f2',
     background: '#fafcff',
-  },
-
-  deliveryBoxCompact: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '7px',
   },
 
   checkLabel: {
@@ -2794,16 +3047,6 @@ const styles = {
     fontWeight: 700,
   },
 
-  contactTableRow: {
-    background: '#f8fbff',
-  },
-
-  contactTableCell: {
-    padding: '12px 18px 18px',
-    borderBottom: '1px solid #e4ebf4',
-    background: '#f8fbff',
-  },
-
   contactBox: {
     padding: '15px',
     borderRadius: '13px',
@@ -2861,69 +3104,3 @@ const styles = {
     border: 0,
   },
 };
-
-function getEstadoStyle(estado, compacto = false) {
-  const base = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: '100%',
-    padding: compacto ? '5px 8px' : '7px 10px',
-    borderRadius: '999px',
-    fontSize: compacto ? '9px' : '10px',
-    lineHeight: 1.25,
-    fontWeight: 900,
-    textAlign: 'center',
-    whiteSpace: 'normal',
-  };
-
-  switch (estado) {
-    case 'Confirmada':
-      return {
-        ...base,
-        background: '#e8f8ef',
-        border: '1px solid #b8e4c9',
-        color: '#237444',
-      };
-
-    case 'En espera de confirmación':
-      return {
-        ...base,
-        background: '#fff6df',
-        border: '1px solid #f0d69a',
-        color: '#8a6214',
-      };
-
-    case 'Rechazada':
-      return {
-        ...base,
-        background: '#fff0f0',
-        border: '1px solid #f0bebe',
-        color: '#a43c3c',
-      };
-
-    case 'Cerrada':
-      return {
-        ...base,
-        background: '#edf0f4',
-        border: '1px solid #d3d9e1',
-        color: '#677486',
-      };
-
-    case 'Oferta enviada':
-      return {
-        ...base,
-        background: '#e9f2ff',
-        border: '1px solid #bed5f5',
-        color: '#225d9f',
-      };
-
-    default:
-      return {
-        ...base,
-        background: '#edf8f6',
-        border: '1px solid #bce3dc',
-        color: '#287568',
-      };
-  }
-}

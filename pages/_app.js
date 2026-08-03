@@ -1,26 +1,27 @@
 // pages/_app.js
 import '../styles/globals.css';
 import '../styles/landing.css';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { validarSesion } from '../utils/sesions';
 import EncuestaGate from '../components/encuesta/EncuestaGate';
+import {
+  buildAceptarDocumentosPath,
+  esRutaExentaGateLegal,
+  esRutaPublica,
+  sanitizeInternalNextPath,
+  tieneAceptacionesLegalesVigentes,
+} from '../utils/aceptacionesLegales';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
+  const [accessReady, setAccessReady] = useState(false);
+  const verificandoAccesoRef = useRef(false);
 
-  const rutasPublicas = [
-    '/',
-    '/login',
-    '/register',
-    '/reset-password',
-    '/terminos',
-    '/privacidad',
-  ];
-
-  const esRutaPublica = rutasPublicas.includes(router.pathname);
+  const esRutaPublicaActual = esRutaPublica(router.pathname);
+  const esRutaExentaLegal = esRutaExentaGateLegal(router.pathname);
 
   useEffect(() => {
     const actualizarActividad = () => {
@@ -41,16 +42,88 @@ function MyApp({ Component, pageProps }) {
   }, []);
 
   useEffect(() => {
-    if (esRutaPublica) return;
+    if (!router.isReady) return;
 
-    validarSesion(supabase, router);
+    if (esRutaPublicaActual) {
+      setAccessReady(true);
+      return;
+    }
 
-    const interval = setInterval(() => {
-      validarSesion(supabase, router);
-    }, 60000);
+    let cancelled = false;
 
-    return () => clearInterval(interval);
-  }, [esRutaPublica, router]);
+    const verificarAccesoInicial = async () => {
+      if (verificandoAccesoRef.current) return;
+      verificandoAccesoRef.current = true;
+      setAccessReady(false);
+
+      try {
+        const sesionValida = await validarSesion(supabase, router);
+        if (cancelled || !sesionValida) return;
+
+        if (esRutaExentaLegal) {
+          if (!cancelled) {
+            setAccessReady(true);
+          }
+          return;
+        }
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user?.id) {
+          await router.replace('/login');
+          return;
+        }
+
+        const aceptaciones = await tieneAceptacionesLegalesVigentes(
+          supabase,
+          session.user.id
+        );
+
+        if (cancelled) return;
+
+        if (!aceptaciones.ok) {
+          await router.replace('/login');
+          return;
+        }
+
+        if (!aceptaciones.vigentes) {
+          const next = sanitizeInternalNextPath(
+            router.asPath,
+            '/seleccionar-perfil'
+          );
+          await router.replace(buildAceptarDocumentosPath(next));
+          return;
+        }
+
+        setAccessReady(true);
+      } finally {
+        verificandoAccesoRef.current = false;
+      }
+    };
+
+    const revalidarSesionEnSegundoPlano = async () => {
+      if (cancelled || verificandoAccesoRef.current) return;
+      await validarSesion(supabase, router);
+    };
+
+    verificarAccesoInicial();
+
+    const interval = setInterval(revalidarSesionEnSegundoPlano, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    router.isReady,
+    router.pathname,
+    esRutaPublicaActual,
+    esRutaExentaLegal,
+  ]);
+
+  const mostrarContenido = esRutaPublicaActual || accessReady;
 
   return (
     <>
@@ -68,12 +141,11 @@ function MyApp({ Component, pageProps }) {
         />
       </Head>
 
-      <Component {...pageProps} />
+      {mostrarContenido ? <Component {...pageProps} /> : null}
 
-      {!esRutaPublica && <EncuestaGate />}
+      {mostrarContenido && !esRutaPublicaActual && <EncuestaGate />}
     </>
   );
 }
 
 export default MyApp;
-

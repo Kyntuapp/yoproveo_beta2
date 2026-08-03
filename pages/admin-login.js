@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 
+// Acceso master: exento del gate legal global en _app.js (esRutaMaster).
+// El perfil master no sigue el flujo comprador/proveedor ni aceptaciones v1.0.
 export default function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -48,6 +50,11 @@ export default function AdminLogin() {
       setErrorMessage('No tienes permiso para acceder al panel administrador');
       return;
     }
+
+    localStorage.setItem('user_id', data.user.id);
+    localStorage.setItem('user_email', data.user.email ?? normalizedEmail);
+    localStorage.setItem('login_time', Date.now().toString());
+    localStorage.setItem('last_activity', Date.now().toString());
 
     router.push('/master');
   };
