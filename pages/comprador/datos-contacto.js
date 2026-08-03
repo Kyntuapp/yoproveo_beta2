@@ -1,12 +1,20 @@
 // pages/comprador/datos-contacto.js
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { MapPin, Save, Truck, UserRound } from "lucide-react";
+import {
+  MapPin,
+  Save,
+  Truck,
+  UserRound,
+} from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { comunasChile } from "../../utils/comunasChile";
 import { regionesChile } from "../../utils/regionesChile";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
+import KyntuModal, {
+  createModalState,
+} from "../KyntuModal";
 
 const normalizarTexto = (texto = "") =>
   texto
@@ -20,14 +28,43 @@ export default function DatosContactoComprador() {
   const [telefono, setTelefono] = useState("");
   const [direccion, setDireccion] = useState("");
   const [comuna, setComuna] = useState("");
-  const [mostrarComunas, setMostrarComunas] = useState(false);
+  const [mostrarComunas, setMostrarComunas] =
+    useState(false);
   const [region, setRegion] = useState("");
-  const [nombreContacto, setNombreContacto] = useState("");
-  const [referenciaEntrega, setReferenciaEntrega] = useState("");
+  const [nombreContacto, setNombreContacto] =
+    useState("");
+  const [referenciaEntrega, setReferenciaEntrega] =
+    useState("");
   const [authUserId, setAuthUserId] = useState("");
   const [perfilId, setPerfilId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState(
+    createModalState(),
+  );
+
+  const cerrarModal = () => {
+    setModal(createModalState());
+  };
+
+  const mostrarModal = ({
+    type = "error",
+    title,
+    message,
+    onConfirm,
+  }) => {
+    setModal({
+      open: true,
+      type,
+      title,
+      message,
+      confirmText: "Aceptar",
+      cancelText: "Cancelar",
+      showCancel: false,
+      onConfirm: onConfirm || cerrarModal,
+      onCancel: cerrarModal,
+    });
+  };
 
   const comunasFiltradas = useMemo(() => {
     const busqueda = normalizarTexto(comuna.trim());
@@ -42,8 +79,10 @@ export default function DatosContactoComprador() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const { data: userData, error: userError } =
-          await supabase.auth.getUser();
+        const {
+          data: userData,
+          error: userError,
+        } = await supabase.auth.getUser();
 
         if (userError || !userData?.user) {
           router.push("/login");
@@ -51,9 +90,13 @@ export default function DatosContactoComprador() {
         }
 
         const userId = userData.user.id;
+
         setAuthUserId(userId);
 
-        const { data: perfil, error: perfilError } = await supabase
+        const {
+          data: perfil,
+          error: perfilError,
+        } = await supabase
           .from("perfiles")
           .select(
             "id, telefono_contacto, direccion, comuna, region, nombre_contacto, referencia_entrega",
@@ -62,23 +105,37 @@ export default function DatosContactoComprador() {
           .eq("tipo", "comprador")
           .maybeSingle();
 
-        if (perfilError) throw perfilError;
+        if (perfilError) {
+          throw perfilError;
+        }
 
         if (perfil) {
           setPerfilId(perfil.id);
-          setTelefono(perfil.telefono_contacto || "");
+          setTelefono(
+            perfil.telefono_contacto || "",
+          );
           setDireccion(perfil.direccion || "");
           setComuna(perfil.comuna || "");
           setRegion(perfil.region || "");
-          setNombreContacto(perfil.nombre_contacto || "");
-          setReferenciaEntrega(perfil.referencia_entrega || "");
+          setNombreContacto(
+            perfil.nombre_contacto || "",
+          );
+          setReferenciaEntrega(
+            perfil.referencia_entrega || "",
+          );
         }
       } catch (error) {
         console.error(
           "Error cargando datos del comprador:",
           error,
         );
-        alert("No se pudieron cargar tus datos de entrega.");
+
+        mostrarModal({
+          type: "error",
+          title: "No pudimos cargar tus datos",
+          message:
+            "Ocurrió un problema al cargar la información de entrega. Inténtalo nuevamente.",
+        });
       } finally {
         setLoading(false);
       }
@@ -97,12 +154,24 @@ export default function DatosContactoComprador() {
       !direccion.trim() ||
       !comuna.trim()
     ) {
-      alert("Completa teléfono, dirección y comuna.");
+      mostrarModal({
+        type: "error",
+        title: "Faltan datos obligatorios",
+        message:
+          "Completa el teléfono, la dirección y la comuna.",
+      });
+
       return;
     }
 
     if (!authUserId) {
-      alert("No se encontró la sesión del comprador.");
+      mostrarModal({
+        type: "error",
+        title: "Sesión no encontrada",
+        message:
+          "No pudimos identificar tu sesión. Vuelve a iniciar sesión e inténtalo nuevamente.",
+      });
+
       return;
     }
 
@@ -114,44 +183,85 @@ export default function DatosContactoComprador() {
         .update({
           telefono_contacto: telefono.trim(),
           direccion: direccion.trim(),
-          comuna: comuna.trim().toUpperCase(),
+          comuna: comuna
+            .trim()
+            .toUpperCase(),
           region: region.trim(),
-          nombre_contacto: nombreContacto.trim(),
-          referencia_entrega: referenciaEntrega.trim(),
+          nombre_contacto:
+            nombreContacto.trim(),
+          referencia_entrega:
+            referenciaEntrega.trim(),
         })
         .eq("auth_id", authUserId)
         .eq("tipo", "comprador");
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      alert("Datos actualizados correctamente.");
-      router.push("/comprador");
+      mostrarModal({
+        type: "success",
+        title: "Datos actualizados",
+        message:
+          "Tu información de entrega fue guardada correctamente.",
+        onConfirm: () => {
+          cerrarModal();
+          router.push("/comprador");
+        },
+      });
     } catch (error) {
       console.error(
         "Error guardando datos del comprador:",
         error,
       );
-      alert(`Error al guardar: ${error.message}`);
+
+      mostrarModal({
+        type: "error",
+        title:
+          "No pudimos guardar los cambios",
+        message:
+          error?.message ||
+          "Ocurrió un problema al guardar tus datos. Inténtalo nuevamente.",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const irDashboard = () =>
-    router.push("/comprador/DashboardComprador");
+  const irDashboard = () => {
+    router.push(
+      "/comprador/DashboardComprador",
+    );
+  };
 
-  const irDatosContacto = () =>
-    router.push("/comprador/datos-contacto");
+  const irDatosContacto = () => {
+    router.push(
+      "/comprador/datos-contacto",
+    );
+  };
 
-  const cambiarPerfil = () =>
+  const cambiarPerfil = () => {
     router.push("/seleccionar-perfil");
+  };
 
   const cerrarSesion = async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } =
+      await supabase.auth.signOut();
 
     if (error) {
-      console.error("Error al cerrar sesión:", error);
-      alert("No se pudo cerrar la sesión.");
+      console.error(
+        "Error al cerrar sesión:",
+        error,
+      );
+
+      mostrarModal({
+        type: "error",
+        title:
+          "No pudimos cerrar la sesión",
+        message:
+          "Inténtalo nuevamente en unos segundos.",
+      });
+
       return;
     }
 
@@ -195,9 +305,9 @@ export default function DatosContactoComprador() {
             </h1>
 
             <p style={styles.heroText}>
-              Mantén actualizada la información que usarán
-              los proveedores para coordinar la entrega de
-              tus compras.
+              Mantén actualizada la información
+              que usarán los proveedores para
+              coordinar la entrega de tus compras.
             </p>
           </div>
 
@@ -230,18 +340,28 @@ export default function DatosContactoComprador() {
               style={styles.card}
             >
               <div style={styles.sectionHeader}>
-                <span style={styles.sectionIconBlue}>
+                <span
+                  style={
+                    styles.sectionIconBlue
+                  }
+                >
                   <UserRound size={21} />
                 </span>
 
                 <div>
-                  <h2 style={styles.sectionTitle}>
+                  <h2
+                    style={styles.sectionTitle}
+                  >
                     Contacto de entrega
                   </h2>
 
-                  <p style={styles.sectionDescription}>
-                    Indica con quién debe comunicarse el
-                    proveedor.
+                  <p
+                    style={
+                      styles.sectionDescription
+                    }
+                  >
+                    Indica con quién debe
+                    comunicarse el proveedor.
                   </p>
                 </div>
               </div>
@@ -262,7 +382,9 @@ export default function DatosContactoComprador() {
                     id="nombre-contacto"
                     value={nombreContacto}
                     onChange={(event) =>
-                      setNombreContacto(event.target.value)
+                      setNombreContacto(
+                        event.target.value,
+                      )
                     }
                     placeholder="Ej: Miranda Naranjo"
                     style={styles.input}
@@ -282,7 +404,9 @@ export default function DatosContactoComprador() {
                     type="tel"
                     value={telefono}
                     onChange={(event) =>
-                      setTelefono(event.target.value)
+                      setTelefono(
+                        event.target.value,
+                      )
                     }
                     placeholder="Ej: +569XXXXXXXX"
                     style={styles.input}
@@ -297,18 +421,28 @@ export default function DatosContactoComprador() {
               style={styles.card}
             >
               <div style={styles.sectionHeader}>
-                <span style={styles.sectionIconGreen}>
+                <span
+                  style={
+                    styles.sectionIconGreen
+                  }
+                >
                   <MapPin size={21} />
                 </span>
 
                 <div>
-                  <h2 style={styles.sectionTitle}>
+                  <h2
+                    style={styles.sectionTitle}
+                  >
                     Dirección de entrega
                   </h2>
 
-                  <p style={styles.sectionDescription}>
-                    Esta ubicación se usará para coordinar
-                    el despacho.
+                  <p
+                    style={
+                      styles.sectionDescription
+                    }
+                  >
+                    Esta ubicación se usará para
+                    coordinar el despacho.
                   </p>
                 </div>
               </div>
@@ -332,7 +466,9 @@ export default function DatosContactoComprador() {
                     id="direccion"
                     value={direccion}
                     onChange={(event) =>
-                      setDireccion(event.target.value)
+                      setDireccion(
+                        event.target.value,
+                      )
                     }
                     placeholder="Ej: Av. Siempre Viva 123"
                     style={styles.input}
@@ -340,7 +476,9 @@ export default function DatosContactoComprador() {
                   />
                 </div>
 
-                <div style={styles.comunaWrapper}>
+                <div
+                  style={styles.comunaWrapper}
+                >
                   <label
                     htmlFor="comuna"
                     style={styles.label}
@@ -352,17 +490,18 @@ export default function DatosContactoComprador() {
                     id="comuna"
                     value={comuna}
                     onChange={(event) => {
-                      setComuna(event.target.value);
+                      setComuna(
+                        event.target.value,
+                      );
                       setMostrarComunas(true);
                     }}
                     onFocus={() =>
                       setMostrarComunas(true)
                     }
                     onBlur={() => {
-                      window.setTimeout(
-                        () => setMostrarComunas(false),
-                        150,
-                      );
+                      window.setTimeout(() => {
+                        setMostrarComunas(false);
+                      }, 150);
                     }}
                     placeholder="Escribe tu comuna"
                     style={styles.input}
@@ -370,34 +509,51 @@ export default function DatosContactoComprador() {
                     required
                   />
 
-                  {mostrarComunas && comuna.trim() && (
-                    <div style={styles.comunasDropdown}>
-                      {comunasFiltradas
-                        .slice(0, 8)
-                        .map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            style={styles.comunaItem}
-                            onMouseDown={(event) =>
-                              event.preventDefault()
-                            }
-                            onClick={() => {
-                              setComuna(item);
-                              setMostrarComunas(false);
-                            }}
-                          >
-                            {item}
-                          </button>
-                        ))}
+                  {mostrarComunas &&
+                    comuna.trim() && (
+                      <div
+                        style={
+                          styles.comunasDropdown
+                        }
+                      >
+                        {comunasFiltradas
+                          .slice(0, 8)
+                          .map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              style={
+                                styles.comunaItem
+                              }
+                              onMouseDown={(
+                                event,
+                              ) =>
+                                event.preventDefault()
+                              }
+                              onClick={() => {
+                                setComuna(item);
+                                setMostrarComunas(
+                                  false,
+                                );
+                              }}
+                            >
+                              {item}
+                            </button>
+                          ))}
 
-                      {comunasFiltradas.length === 0 && (
-                        <div style={styles.comunaEmpty}>
-                          No se encontraron comunas
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        {comunasFiltradas.length ===
+                          0 && (
+                          <div
+                            style={
+                              styles.comunaEmpty
+                            }
+                          >
+                            No se encontraron
+                            comunas
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </div>
 
                 <div style={styles.formGroup}>
@@ -412,7 +568,9 @@ export default function DatosContactoComprador() {
                     id="region"
                     value={region}
                     onChange={(event) =>
-                      setRegion(event.target.value)
+                      setRegion(
+                        event.target.value,
+                      )
                     }
                     style={styles.input}
                   >
@@ -420,14 +578,16 @@ export default function DatosContactoComprador() {
                       Selecciona una región
                     </option>
 
-                    {regionesChile.map((item) => (
-                      <option
-                        key={item}
-                        value={item}
-                      >
-                        {item}
-                      </option>
-                    ))}
+                    {regionesChile.map(
+                      (item) => (
+                        <option
+                          key={item}
+                          value={item}
+                        >
+                          {item}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </div>
 
@@ -454,9 +614,11 @@ export default function DatosContactoComprador() {
                     style={styles.textArea}
                   />
 
-                  <small style={styles.helpText}>
-                    Agrega información que facilite
-                    encontrar el lugar.
+                  <small
+                    style={styles.helpText}
+                  >
+                    Agrega información que
+                    facilite encontrar el lugar.
                   </small>
                 </div>
               </div>
@@ -497,9 +659,22 @@ export default function DatosContactoComprador() {
         )}
       </main>
 
+      <KyntuModal
+        open={modal.open}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        confirmText={modal.confirmText}
+        cancelText={modal.cancelText}
+        showCancel={modal.showCancel}
+        onConfirm={modal.onConfirm}
+        onCancel={modal.onCancel}
+      />
+
       <style jsx>{`
         .delivery-spinner {
-          animation: delivery-spin 0.8s linear infinite;
+          animation: delivery-spin 0.8s
+            linear infinite;
         }
 
         @keyframes delivery-spin {
@@ -513,7 +688,12 @@ export default function DatosContactoComprador() {
         textarea:focus {
           border-color: #176bff !important;
           box-shadow: 0 0 0 4px
-            rgba(23, 107, 255, 0.1) !important;
+            rgba(
+              23,
+              107,
+              255,
+              0.1
+            ) !important;
           background: #ffffff !important;
         }
 
@@ -557,7 +737,8 @@ export default function DatosContactoComprador() {
             border-radius: 18px !important;
           }
 
-          .delivery-hero > div:last-child {
+          .delivery-hero
+            > div:last-child {
             display: none !important;
           }
 
@@ -575,7 +756,9 @@ export default function DatosContactoComprador() {
           }
         }
 
-        @media (prefers-reduced-motion: reduce) {
+        @media (
+          prefers-reduced-motion: reduce
+        ) {
           .delivery-spinner {
             animation: none;
           }
@@ -629,7 +812,8 @@ const styles = {
   heading: {
     margin: 0,
     color: "#071c41",
-    fontSize: "clamp(27px, 4vw, 38px)",
+    fontSize:
+      "clamp(27px, 4vw, 38px)",
     lineHeight: 1.12,
     fontWeight: 900,
     letterSpacing: "-0.04em",
