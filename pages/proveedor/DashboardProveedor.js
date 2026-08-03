@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
+import AppLayout from "../../components/Layout/AppLayout";
+import Notificaciones from "../../components/Notificaciones";
 
 const normalizarEstado = (estado = "") =>
   estado
@@ -19,16 +25,23 @@ const formatearMonto = (valor) =>
 const mostrarEstado = (estado = "") => {
   const estados = {
     pendiente: "Oferta enviada",
-    en_espera_confirmacion: "Oferta aceptada",
-    pendiente_pago: "Pendiente de pago",
+    en_espera_confirmacion:
+      "Oferta aceptada",
+    pendiente_pago:
+      "Pendiente de pago",
     pago_recibido: "Pago recibido",
-    recepcion_conforme: "Recepción confirmada",
+    recepcion_conforme:
+      "Recepción confirmada",
     pagada: "Pagada",
     rechazada: "Rechazada",
     cancelada: "Cancelada",
   };
 
-  return estados[normalizarEstado(estado)] || estado || "Sin estado";
+  return (
+    estados[normalizarEstado(estado)] ||
+    estado ||
+    "Sin estado"
+  );
 };
 
 const esOfertaAceptada = (estado) =>
@@ -50,314 +63,396 @@ const esVentaConfirmada = (estado) =>
 export default function DashboardProveedor() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
   const [error, setError] = useState("");
-  const [ofertas, setOfertas] = useState([]);
-  const [calificaciones, setCalificaciones] =
+  const [ofertas, setOfertas] =
     useState([]);
+  const [
+    calificaciones,
+    setCalificaciones,
+  ] = useState([]);
+  const [perfilId, setPerfilId] =
+    useState(null);
 
   useEffect(() => {
     cargarEstadisticas();
   }, []);
 
-  const cargarEstadisticas = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const cargarEstadisticas =
+    async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: userError,
+        } =
+          await supabase.auth.getUser();
 
-      if (userError || !user) {
-        router.push("/login");
-        return;
-      }
+        if (userError || !user) {
+          router.push("/login");
+          return;
+        }
 
-      let { data: perfil, error: perfilError } =
-        await supabase
+        let {
+          data: perfil,
+          error: perfilError,
+        } = await supabase
           .from("perfiles")
-          .select("id, auth_id, email, tipo")
+          .select(
+            "id, auth_id, email, tipo",
+          )
           .eq("auth_id", user.id)
           .eq("tipo", "proveedor")
           .maybeSingle();
 
-      if (perfilError) {
-        console.error(
-          "Error buscando perfil por auth_id:",
-          perfilError
-        );
-      }
-
-      if (!perfil && user.email) {
-        const {
-          data: perfilPorEmail,
-          error: perfilEmailError,
-        } = await supabase
-          .from("perfiles")
-          .select("id, auth_id, email, tipo")
-          .eq("email", user.email)
-          .eq("tipo", "proveedor")
-          .maybeSingle();
-
-        if (perfilEmailError) {
+        if (perfilError) {
           console.error(
-            "Error buscando perfil por correo:",
-            perfilEmailError
+            "Error buscando perfil por auth_id:",
+            perfilError,
           );
         }
 
-        perfil = perfilPorEmail;
-      }
+        if (!perfil && user.email) {
+          const {
+            data: perfilPorEmail,
+            error: perfilEmailError,
+          } = await supabase
+            .from("perfiles")
+            .select(
+              "id, auth_id, email, tipo",
+            )
+            .eq("email", user.email)
+            .eq("tipo", "proveedor")
+            .maybeSingle();
 
-      if (!perfil) {
-        throw new Error(
-          "No se encontró el perfil del proveedor."
+          if (perfilEmailError) {
+            console.error(
+              "Error buscando perfil por correo:",
+              perfilEmailError,
+            );
+          }
+
+          perfil = perfilPorEmail;
+        }
+
+        if (!perfil) {
+          throw new Error(
+            "No se encontró el perfil del proveedor.",
+          );
+        }
+
+        setPerfilId(perfil.id);
+
+        const [
+          {
+            data: ofertasData,
+            error: ofertasError,
+          },
+          {
+            data: calificacionesData,
+            error:
+              calificacionesError,
+          },
+        ] = await Promise.all([
+          supabase
+            .from(
+              "ofertas_productos",
+            )
+            .select("*")
+            .eq(
+              "proveedor_id",
+              perfil.id,
+            )
+            .order("created_at", {
+              ascending: false,
+            }),
+
+          supabase
+            .from(
+              "calificaciones_proveedor",
+            )
+            .select("*")
+            .eq(
+              "proveedor_id",
+              perfil.id,
+            )
+            .order("created_at", {
+              ascending: false,
+            }),
+        ]);
+
+        if (ofertasError) {
+          throw ofertasError;
+        }
+
+        if (calificacionesError) {
+          console.error(
+            "Error cargando calificaciones:",
+            calificacionesError,
+          );
+        }
+
+        setOfertas(
+          ofertasData || [],
         );
-      }
 
-      const [
-        { data: ofertasData, error: ofertasError },
-        {
-          data: calificacionesData,
-          error: calificacionesError,
-        },
-      ] = await Promise.all([
-        supabase
-          .from("ofertas_productos")
-          .select("*")
-          .eq("proveedor_id", perfil.id)
-          .order("created_at", {
-            ascending: false,
-          }),
-
-        supabase
-          .from("calificaciones_proveedor")
-          .select("*")
-          .eq("proveedor_id", perfil.id)
-          .order("created_at", {
-            ascending: false,
-          }),
-      ]);
-
-      if (ofertasError) {
-        throw ofertasError;
-      }
-
-      if (calificacionesError) {
+        setCalificaciones(
+          calificacionesData || [],
+        );
+      } catch (err) {
         console.error(
-          "Error cargando calificaciones:",
-          calificacionesError
+          "Error cargando estadísticas del proveedor:",
+          err,
         );
+
+        setError(
+          err?.message ||
+            "No se pudieron cargar las estadísticas del proveedor.",
+        );
+      } finally {
+        setLoading(false);
       }
-
-      setOfertas(ofertasData || []);
-      setCalificaciones(calificacionesData || []);
-    } catch (err) {
-      console.error(
-        "Error cargando estadísticas del proveedor:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "No se pudieron cargar las estadísticas del proveedor."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   const estadisticas = useMemo(() => {
-    const ofertasAceptadas = ofertas.filter((oferta) =>
-      esOfertaAceptada(oferta.estado)
-    );
-
-    const ventasConfirmadas = ofertas.filter((oferta) =>
-      esVentaConfirmada(oferta.estado)
-    );
-
-    const ingresosGenerados = ventasConfirmadas.reduce(
-      (total, oferta) =>
-        total + Number(oferta.precio_ofertado || 0),
-      0
-    );
-
-    const estrellasValidas = calificaciones
-      .map((calificacion) =>
-        Number(calificacion.estrellas)
-      )
-      .filter(
-        (estrellas) =>
-          Number.isFinite(estrellas) && estrellas > 0
+    const ofertasAceptadas =
+      ofertas.filter((oferta) =>
+        esOfertaAceptada(
+          oferta.estado,
+        ),
       );
+
+    const ventasConfirmadas =
+      ofertas.filter((oferta) =>
+        esVentaConfirmada(
+          oferta.estado,
+        ),
+      );
+
+    const ingresosGenerados =
+      ventasConfirmadas.reduce(
+        (total, oferta) =>
+          total +
+          Number(
+            oferta.precio_ofertado ||
+              0,
+          ),
+        0,
+      );
+
+    const estrellasValidas =
+      calificaciones
+        .map((calificacion) =>
+          Number(
+            calificacion.estrellas,
+          ),
+        )
+        .filter(
+          (estrellas) =>
+            Number.isFinite(
+              estrellas,
+            ) && estrellas > 0,
+        );
 
     const promedioCalificacion =
       estrellasValidas.length > 0
         ? estrellasValidas.reduce(
             (total, estrellas) =>
               total + estrellas,
-            0
-          ) / estrellasValidas.length
+            0,
+          ) /
+          estrellasValidas.length
         : 0;
 
     const conversion =
       ofertas.length > 0
         ? Math.round(
-            (ofertasAceptadas.length / ofertas.length) *
-              100
+            (ofertasAceptadas.length /
+              ofertas.length) *
+              100,
           )
         : 0;
 
     return {
-      ofertasEnviadas: ofertas.length,
-      ofertasAceptadas: ofertasAceptadas.length,
-      ventasConfirmadas: ventasConfirmadas.length,
+      ofertasEnviadas:
+        ofertas.length,
+      ofertasAceptadas:
+        ofertasAceptadas.length,
+      ventasConfirmadas:
+        ventasConfirmadas.length,
       ingresosGenerados,
       promedioCalificacion,
-      totalCalificaciones: estrellasValidas.length,
+      totalCalificaciones:
+        estrellasValidas.length,
       conversion,
     };
   }, [ofertas, calificaciones]);
 
-  const actividadMensual = useMemo(() => {
-    const meses = Array.from({ length: 6 }, (_, index) => {
-      const fecha = new Date();
+  const actividadMensual =
+    useMemo(() => {
+      const meses = Array.from(
+        { length: 6 },
+        (_, index) => {
+          const fecha = new Date();
 
-      fecha.setDate(1);
-      fecha.setMonth(fecha.getMonth() - (5 - index));
+          fecha.setDate(1);
+          fecha.setMonth(
+            fecha.getMonth() -
+              (5 - index),
+          );
 
-      return {
-        key: `${fecha.getFullYear()}-${fecha.getMonth()}`,
-        nombre: fecha
-          .toLocaleDateString("es-CL", {
-            month: "short",
-          })
-          .replace(".", "")
-          .toUpperCase(),
-        enviadas: 0,
-        aceptadas: 0,
-      };
-    });
+          return {
+            key: `${fecha.getFullYear()}-${fecha.getMonth()}`,
+            nombre: fecha
+              .toLocaleDateString(
+                "es-CL",
+                {
+                  month: "short",
+                },
+              )
+              .replace(".", "")
+              .toUpperCase(),
+            enviadas: 0,
+            aceptadas: 0,
+          };
+        },
+      );
 
-    ofertas.forEach((oferta) => {
-      const fechaValor =
-        oferta.created_at || oferta.fecha_creacion;
+      ofertas.forEach((oferta) => {
+        const fechaValor =
+          oferta.created_at ||
+          oferta.fecha_creacion;
 
-      if (!fechaValor) return;
+        if (!fechaValor) return;
 
-      const fecha = new Date(fechaValor);
+        const fecha = new Date(
+          fechaValor,
+        );
 
-      if (Number.isNaN(fecha.getTime())) return;
+        if (
+          Number.isNaN(
+            fecha.getTime(),
+          )
+        ) {
+          return;
+        }
 
-      const key = `${fecha.getFullYear()}-${fecha.getMonth()}`;
-      const mes = meses.find((item) => item.key === key);
+        const key = `${fecha.getFullYear()}-${fecha.getMonth()}`;
 
-      if (!mes) return;
+        const mes = meses.find(
+          (item) => item.key === key,
+        );
 
-      mes.enviadas += 1;
+        if (!mes) return;
 
-      if (esOfertaAceptada(oferta.estado)) {
-        mes.aceptadas += 1;
-      }
-    });
+        mes.enviadas += 1;
 
-    return meses;
-  }, [ofertas]);
+        if (
+          esOfertaAceptada(
+            oferta.estado,
+          )
+        ) {
+          mes.aceptadas += 1;
+        }
+      });
+
+      return meses;
+    }, [ofertas]);
 
   const maxActividad = Math.max(
     ...actividadMensual.map((mes) =>
-      Math.max(mes.enviadas, mes.aceptadas)
+      Math.max(
+        mes.enviadas,
+        mes.aceptadas,
+      ),
     ),
-    1
+    1,
   );
 
-  const ofertasRecientes = ofertas.slice(0, 5);
+  const ofertasRecientes =
+    ofertas.slice(0, 5);
 
   const cerrarSesion = async () => {
-    await supabase.auth.signOut();
+    const { error: logoutError } =
+      await supabase.auth.signOut();
+
+    if (logoutError) {
+      console.error(
+        "Error al cerrar sesión:",
+        logoutError,
+      );
+
+      alert(
+        "No se pudo cerrar la sesión.",
+      );
+      return;
+    }
+
     localStorage.clear();
     router.push("/login");
   };
 
+  const irDashboard = () => {
+    router.push(
+      "/proveedor/DashboardProveedor",
+    );
+  };
+
+  const irDatosContacto = () => {
+    router.push(
+      "/proveedor/datos-contacto",
+    );
+  };
+
+  const cambiarPerfil = () => {
+    router.push(
+      "/seleccionar-perfil",
+    );
+  };
+
+  const layoutProps = {
+    title: "Mis estadísticas",
+    profileLabel: "Proveedor",
+    showProfileSwitch: true,
+    onChangeProfile: cambiarPerfil,
+    onUpdateData: irDatosContacto,
+    onDashboard: irDashboard,
+    onLogout: cerrarSesion,
+    notifications: perfilId ? (
+      <Notificaciones
+        userId={perfilId}
+        rol="proveedor"
+      />
+    ) : null,
+  };
+
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.backgroundGlow} />
+      <AppLayout {...layoutProps}>
+        <div className="loading-card">
+          <div className="loading-circle" />
 
-        <div style={styles.loadingCard}>
-          <div style={styles.loadingCircle} />
-
-          <span>Cargando estadísticas...</span>
+          <span>
+            Cargando estadísticas...
+          </span>
         </div>
-      </div>
+
+        <DashboardStyles />
+      </AppLayout>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow} />
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        style={styles.watermark}
-      />
-
-      <header style={styles.topBar}>
-        <div style={styles.headerSide}>
-          <button
-            type="button"
-            onClick={() => router.push("/proveedor")}
-            style={styles.secondaryButton}
-          >
-            <KyntuIcon
-              name="arrowLeft"
-              color="#0A3472"
-              size={18}
-            />
-
-            Volver al panel
-          </button>
-        </div>
-
-        <div style={styles.headerCenter}>
-          <span style={styles.eyebrow}>
-            PANEL PROVEEDOR
-          </span>
-
-          <h1 style={styles.title}>
-            Mis estadísticas
-          </h1>
-
-          <p style={styles.headerSubtitle}>
-            Revisa tus ofertas, ventas y desempeño comercial.
-          </p>
-        </div>
-
-        <div
-          style={{
-            ...styles.headerSide,
-            ...styles.headerSideRight,
-          }}
-        >
-          <button
-            type="button"
-            onClick={cerrarSesion}
-            style={styles.logoutButton}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
-      <main style={styles.content}>
+    <AppLayout {...layoutProps}>
+      <main className="provider-dashboard">
         {error && (
-          <div style={styles.errorBox}>
+          <div className="error-box">
             <KyntuIcon
               name="alert"
-              color="#E26720"
+              color="#e26720"
               size={21}
             />
 
@@ -365,12 +460,14 @@ export default function DashboardProveedor() {
           </div>
         )}
 
-        <section style={styles.summaryGrid}>
+        <section className="summary-grid">
           <StatCard
             icon="ofertas"
             tone="blue"
             label="Ofertas enviadas"
-            value={estadisticas.ofertasEnviadas}
+            value={
+              estadisticas.ofertasEnviadas
+            }
             detail="Todas tus propuestas"
           />
 
@@ -378,7 +475,9 @@ export default function DashboardProveedor() {
             icon="aceptadas"
             tone="green"
             label="Ofertas aceptadas"
-            value={estadisticas.ofertasAceptadas}
+            value={
+              estadisticas.ofertasAceptadas
+            }
             detail={`${estadisticas.conversion}% de conversión`}
           />
 
@@ -386,7 +485,9 @@ export default function DashboardProveedor() {
             icon="ventas"
             tone="orange"
             label="Ventas confirmadas"
-            value={estadisticas.ventasConfirmadas}
+            value={
+              estadisticas.ventasConfirmadas
+            }
             detail="Pagadas o recibidas"
           />
 
@@ -395,346 +496,326 @@ export default function DashboardProveedor() {
             tone="navy"
             label="Ingresos generados"
             value={formatearMonto(
-              estadisticas.ingresosGenerados
+              estadisticas.ingresosGenerados,
             )}
             detail={
-              estadisticas.promedioCalificacion > 0
+              estadisticas.promedioCalificacion >
+              0
                 ? `${estadisticas.promedioCalificacion.toFixed(
-                    1
+                    1,
                   )} de 5 en calificaciones`
                 : "Todavía sin calificaciones"
             }
           />
         </section>
 
-        <section style={styles.dashboardGrid}>
-          <article style={styles.card}>
-            <div style={styles.cardHeader}>
+        <section className="main-grid">
+          <article className="dashboard-card">
+            <div className="card-header">
               <div>
-                <span style={styles.cardEyebrow}>
+                <span className="eyebrow">
                   ÚLTIMOS 6 MESES
                 </span>
 
-                <h2 style={styles.cardTitle}>
+                <h2>
                   Rendimiento de ofertas
                 </h2>
               </div>
 
-              <div style={styles.legend}>
-                <span style={styles.legendItem}>
-                  <i
-                    style={{
-                      ...styles.legendDot,
-                      background: "#176BFF",
-                    }}
-                  />
-
+              <div className="legend">
+                <span>
+                  <i className="dot blue" />
                   Enviadas
                 </span>
 
-                <span style={styles.legendItem}>
-                  <i
-                    style={{
-                      ...styles.legendDot,
-                      background: "#15A978",
-                    }}
-                  />
-
+                <span>
+                  <i className="dot green" />
                   Aceptadas
                 </span>
               </div>
             </div>
 
-            <div style={styles.chart}>
-              {actividadMensual.map((mes) => (
-                <div
-                  key={mes.key}
-                  style={styles.chartColumn}
-                >
-                  <div style={styles.chartTrack}>
-                    <div
-                      title={`${mes.enviadas} ofertas enviadas`}
-                      style={{
-                        ...styles.chartBar,
-                        background:
-                          "linear-gradient(180deg, #4B91FF, #176BFF)",
-                        height: `${Math.max(
-                          (mes.enviadas /
-                            maxActividad) *
-                            100,
-                          4
-                        )}%`,
-                      }}
-                    />
+            <div className="chart">
+              {actividadMensual.map(
+                (mes) => (
+                  <div
+                    key={mes.key}
+                    className="chart-column"
+                  >
+                    <div className="chart-track">
+                      <div
+                        title={`${mes.enviadas} ofertas enviadas`}
+                        className="chart-bar sent"
+                        style={{
+                          height: `${Math.max(
+                            (mes.enviadas /
+                              maxActividad) *
+                              100,
+                            4,
+                          )}%`,
+                        }}
+                      />
 
-                    <div
-                      title={`${mes.aceptadas} ofertas aceptadas`}
-                      style={{
-                        ...styles.chartBar,
-                        background:
-                          "linear-gradient(180deg, #42D7AA, #15A978)",
-                        height: `${Math.max(
-                          (mes.aceptadas /
-                            maxActividad) *
-                            100,
-                          4
-                        )}%`,
-                      }}
-                    />
+                      <div
+                        title={`${mes.aceptadas} ofertas aceptadas`}
+                        className="chart-bar accepted"
+                        style={{
+                          height: `${Math.max(
+                            (mes.aceptadas /
+                              maxActividad) *
+                              100,
+                            4,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+
+                    <span className="chart-label">
+                      {mes.nombre}
+                    </span>
                   </div>
-
-                  <span style={styles.chartLabel}>
-                    {mes.nombre}
-                  </span>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           </article>
 
-          <article style={styles.card}>
-            <div style={styles.cardHeader}>
+          <article className="dashboard-card">
+            <div className="card-header">
               <div>
-                <span style={styles.cardEyebrow}>
+                <span className="eyebrow">
                   DESEMPEÑO
                 </span>
 
-                <h2 style={styles.cardTitle}>
+                <h2>
                   Conversión comercial
                 </h2>
               </div>
             </div>
 
             <div
+              className="conversion-ring"
               style={{
-                ...styles.ring,
                 background: `conic-gradient(
-                  #176BFF 0 ${estadisticas.conversion}%,
-                  #E9EFF7 ${estadisticas.conversion}% 100%
+                  #176bff 0 ${estadisticas.conversion}%,
+                  #e9eff7 ${estadisticas.conversion}% 100%
                 )`,
               }}
             >
-              <div style={styles.ringInner}>
-                <strong style={styles.ringValue}>
-                  {estadisticas.conversion}%
+              <div className="ring-inner">
+                <strong>
+                  {
+                    estadisticas.conversion
+                  }
+                  %
                 </strong>
 
-                <span style={styles.ringLabel}>
-                  conversión
+                <span>conversión</span>
+              </div>
+            </div>
+
+            <div className="mini-summary">
+              <MiniCard
+                icon="ofertas"
+                color="#176bff"
+                background="#edf4ff"
+                label="Enviadas"
+                value={
+                  estadisticas.ofertasEnviadas
+                }
+              />
+
+              <MiniCard
+                icon="aceptadas"
+                color="#15a978"
+                background="#eafbf5"
+                label="Aceptadas"
+                value={
+                  estadisticas.ofertasAceptadas
+                }
+              />
+            </div>
+
+            <div className="rating-box">
+              <div className="rating-icon">
+                <KyntuIcon
+                  name="star"
+                  color="#f47a2a"
+                  size={23}
+                />
+              </div>
+
+              <div className="rating-content">
+                <span className="rating-label">
+                  Calificación promedio
                 </span>
+
+                {estadisticas.promedioCalificacion >
+                0 ? (
+                  <>
+                    <div className="stars-row">
+                      <div className="stars">
+                        {[
+                          1, 2, 3, 4, 5,
+                        ].map(
+                          (estrella) => (
+                            <span
+                              key={
+                                estrella
+                              }
+                              style={{
+                                color:
+                                  estrella <=
+                                  Math.round(
+                                    estadisticas.promedioCalificacion,
+                                  )
+                                    ? "#f47a2a"
+                                    : "#d8e1ec",
+                              }}
+                            >
+                              ★
+                            </span>
+                          ),
+                        )}
+                      </div>
+
+                      <strong>
+                        {estadisticas.promedioCalificacion.toFixed(
+                          1,
+                        )}
+                      </strong>
+                    </div>
+
+                    <small>
+                      {
+                        estadisticas.totalCalificaciones
+                      }{" "}
+                      {estadisticas.totalCalificaciones ===
+                      1
+                        ? "evaluación"
+                        : "evaluaciones"}
+                    </small>
+                  </>
+                ) : (
+                  <strong className="no-rating">
+                    Sin calificaciones
+                  </strong>
+                )}
               </div>
             </div>
-
-            <div style={styles.miniSummary}>
-              <div style={styles.miniSummaryItem}>
-                <div
-                  style={{
-                    ...styles.miniIcon,
-                    background: "#EDF4FF",
-                  }}
-                >
-                  <KyntuIcon
-                    name="ofertas"
-                    color="#176BFF"
-                    size={19}
-                  />
-                </div>
-
-                <div>
-                  <span style={styles.miniLabel}>
-                    Enviadas
-                  </span>
-
-                  <strong style={styles.miniValue}>
-                    {estadisticas.ofertasEnviadas}
-                  </strong>
-                </div>
-              </div>
-
-              <div style={styles.miniSummaryItem}>
-                <div
-                  style={{
-                    ...styles.miniIcon,
-                    background: "#EAFBF5",
-                  }}
-                >
-                  <KyntuIcon
-                    name="aceptadas"
-                    color="#15A978"
-                    size={19}
-                  />
-                </div>
-
-                <div>
-                  <span style={styles.miniLabel}>
-                    Aceptadas
-                  </span>
-
-                  <strong style={styles.miniValue}>
-                    {estadisticas.ofertasAceptadas}
-                  </strong>
-                </div>
-              </div>
-            </div>
-
-           <div style={styles.ratingBox}>
-  <div style={styles.ratingIcon}>
-    <KyntuIcon
-      name="star"
-      color="#F47A2A"
-      size={23}
-    />
-  </div>
-
-  <div style={styles.ratingContent}>
-    <span style={styles.ratingLabel}>
-      Calificación promedio
-    </span>
-
-    {estadisticas.promedioCalificacion > 0 ? (
-      <>
-        <div style={styles.starsRow}>
-          <div style={styles.stars}>
-            {[1, 2, 3, 4, 5].map((estrella) => (
-              <span
-                key={estrella}
-                style={{
-                  ...styles.star,
-                  color:
-                    estrella <=
-                    Math.round(
-                      estadisticas.promedioCalificacion
-                    )
-                      ? "#F47A2A"
-                      : "#D8E1EC",
-                }}
-              >
-                ★
-              </span>
-            ))}
-          </div>
-
-          <strong style={styles.ratingNumber}>
-            {estadisticas.promedioCalificacion.toFixed(1)}
-          </strong>
-        </div>
-
-        <small style={styles.ratingDetail}>
-          {estadisticas.totalCalificaciones}{" "}
-          {estadisticas.totalCalificaciones === 1
-            ? "evaluación"
-            : "evaluaciones"}
-        </small>
-      </>
-    ) : (
-      <strong style={styles.ratingValue}>
-        Sin calificaciones
-      </strong>
-    )}
-  </div>
-</div>
 
             <button
               type="button"
-              onClick={() => router.push("/proveedor")}
-              style={styles.primaryButton}
+              className="primary-button"
+              onClick={() =>
+                router.push(
+                  "/proveedor",
+                )
+              }
             >
               Volver a mis ofertas
             </button>
           </article>
         </section>
 
-        <section style={styles.card}>
-          <div style={styles.cardHeader}>
+        <section className="dashboard-card">
+          <div className="card-header">
             <div>
-              <span style={styles.cardEyebrow}>
+              <span className="eyebrow">
                 ACTIVIDAD RECIENTE
               </span>
 
-              <h2 style={styles.cardTitle}>
+              <h2>
                 Últimas ofertas enviadas
               </h2>
             </div>
           </div>
 
-          {ofertasRecientes.length === 0 ? (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>
+          {ofertasRecientes.length ===
+          0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">
                 <KyntuIcon
                   name="ofertas"
-                  color="#176BFF"
+                  color="#176bff"
                   size={30}
                 />
               </div>
 
-              <strong style={styles.emptyTitle}>
+              <strong>
                 Todavía no tienes ofertas
               </strong>
 
-              <p style={styles.emptyText}>
-                Las ofertas que envíes aparecerán en esta
-                sección.
+              <p>
+                Las ofertas que envíes
+                aparecerán en esta sección.
               </p>
             </div>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+            <div className="table-wrapper">
+              <table>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Producto</th>
-                    <th style={styles.th}>Cantidad</th>
-                    <th style={styles.th}>Tu oferta</th>
-                    <th style={styles.th}>Despacho</th>
-                    <th style={styles.th}>Fecha</th>
-                    <th style={styles.th}>Estado</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Tu oferta</th>
+                    <th>Despacho</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {ofertasRecientes.map(
                     (oferta, index) => (
-                      <tr key={oferta.id || index}>
-                        <td style={styles.td}>
-                          <strong style={styles.productName}>
+                      <tr
+                        key={
+                          oferta.id ||
+                          index
+                        }
+                      >
+                        <td>
+                          <strong>
                             {oferta.producto ||
                               "Producto"}
                           </strong>
                         </td>
 
-                        <td style={styles.td}>
-                          {oferta.cantidad || "—"}
+                        <td>
+                          {oferta.cantidad ||
+                            "—"}
                         </td>
 
-                        <td style={styles.td}>
+                        <td>
                           {formatearMonto(
-                            oferta.precio_ofertado
+                            oferta.precio_ofertado,
                           )}
                         </td>
 
-                        <td style={styles.td}>
+                        <td>
                           {oferta.incluye_despacho
                             ? "Incluido"
                             : "No incluido"}
                         </td>
 
-                        <td style={styles.td}>
+                        <td>
                           {oferta.created_at
                             ? new Date(
-                                oferta.created_at
+                                oferta.created_at,
                               ).toLocaleDateString(
-                                "es-CL"
+                                "es-CL",
                               )
                             : "—"}
                         </td>
 
-                        <td style={styles.td}>
-                          <span style={styles.statusBadge}>
+                        <td>
+                          <span className="status">
                             {mostrarEstado(
-                              oferta.estado
+                              oferta.estado,
                             )}
                           </span>
                         </td>
                       </tr>
-                    )
+                    ),
                   )}
                 </tbody>
               </table>
@@ -742,7 +823,9 @@ export default function DashboardProveedor() {
           )}
         </section>
       </main>
-    </div>
+
+      <DashboardStyles />
+    </AppLayout>
   );
 }
 
@@ -755,39 +838,38 @@ function StatCard({
 }) {
   const tonos = {
     blue: {
-      color: "#176BFF",
-      background: "#EDF4FF",
-      border: "#D8E6FF",
+      color: "#176bff",
+      background: "#edf4ff",
+      border: "#d8e6ff",
     },
-
     green: {
-      color: "#15A978",
-      background: "#EAFBF5",
-      border: "#CFF4E6",
+      color: "#15a978",
+      background: "#eafbf5",
+      border: "#cff4e6",
     },
-
     orange: {
-      color: "#F47A2A",
-      background: "#FFF3E9",
-      border: "#FFE0C7",
+      color: "#f47a2a",
+      background: "#fff3e9",
+      border: "#ffe0c7",
     },
-
     navy: {
-      color: "#0A3472",
-      background: "#EDF3FA",
-      border: "#D8E4F2",
+      color: "#0a3472",
+      background: "#edf3fa",
+      border: "#d8e4f2",
     },
   };
 
-  const tono = tonos[tone] || tonos.blue;
+  const tono =
+    tonos[tone] || tonos.blue;
 
   return (
-    <article style={styles.statCard}>
+    <article className="stat-card">
       <div
+        className="stat-icon"
         style={{
-          ...styles.statIcon,
           color: tono.color,
-          background: tono.background,
+          background:
+            tono.background,
           borderColor: tono.border,
         }}
       >
@@ -798,39 +880,56 @@ function StatCard({
         />
       </div>
 
-      <div style={styles.statContent}>
-        <p style={styles.statLabel}>
-          {label}
-        </p>
-
-        <strong style={styles.statValue}>
-          {value}
-        </strong>
-
-        <p style={styles.statDetail}>
-          {detail}
-        </p>
+      <div>
+        <p>{label}</p>
+        <strong>{value}</strong>
+        <small>{detail}</small>
       </div>
     </article>
   );
 }
 
+function MiniCard({
+  icon,
+  color,
+  background,
+  label,
+  value,
+}) {
+  return (
+    <div className="mini-card">
+      <div
+        className="mini-icon"
+        style={{ background }}
+      >
+        <KyntuIcon
+          name={icon}
+          color={color}
+          size={19}
+        />
+      </div>
+
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+}
+
 function KyntuIcon({
   name,
-  color = "#176BFF",
+  color = "#176bff",
   size = 24,
 }) {
   const iconos = {
-    arrowLeft: (
-      <>
-        <path d="m15 18-6-6 6-6" />
-        <path d="M9 12h10" />
-      </>
-    ),
-
     alert: (
       <>
-        <circle cx="12" cy="12" r="9" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+        />
         <path d="M12 8v5" />
         <path d="M12 16h.01" />
       </>
@@ -846,7 +945,11 @@ function KyntuIcon({
 
     aceptadas: (
       <>
-        <circle cx="12" cy="12" r="9" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+        />
         <path d="m8 12 2.5 2.5L16 9" />
       </>
     ),
@@ -861,7 +964,11 @@ function KyntuIcon({
 
     ingresos: (
       <>
-        <circle cx="12" cy="12" r="9" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+        />
         <path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 1-3 2.2 0 1.4 1.2 2 3 2.3 1.8.3 3 .9 3 2.3 0 1.2-1.3 2.2-3 2.2-1.4 0-2.6-.6-3.2-1.6" />
         <path d="M12 6v2" />
         <path d="M12 17v2" />
@@ -890,544 +997,602 @@ function KyntuIcon({
   );
 }
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    position: "relative",
-    overflowX: "hidden",
-    background:
-      "linear-gradient(180deg, #F7FAFF 0%, #FFFFFF 48%, #F8FBFF 100%)",
-    color: "#071B3A",
-    fontFamily:
-      "'Inter', 'Segoe UI', Arial, sans-serif",
-  },
-
-  backgroundGlow: {
-    position: "fixed",
-    inset: 0,
-    pointerEvents: "none",
-    background:
-      "radial-gradient(circle at 9% 12%, rgba(23,107,255,0.10), transparent 28%), radial-gradient(circle at 90% 10%, rgba(244,122,42,0.09), transparent 24%), radial-gradient(circle at 76% 78%, rgba(21,169,120,0.07), transparent 26%)",
-  },
-
-  watermark: {
-    position: "fixed",
-    right: "-65px",
-    bottom: "-75px",
-    width: "390px",
-    opacity: 0.025,
-    pointerEvents: "none",
-  },
-
-  topBar: {
-    position: "relative",
-    zIndex: 2,
-    display: "grid",
-    gridTemplateColumns:
-      "minmax(190px, 1fr) minmax(300px, 2fr) minmax(190px, 1fr)",
-    alignItems: "center",
-    gap: "24px",
-    padding:
-      "32px clamp(18px, 5vw, 72px) 12px",
-  },
-
-  headerSide: {
-    display: "flex",
-    alignItems: "center",
-  },
-
-  headerSideRight: {
-    justifyContent: "flex-end",
-  },
-
-  headerCenter: {
-    textAlign: "center",
-  },
-
-  eyebrow: {
-    display: "inline-block",
-    color: "#176BFF",
-    fontSize: "12px",
-    fontWeight: 900,
-    letterSpacing: "1.8px",
-  },
-
-  title: {
-    margin: "7px 0 5px",
-    color: "#071B3A",
-    fontSize: "clamp(32px, 4vw, 46px)",
-    fontWeight: 900,
-  },
-
-  headerSubtitle: {
-    margin: 0,
-    color: "#65748B",
-    fontSize: "15px",
-  },
-
-  content: {
-    position: "relative",
-    zIndex: 2,
-    width: "min(1180px, calc(100% - 32px))",
-    margin: "30px auto 70px",
-  },
-
-  summaryGrid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(235px, 1fr))",
-    gap: "18px",
-    marginBottom: "22px",
-  },
-
-  statCard: {
-    display: "flex",
-    gap: "17px",
-    alignItems: "center",
-    minHeight: "126px",
-    padding: "23px",
-    border: "1px solid #E4ECF7",
-    borderRadius: "22px",
-    background: "#FFFFFF",
-    boxShadow:
-      "0 16px 42px rgba(18, 55, 102, 0.08)",
-  },
-
-  statIcon: {
-    display: "grid",
-    placeItems: "center",
-    flex: "0 0 58px",
-    width: "58px",
-    height: "58px",
-    border: "1px solid",
-    borderRadius: "50%",
-  },
-
-  statContent: {
-    minWidth: 0,
-  },
-
-  statLabel: {
-    margin: 0,
-    color: "#596980",
-    fontSize: "13px",
-    fontWeight: 800,
-  },
-
-  statValue: {
-    display: "block",
-    marginTop: "5px",
-    color: "#071B3A",
-    fontSize: "29px",
-    lineHeight: 1.1,
-    fontWeight: 900,
-  },
-
-  statDetail: {
-    margin: "8px 0 0",
-    color: "#8A96A7",
-    fontSize: "12px",
-  },
-
-  dashboardGrid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(320px, 1fr))",
-    gap: "22px",
-    marginBottom: "22px",
-  },
-
-  card: {
-    padding: "28px",
-    border: "1px solid #E4ECF7",
-    borderRadius: "24px",
-    background: "#FFFFFF",
-    boxShadow:
-      "0 18px 48px rgba(18, 55, 102, 0.08)",
-  },
-
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "18px",
-    marginBottom: "24px",
-  },
-
-  cardEyebrow: {
-    color: "#176BFF",
-    fontSize: "11px",
-    fontWeight: 900,
-    letterSpacing: "1.5px",
-  },
-
-  cardTitle: {
-    margin: "6px 0 0",
-    color: "#071B3A",
-    fontSize: "22px",
-    fontWeight: 900,
-  },
-
-  legend: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "12px",
-  },
-
-  legendItem: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    color: "#65748B",
-    fontSize: "11px",
-    fontWeight: 800,
-  },
-
-  legendDot: {
-    display: "inline-block",
-    width: "9px",
-    height: "9px",
-    borderRadius: "50%",
-  },
-
-  chart: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: "14px",
-    height: "250px",
-    paddingTop: "15px",
-  },
-
-  chartColumn: {
-    display: "flex",
-    flex: 1,
-    height: "100%",
-    minWidth: 0,
-    flexDirection: "column",
-    alignItems: "center",
-  },
-
-  chartTrack: {
-    display: "flex",
-    flex: 1,
-    width: "min(62px, 80%)",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    gap: "5px",
-    padding: "0 6px",
-    borderRadius: "16px",
-    background: "#EEF3F9",
-    overflow: "hidden",
-  },
-
-  chartBar: {
-    width: "42%",
-    minHeight: "4px",
-    borderRadius: "12px 12px 4px 4px",
-  },
-
-  chartLabel: {
-    marginTop: "10px",
-    color: "#748299",
-    fontSize: "11px",
-    fontWeight: 800,
-  },
-
-  ring: {
-    display: "grid",
-    placeItems: "center",
-    width: "178px",
-    height: "178px",
-    margin: "5px auto 24px",
-    borderRadius: "50%",
-  },
-
-  ringInner: {
-    display: "flex",
-    width: "132px",
-    height: "132px",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "50%",
-    background: "#FFFFFF",
-    boxShadow:
-      "inset 0 0 0 1px #EDF1F6",
-  },
-
-  ringValue: {
-    color: "#071B3A",
-    fontSize: "34px",
-    fontWeight: 900,
-  },
-
-  ringLabel: {
-    marginTop: "3px",
-    color: "#748299",
-    fontSize: "12px",
-  },
-
-  ratingContent: {
-  minWidth: 0,
-  flex: 1,
-},
-
-starsRow: {
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  marginTop: "5px",
-},
-
-stars: {
-  display: "flex",
-  gap: "2px",
-},
-
-star: {
-  fontSize: "21px",
-  lineHeight: 1,
-},
-
-ratingNumber: {
-  color: "#071B3A",
-  fontSize: "18px",
-  fontWeight: 900,
-},
-
-  miniSummary: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(130px, 1fr))",
-    gap: "12px",
-    marginBottom: "14px",
-  },
-
-  miniSummaryItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "13px",
-    border: "1px solid #E7EDF6",
-    borderRadius: "15px",
-    background: "#FBFCFE",
-  },
-
-  miniIcon: {
-    display: "grid",
-    placeItems: "center",
-    width: "39px",
-    height: "39px",
-    borderRadius: "50%",
-  },
-
-  miniLabel: {
-    display: "block",
-    color: "#748299",
-    fontSize: "11px",
-    fontWeight: 700,
-  },
-
-  miniValue: {
-    display: "block",
-    marginTop: "2px",
-    color: "#071B3A",
-    fontSize: "18px",
-  },
-
-  ratingBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    marginBottom: "14px",
-    padding: "14px",
-    border: "1px solid #FFE0C7",
-    borderRadius: "16px",
-    background: "#FFF9F4",
-  },
-
-  ratingIcon: {
-    display: "grid",
-    placeItems: "center",
-    flex: "0 0 44px",
-    width: "44px",
-    height: "44px",
-    borderRadius: "50%",
-    background: "#FFF0E5",
-  },
-
-  ratingLabel: {
-    display: "block",
-    color: "#7B685A",
-    fontSize: "11px",
-    fontWeight: 700,
-  },
-
-  ratingValue: {
-    display: "block",
-    marginTop: "3px",
-    color: "#A64B15",
-    fontSize: "16px",
-  },
-
-  ratingDetail: {
-    display: "block",
-    marginTop: "3px",
-    color: "#A48A78",
-  },
-
-  primaryButton: {
-    width: "100%",
-    marginTop: "10px",
-    padding: "14px 18px",
-    border: 0,
-    borderRadius: "14px",
-    background:
-      "linear-gradient(135deg, #176BFF, #0A55D9)",
-    color: "#FFFFFF",
-    fontWeight: 900,
-    cursor: "pointer",
-    boxShadow:
-      "0 12px 26px rgba(23,107,255,0.24)",
-  },
-
-  secondaryButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "7px",
-    padding: "11px 17px",
-    border: "1px solid #D9E4F3",
-    borderRadius: "13px",
-    background: "#FFFFFF",
-    color: "#0A3472",
-    fontWeight: 800,
-    cursor: "pointer",
-    boxShadow:
-      "0 8px 20px rgba(18,55,102,0.06)",
-  },
-
-  logoutButton: {
-    padding: "11px 17px",
-    border: "1px solid #FFD8C2",
-    borderRadius: "13px",
-    background: "#FFF8F3",
-    color: "#E26720",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-
-  errorBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "18px",
-    padding: "14px 16px",
-    border: "1px solid #FFD8C2",
-    borderRadius: "14px",
-    background: "#FFF8F3",
-    color: "#B85018",
-    fontSize: "13px",
-  },
-
-  tableWrapper: {
-    width: "100%",
-    overflowX: "auto",
-  },
-
-  table: {
-    width: "100%",
-    minWidth: "820px",
-    borderCollapse: "collapse",
-  },
-
-  th: {
-    padding: "12px 14px",
-    borderBottom: "1px solid #E4ECF7",
-    color: "#748299",
-    fontSize: "11px",
-    textAlign: "left",
-    textTransform: "uppercase",
-    letterSpacing: "0.8px",
-  },
-
-  td: {
-    padding: "16px 14px",
-    borderBottom: "1px solid #EDF1F6",
-    color: "#53647B",
-    fontSize: "13px",
-  },
-
-  productName: {
-    color: "#071B3A",
-  },
-
-  statusBadge: {
-    display: "inline-block",
-    padding: "7px 11px",
-    border: "1px solid #CFE1FF",
-    borderRadius: "999px",
-    background: "#EDF4FF",
-    color: "#176BFF",
-    fontSize: "11px",
-    fontWeight: 900,
-  },
-
-  emptyState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "42px 20px",
-    border: "1px dashed #D9E4F3",
-    borderRadius: "18px",
-    background: "#FAFCFF",
-    textAlign: "center",
-  },
-
-  emptyIcon: {
-    display: "grid",
-    placeItems: "center",
-    width: "62px",
-    height: "62px",
-    marginBottom: "13px",
-    borderRadius: "50%",
-    background: "#EDF4FF",
-  },
-
-  emptyTitle: {
-    color: "#071B3A",
-    fontSize: "16px",
-  },
-
-  emptyText: {
-    margin: "7px 0 0",
-    color: "#7A879A",
-    fontSize: "13px",
-  },
-
-  loadingCard: {
-    position: "relative",
-    zIndex: 2,
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    width: "fit-content",
-    margin: "18vh auto",
-    padding: "20px 28px",
-    border: "1px solid #E4ECF7",
-    borderRadius: "18px",
-    background: "#FFFFFF",
-    boxShadow:
-      "0 16px 45px rgba(18,55,102,0.10)",
-    color: "#0A3472",
-    fontWeight: 800,
-  },
-
-  loadingCircle: {
-    width: "18px",
-    height: "18px",
-    border: "3px solid #D8E6FF",
-    borderTopColor: "#176BFF",
-    borderRadius: "50%",
-  },
-};
+function DashboardStyles() {
+  return (
+    <style jsx global>{`
+      .provider-dashboard {
+        width: min(
+          1180px,
+          100%
+        );
+        margin: 6px auto 46px;
+        color: #071b3a;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(
+          4,
+          minmax(0, 1fr)
+        );
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+
+      .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 17px;
+        min-width: 0;
+        min-height: 126px;
+        padding: 23px;
+        box-sizing: border-box;
+        border: 1px solid #e4ecf7;
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 16px 42px
+          rgba(18, 55, 102, 0.08);
+      }
+
+      .stat-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 58px;
+        width: 58px;
+        height: 58px;
+        border: 1px solid;
+        border-radius: 50%;
+      }
+
+      .stat-card > div:last-child {
+        min-width: 0;
+      }
+
+      .stat-card p {
+        margin: 0;
+        color: #596980;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .stat-card strong {
+        display: block;
+        margin-top: 5px;
+        color: #071b3a;
+        font-size: 29px;
+        line-height: 1.1;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .stat-card small {
+        display: block;
+        margin-top: 8px;
+        color: #8a96a7;
+        font-size: 12px;
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: repeat(
+          2,
+          minmax(0, 1fr)
+        );
+        gap: 22px;
+        margin-bottom: 22px;
+      }
+
+      .dashboard-card {
+        min-width: 0;
+        padding: 28px;
+        box-sizing: border-box;
+        border: 1px solid #e4ecf7;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 48px
+          rgba(18, 55, 102, 0.08);
+      }
+
+      .card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content:
+          space-between;
+        gap: 18px;
+        margin-bottom: 24px;
+      }
+
+      .card-header h2 {
+        margin: 6px 0 0;
+        color: #071b3a;
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .eyebrow {
+        color: #176bff;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #65748b;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+      }
+
+      .dot.blue {
+        background: #176bff;
+      }
+
+      .dot.green {
+        background: #15a978;
+      }
+
+      .chart {
+        display: flex;
+        align-items: flex-end;
+        justify-content:
+          space-between;
+        gap: 14px;
+        height: 250px;
+        padding-top: 15px;
+      }
+
+      .chart-column {
+        display: flex;
+        flex: 1;
+        height: 100%;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .chart-track {
+        display: flex;
+        flex: 1;
+        width: min(62px, 80%);
+        align-items: flex-end;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 6px;
+        border-radius: 16px;
+        background: #eef3f9;
+        overflow: hidden;
+      }
+
+      .chart-bar {
+        width: 42%;
+        min-height: 4px;
+        border-radius:
+          12px 12px 4px 4px;
+      }
+
+      .chart-bar.sent {
+        background: linear-gradient(
+          180deg,
+          #4b91ff,
+          #176bff
+        );
+      }
+
+      .chart-bar.accepted {
+        background: linear-gradient(
+          180deg,
+          #42d7aa,
+          #15a978
+        );
+      }
+
+      .chart-label {
+        margin-top: 10px;
+        color: #748299;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .conversion-ring {
+        display: grid;
+        place-items: center;
+        width: 178px;
+        height: 178px;
+        margin: 5px auto 24px;
+        border-radius: 50%;
+      }
+
+      .ring-inner {
+        display: flex;
+        width: 132px;
+        height: 132px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: inset 0 0 0 1px
+          #edf1f6;
+      }
+
+      .ring-inner strong {
+        color: #071b3a;
+        font-size: 34px;
+        font-weight: 900;
+      }
+
+      .ring-inner span {
+        margin-top: 3px;
+        color: #748299;
+        font-size: 12px;
+      }
+
+      .mini-summary {
+        display: grid;
+        grid-template-columns: repeat(
+          2,
+          minmax(0, 1fr)
+        );
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .mini-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px;
+        border: 1px solid #e7edf6;
+        border-radius: 15px;
+        background: #fbfcfe;
+      }
+
+      .mini-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 39px;
+        width: 39px;
+        height: 39px;
+        border-radius: 50%;
+      }
+
+      .mini-card span {
+        display: block;
+        color: #748299;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .mini-card strong {
+        display: block;
+        margin-top: 2px;
+        color: #071b3a;
+        font-size: 18px;
+      }
+
+      .rating-box {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding: 14px;
+        border: 1px solid #ffe0c7;
+        border-radius: 16px;
+        background: #fff9f4;
+      }
+
+      .rating-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #fff0e5;
+      }
+
+      .rating-content {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .rating-label {
+        display: block;
+        color: #7b685a;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .stars-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 5px;
+      }
+
+      .stars {
+        display: flex;
+        gap: 2px;
+      }
+
+      .stars span {
+        font-size: 21px;
+        line-height: 1;
+      }
+
+      .stars-row strong {
+        color: #071b3a;
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .rating-content small {
+        display: block;
+        margin-top: 3px;
+        color: #a48a78;
+      }
+
+      .no-rating {
+        display: block;
+        margin-top: 3px;
+        color: #a64b15;
+        font-size: 16px;
+      }
+
+      .primary-button {
+        width: 100%;
+        margin-top: 10px;
+        padding: 14px 18px;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(
+          135deg,
+          #176bff,
+          #0a55d9
+        );
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+        box-shadow: 0 12px 26px
+          rgba(23, 107, 255, 0.24);
+      }
+
+      .error-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        border: 1px solid #ffd8c2;
+        border-radius: 14px;
+        background: #fff8f3;
+        color: #b85018;
+        font-size: 13px;
+      }
+
+      .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling:
+          touch;
+      }
+
+      .table-wrapper table {
+        width: 100%;
+        min-width: 820px;
+        border-collapse: collapse;
+      }
+
+      .table-wrapper th {
+        padding: 12px 14px;
+        border-bottom: 1px solid
+          #e4ecf7;
+        color: #748299;
+        font-size: 11px;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+
+      .table-wrapper td {
+        padding: 16px 14px;
+        border-bottom: 1px solid
+          #edf1f6;
+        color: #53647b;
+        font-size: 13px;
+      }
+
+      .table-wrapper td strong {
+        color: #071b3a;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 7px 11px;
+        border: 1px solid #cfe1ff;
+        border-radius: 999px;
+        background: #edf4ff;
+        color: #176bff;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 42px 20px;
+        border: 1px dashed #d9e4f3;
+        border-radius: 18px;
+        background: #fafcff;
+        text-align: center;
+      }
+
+      .empty-icon {
+        display: grid;
+        place-items: center;
+        width: 62px;
+        height: 62px;
+        margin-bottom: 13px;
+        border-radius: 50%;
+        background: #edf4ff;
+      }
+
+      .empty-state strong {
+        color: #071b3a;
+        font-size: 16px;
+      }
+
+      .empty-state p {
+        margin: 7px 0 0;
+        color: #7a879a;
+        font-size: 13px;
+      }
+
+      .loading-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: fit-content;
+        margin: 18vh auto;
+        padding: 20px 28px;
+        border: 1px solid #e4ecf7;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 16px 45px
+          rgba(18, 55, 102, 0.1);
+        color: #0a3472;
+        font-weight: 800;
+      }
+
+      .loading-circle {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #d8e6ff;
+        border-top-color: #176bff;
+        border-radius: 50%;
+      }
+
+      @media (max-width: 1000px) {
+        .summary-grid {
+          grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+          );
+        }
+
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .provider-dashboard {
+          width: 100%;
+          margin: 0 auto 32px;
+        }
+
+        .summary-grid {
+          grid-template-columns: 1fr;
+          gap: 14px;
+        }
+
+        .main-grid {
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        .stat-card {
+          min-height: 112px;
+          padding: 18px;
+          border-radius: 18px;
+        }
+
+        .stat-card strong {
+          font-size: 25px;
+        }
+
+        .dashboard-card {
+          padding: 18px;
+          border-radius: 18px;
+        }
+
+        .card-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+          margin-bottom: 18px;
+        }
+
+        .card-header h2 {
+          font-size: 19px;
+        }
+
+        .chart {
+          height: 210px;
+          gap: 6px;
+        }
+
+        .chart-track {
+          width: 88%;
+          gap: 3px;
+          padding: 0 3px;
+        }
+
+        .mini-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .table-wrapper {
+          margin: 0 -4px;
+          padding-bottom: 6px;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .dashboard-card {
+          padding: 15px;
+        }
+
+        .stat-card {
+          padding: 15px;
+        }
+
+        .stat-icon {
+          flex-basis: 50px;
+          width: 50px;
+          height: 50px;
+        }
+
+        .chart {
+          height: 185px;
+          gap: 3px;
+        }
+
+        .conversion-ring {
+          width: 156px;
+          height: 156px;
+        }
+
+        .ring-inner {
+          width: 116px;
+          height: 116px;
+        }
+      }
+    `}</style>
+  );
+}

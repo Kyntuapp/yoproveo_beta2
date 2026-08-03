@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
+import AppLayout from "../../components/Layout/AppLayout";
+import Notificaciones from "../../components/Notificaciones";
 
 const normalizarEstado = (estado = "") =>
   estado
@@ -19,16 +25,22 @@ const formatearMonto = (valor) =>
 const mostrarEstado = (estado = "") => {
   const estados = {
     pendiente: "Pendiente",
-    en_espera_confirmacion: "Esperando confirmación",
+    en_espera_confirmacion:
+      "Esperando confirmación",
     pendiente_pago: "Pendiente de pago",
     pago_recibido: "Pago recibido",
-    recepcion_conforme: "Recepción confirmada",
+    recepcion_conforme:
+      "Recepción confirmada",
     pagada: "Pagada",
     rechazada: "Rechazada",
     cancelada: "Cancelada",
   };
 
-  return estados[normalizarEstado(estado)] || estado || "Sin estado";
+  return (
+    estados[normalizarEstado(estado)] ||
+    estado ||
+    "Sin estado"
+  );
 };
 
 export default function DashboardComprador() {
@@ -38,6 +50,7 @@ export default function DashboardComprador() {
   const [error, setError] = useState("");
   const [listas, setListas] = useState([]);
   const [ofertas, setOfertas] = useState([]);
+  const [perfilId, setPerfilId] = useState(null);
 
   useEffect(() => {
     cargarEstadisticas();
@@ -58,7 +71,52 @@ export default function DashboardComprador() {
         return;
       }
 
-      const { data: listasData, error: listasError } = await supabase
+      let {
+        data: perfil,
+        error: perfilError,
+      } = await supabase
+        .from("perfiles")
+        .select("id, auth_id, email, tipo")
+        .eq("auth_id", user.id)
+        .eq("tipo", "comprador")
+        .maybeSingle();
+
+      if (perfilError) {
+        console.error(
+          "Error buscando perfil del comprador por auth_id:",
+          perfilError,
+        );
+      }
+
+      if (!perfil && user.email) {
+        const {
+          data: perfilPorEmail,
+          error: perfilEmailError,
+        } = await supabase
+          .from("perfiles")
+          .select("id, auth_id, email, tipo")
+          .eq("email", user.email)
+          .eq("tipo", "comprador")
+          .maybeSingle();
+
+        if (perfilEmailError) {
+          console.error(
+            "Error buscando perfil del comprador por correo:",
+            perfilEmailError,
+          );
+        }
+
+        perfil = perfilPorEmail;
+      }
+
+      if (perfil?.id) {
+        setPerfilId(perfil.id);
+      }
+
+      const {
+        data: listasData,
+        error: listasError,
+      } = await supabase
         .from("listas_compras")
         .select("*")
         .eq("usuario_id", user.id)
@@ -70,7 +128,9 @@ export default function DashboardComprador() {
         throw listasError;
       }
 
-      const listasObtenidas = listasData || [];
+      const listasObtenidas =
+        listasData || [];
+
       const idsListas = listasObtenidas
         .map((lista) => lista.id)
         .filter(Boolean);
@@ -78,7 +138,10 @@ export default function DashboardComprador() {
       let ofertasData = [];
 
       if (idsListas.length > 0) {
-        const { data, error: ofertasError } = await supabase
+        const {
+          data,
+          error: ofertasError,
+        } = await supabase
           .from("ofertas_productos")
           .select("*")
           .in("lista_id", idsListas)
@@ -98,12 +161,12 @@ export default function DashboardComprador() {
     } catch (err) {
       console.error(
         "Error cargando estadísticas del comprador:",
-        err
+        err,
       );
 
       setError(
         err?.message ||
-          "No se pudieron cargar las estadísticas del comprador."
+          "No se pudieron cargar las estadísticas del comprador.",
       );
     } finally {
       setLoading(false);
@@ -116,180 +179,256 @@ export default function DashboardComprador() {
         (lista) =>
           lista.lista_id ||
           lista.nombre_lista ||
-          lista.fecha_creacion
-      )
+          lista.fecha_creacion,
+      ),
     );
 
-    const ofertasVisibles = ofertas.filter(
-      (oferta) =>
-        normalizarEstado(oferta.estado) !== "rechazada"
-    );
+    const ofertasVisibles =
+      ofertas.filter(
+        (oferta) =>
+          normalizarEstado(
+            oferta.estado,
+          ) !== "rechazada",
+      );
 
-    const comprasRealizadas = ofertas.filter((oferta) =>
-      [
-        "pago_recibido",
-        "recepcion_conforme",
-        "pagada",
-      ].includes(normalizarEstado(oferta.estado))
-    );
+    const comprasRealizadas =
+      ofertas.filter((oferta) =>
+        [
+          "pago_recibido",
+          "recepcion_conforme",
+          "pagada",
+        ].includes(
+          normalizarEstado(
+            oferta.estado,
+          ),
+        ),
+      );
 
-    const totalComprado = comprasRealizadas.reduce(
-      (total, oferta) =>
-        total + Number(oferta.precio_ofertado || 0),
-      0
-    );
+    const totalComprado =
+      comprasRealizadas.reduce(
+        (total, oferta) =>
+          total +
+          Number(
+            oferta.precio_ofertado ||
+              0,
+          ),
+        0,
+      );
 
-    const procesosTerminados = ofertas.filter((oferta) =>
-      ["recepcion_conforme", "pagada"].includes(
-        normalizarEstado(oferta.estado)
-      )
-    ).length;
+    const procesosTerminados =
+      ofertas.filter((oferta) =>
+        [
+          "recepcion_conforme",
+          "pagada",
+        ].includes(
+          normalizarEstado(
+            oferta.estado,
+          ),
+        ),
+      ).length;
 
     return {
       listasCreadas: listasUnicas.size,
-      ofertasRecibidas: ofertasVisibles.length,
-      comprasRealizadas: comprasRealizadas.length,
+      ofertasRecibidas:
+        ofertasVisibles.length,
+      comprasRealizadas:
+        comprasRealizadas.length,
       totalComprado,
       procesosTerminados,
     };
   }, [listas, ofertas]);
 
-  const actividadMensual = useMemo(() => {
-    const meses = Array.from({ length: 6 }, (_, index) => {
-      const fecha = new Date();
+  const actividadMensual =
+    useMemo(() => {
+      const meses = Array.from(
+        { length: 6 },
+        (_, index) => {
+          const fecha = new Date();
 
-      fecha.setDate(1);
-      fecha.setMonth(fecha.getMonth() - (5 - index));
+          fecha.setDate(1);
+          fecha.setMonth(
+            fecha.getMonth() -
+              (5 - index),
+          );
 
-      return {
-        key: `${fecha.getFullYear()}-${fecha.getMonth()}`,
-        nombre: fecha
-          .toLocaleDateString("es-CL", {
-            month: "short",
-          })
-          .replace(".", "")
-          .toUpperCase(),
-        total: 0,
-      };
-    });
+          return {
+            key: `${fecha.getFullYear()}-${fecha.getMonth()}`,
+            nombre: fecha
+              .toLocaleDateString(
+                "es-CL",
+                {
+                  month: "short",
+                },
+              )
+              .replace(".", "")
+              .toUpperCase(),
+            total: 0,
+          };
+        },
+      );
 
-    const gruposVistos = new Set();
+      const gruposVistos =
+        new Set();
 
-    listas.forEach((lista) => {
-      if (!lista.fecha_creacion) return;
+      listas.forEach((lista) => {
+        if (!lista.fecha_creacion) {
+          return;
+        }
 
-      const grupo =
-        lista.lista_id ||
-        `${lista.nombre_lista}-${lista.fecha_creacion}`;
+        const grupo =
+          lista.lista_id ||
+          `${lista.nombre_lista}-${lista.fecha_creacion}`;
 
-      if (gruposVistos.has(grupo)) return;
+        if (
+          gruposVistos.has(grupo)
+        ) {
+          return;
+        }
 
-      gruposVistos.add(grupo);
+        gruposVistos.add(grupo);
 
-      const fecha = new Date(lista.fecha_creacion);
+        const fecha = new Date(
+          lista.fecha_creacion,
+        );
 
-      if (Number.isNaN(fecha.getTime())) return;
+        if (
+          Number.isNaN(
+            fecha.getTime(),
+          )
+        ) {
+          return;
+        }
 
-      const key = `${fecha.getFullYear()}-${fecha.getMonth()}`;
-      const mes = meses.find((item) => item.key === key);
+        const key = `${fecha.getFullYear()}-${fecha.getMonth()}`;
 
-      if (mes) {
-        mes.total += 1;
-      }
-    });
+        const mes = meses.find(
+          (item) =>
+            item.key === key,
+        );
 
-    return meses;
-  }, [listas]);
+        if (mes) {
+          mes.total += 1;
+        }
+      });
+
+      return meses;
+    }, [listas]);
 
   const maxActividad = Math.max(
-    ...actividadMensual.map((mes) => mes.total),
-    1
+    ...actividadMensual.map(
+      (mes) => mes.total,
+    ),
+    1,
   );
 
-  const actividadReciente = useMemo(() => {
-    return ofertas.slice(0, 5);
-  }, [ofertas]);
+  const actividadReciente =
+    useMemo(
+      () => ofertas.slice(0, 5),
+      [ofertas],
+    );
 
   const cerrarSesion = async () => {
-    await supabase.auth.signOut();
+    const { error: logoutError } =
+      await supabase.auth.signOut();
+
+    if (logoutError) {
+      console.error(
+        "Error al cerrar sesión:",
+        logoutError,
+      );
+
+      alert(
+        "No se pudo cerrar la sesión.",
+      );
+      return;
+    }
+
     localStorage.clear();
     router.push("/login");
   };
 
+  const irDashboard = () => {
+    router.push(
+      "/comprador/DashboardComprador",
+    );
+  };
+
+  const irDatosContacto = () => {
+    router.push(
+      "/comprador/datos-contacto",
+    );
+  };
+
+  const cambiarPerfil = () => {
+    router.push(
+      "/seleccionar-perfil",
+    );
+  };
+
+  const layoutProps = {
+    title: "Mis estadísticas",
+    profileLabel: "Comprador",
+    showProfileSwitch: true,
+    onChangeProfile: cambiarPerfil,
+    onUpdateData: irDatosContacto,
+    onDashboard: irDashboard,
+    onLogout: cerrarSesion,
+    notifications: perfilId ? (
+      <Notificaciones
+        userId={perfilId}
+        rol="comprador"
+      />
+    ) : null,
+  };
+
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.backgroundGlow} />
+      <AppLayout {...layoutProps}>
+        <div
+          style={
+            styles.loadingCard
+          }
+        >
+          <div
+            className="dashboard-loading-circle"
+            style={
+              styles.loadingCircle
+            }
+          />
 
-        <div style={styles.loadingCard}>
-          <div style={styles.loadingCircle} />
+          <span>
+            Cargando estadísticas...
+          </span>
 
-          <span>Cargando estadísticas...</span>
+          <style jsx>{`
+            .dashboard-loading-circle {
+              animation: loading-spin
+                0.8s linear infinite;
+            }
+
+            @keyframes loading-spin {
+              to {
+                transform: rotate(
+                  360deg
+                );
+              }
+            }
+          `}</style>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.backgroundGlow} />
-
-      <img
-        src="/yoproveo_logo_mvp.png"
-        alt=""
-        style={styles.watermark}
-      />
-
-      <header style={styles.topBar}>
-        <div style={styles.headerSide}>
-          <button
-            type="button"
-            onClick={() => router.push("/comprador")}
-            style={styles.secondaryButton}
-          >
-            <KyntuIcon
-              name="arrowLeft"
-              color="#0A3472"
-              size={18}
-            />
-
-            Volver al panel
-          </button>
-        </div>
-
-        <div style={styles.headerCenter}>
-          <span style={styles.eyebrow}>
-            PANEL COMPRADOR
-          </span>
-
-          <h1 style={styles.title}>
-            Mis estadísticas
-          </h1>
-
-          <p style={styles.headerSubtitle}>
-            Revisa tus solicitudes, ofertas y compras.
-          </p>
-        </div>
-
-        <div
-          style={{
-            ...styles.headerSide,
-            ...styles.headerSideRight,
-          }}
-        >
-          <button
-            type="button"
-            onClick={cerrarSesion}
-            style={styles.logoutButton}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
-      <main style={styles.content}>
+    <AppLayout {...layoutProps}>
+      <div
+        className="dashboard-content"
+        style={styles.content}
+      >
         {error && (
-          <div style={styles.errorBox}>
+          <div
+            style={styles.errorBox}
+          >
             <KyntuIcon
               name="alert"
               color="#E26720"
@@ -300,12 +439,17 @@ export default function DashboardComprador() {
           </div>
         )}
 
-        <section style={styles.summaryGrid}>
+        <section
+          className="dashboard-summary-grid"
+          style={styles.summaryGrid}
+        >
           <StatCard
             icon="solicitudes"
             tone="blue"
             label="Listas creadas"
-            value={estadisticas.listasCreadas}
+            value={
+              estadisticas.listasCreadas
+            }
             detail="Solicitudes de compra publicadas"
           />
 
@@ -313,7 +457,9 @@ export default function DashboardComprador() {
             icon="ofertas"
             tone="green"
             label="Ofertas recibidas"
-            value={estadisticas.ofertasRecibidas}
+            value={
+              estadisticas.ofertasRecibidas
+            }
             detail="Propuestas de proveedores"
           />
 
@@ -321,7 +467,9 @@ export default function DashboardComprador() {
             icon="compras"
             tone="orange"
             label="Compras realizadas"
-            value={estadisticas.comprasRealizadas}
+            value={
+              estadisticas.comprasRealizadas
+            }
             detail="Ofertas pagadas o recibidas"
           />
 
@@ -330,69 +478,135 @@ export default function DashboardComprador() {
             tone="navy"
             label="Total comprado"
             value={formatearMonto(
-              estadisticas.totalComprado
+              estadisticas.totalComprado,
             )}
             detail={`${estadisticas.procesosTerminados} procesos terminados`}
           />
         </section>
 
-        <section style={styles.dashboardGrid}>
-          <article style={styles.card}>
-            <div style={styles.cardHeader}>
+        <section
+          className="dashboard-main-grid"
+          style={
+            styles.dashboardGrid
+          }
+        >
+          <article
+            className="dashboard-card"
+            style={styles.card}
+          >
+            <div
+              className="dashboard-card-header"
+              style={
+                styles.cardHeader
+              }
+            >
               <div>
-                <span style={styles.cardEyebrow}>
+                <span
+                  style={
+                    styles.cardEyebrow
+                  }
+                >
                   ÚLTIMOS 6 MESES
                 </span>
 
-                <h2 style={styles.cardTitle}>
+                <h2
+                  style={
+                    styles.cardTitle
+                  }
+                >
                   Listas publicadas
                 </h2>
               </div>
 
-              <div style={styles.cardBadge}>
-                {estadisticas.listasCreadas} en total
+              <div
+                style={
+                  styles.cardBadge
+                }
+              >
+                {
+                  estadisticas.listasCreadas
+                }{" "}
+                en total
               </div>
             </div>
 
-            <div style={styles.chart}>
-              {actividadMensual.map((mes) => (
-                <div
-                  key={mes.key}
-                  style={styles.chartColumn}
-                >
-                  <span style={styles.chartValue}>
-                    {mes.total}
-                  </span>
+            <div
+              className="dashboard-chart"
+              style={styles.chart}
+            >
+              {actividadMensual.map(
+                (mes) => (
+                  <div
+                    key={mes.key}
+                    style={
+                      styles.chartColumn
+                    }
+                  >
+                    <span
+                      style={
+                        styles.chartValue
+                      }
+                    >
+                      {mes.total}
+                    </span>
 
-                  <div style={styles.chartTrack}>
                     <div
-                      style={{
-                        ...styles.chartBar,
-                        height: `${Math.max(
-                          (mes.total / maxActividad) * 100,
-                          5
-                        )}%`,
-                      }}
-                    />
-                  </div>
+                      style={
+                        styles.chartTrack
+                      }
+                    >
+                      <div
+                        style={{
+                          ...styles.chartBar,
+                          height: `${Math.max(
+                            (mes.total /
+                              maxActividad) *
+                              100,
+                            5,
+                          )}%`,
+                        }}
+                      />
+                    </div>
 
-                  <span style={styles.chartLabel}>
-                    {mes.nombre}
-                  </span>
-                </div>
-              ))}
+                    <span
+                      style={
+                        styles.chartLabel
+                      }
+                    >
+                      {mes.nombre}
+                    </span>
+                  </div>
+                ),
+              )}
             </div>
           </article>
 
-          <article style={styles.card}>
-            <div style={styles.cardHeader}>
+          <article
+            className="dashboard-card"
+            style={styles.card}
+          >
+            <div
+              className="dashboard-card-header"
+              style={
+                styles.cardHeader
+              }
+            >
               <div>
-                <span style={styles.cardEyebrow}>
+                <span
+                  style={
+                    styles.cardEyebrow
+                  }
+                >
                   RESUMEN
                 </span>
 
-                <h2 style={styles.cardTitle}>
-                  Estado de tus compras
+                <h2
+                  style={
+                    styles.cardTitle
+                  }
+                >
+                  Estado de tus
+                  compras
                 </h2>
               </div>
             </div>
@@ -402,7 +616,9 @@ export default function DashboardComprador() {
               color="#176BFF"
               background="#EDF4FF"
               label="Listas creadas"
-              value={estadisticas.listasCreadas}
+              value={
+                estadisticas.listasCreadas
+              }
             />
 
             <SummaryRow
@@ -410,7 +626,9 @@ export default function DashboardComprador() {
               color="#15A978"
               background="#EAFBF5"
               label="Ofertas recibidas"
-              value={estadisticas.ofertasRecibidas}
+              value={
+                estadisticas.ofertasRecibidas
+              }
             />
 
             <SummaryRow
@@ -418,35 +636,69 @@ export default function DashboardComprador() {
               color="#F47A2A"
               background="#FFF3E9"
               label="Compras completadas"
-              value={estadisticas.procesosTerminados}
+              value={
+                estadisticas.procesosTerminados
+              }
             />
 
             <button
               type="button"
-              onClick={() => router.push("/comprador")}
-              style={styles.primaryButton}
+              onClick={() =>
+                router.push(
+                  "/comprador",
+                )
+              }
+              style={
+                styles.primaryButton
+              }
             >
               Ir a mis listas
             </button>
           </article>
         </section>
 
-        <section style={styles.card}>
-          <div style={styles.cardHeader}>
+        <section
+          className="dashboard-card"
+          style={styles.card}
+        >
+          <div
+            className="dashboard-card-header"
+            style={
+              styles.cardHeader
+            }
+          >
             <div>
-              <span style={styles.cardEyebrow}>
+              <span
+                style={
+                  styles.cardEyebrow
+                }
+              >
                 ACTIVIDAD RECIENTE
               </span>
 
-              <h2 style={styles.cardTitle}>
-                Últimas ofertas recibidas
+              <h2
+                style={
+                  styles.cardTitle
+                }
+              >
+                Últimas ofertas
+                recibidas
               </h2>
             </div>
           </div>
 
-          {actividadReciente.length === 0 ? (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>
+          {actividadReciente.length ===
+          0 ? (
+            <div
+              style={
+                styles.emptyState
+              }
+            >
+              <div
+                style={
+                  styles.emptyIcon
+                }
+              >
                 <KyntuIcon
                   name="ofertas"
                   color="#176BFF"
@@ -454,78 +706,253 @@ export default function DashboardComprador() {
                 />
               </div>
 
-              <strong style={styles.emptyTitle}>
-                Todavía no tienes ofertas
+              <strong
+                style={
+                  styles.emptyTitle
+                }
+              >
+                Todavía no tienes
+                ofertas
               </strong>
 
-              <p style={styles.emptyText}>
-                Cuando un proveedor realice una oferta,
+              <p
+                style={
+                  styles.emptyText
+                }
+              >
+                Cuando un proveedor
+                realice una oferta,
                 aparecerá aquí.
               </p>
             </div>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+            <div
+              className="dashboard-table-wrapper"
+              style={
+                styles.tableWrapper
+              }
+            >
+              <table
+                style={styles.table}
+              >
                 <thead>
                   <tr>
-                    <th style={styles.th}>Producto</th>
-                    <th style={styles.th}>Oferta</th>
-                    <th style={styles.th}>Despacho</th>
-                    <th style={styles.th}>Fecha</th>
-                    <th style={styles.th}>Estado</th>
+                    <th
+                      style={
+                        styles.th
+                      }
+                    >
+                      Producto
+                    </th>
+
+                    <th
+                      style={
+                        styles.th
+                      }
+                    >
+                      Oferta
+                    </th>
+
+                    <th
+                      style={
+                        styles.th
+                      }
+                    >
+                      Despacho
+                    </th>
+
+                    <th
+                      style={
+                        styles.th
+                      }
+                    >
+                      Fecha
+                    </th>
+
+                    <th
+                      style={
+                        styles.th
+                      }
+                    >
+                      Estado
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {actividadReciente.map(
-                    (oferta, index) => (
-                      <tr key={oferta.id || index}>
-                        <td style={styles.td}>
-                          <strong style={styles.productName}>
+                    (
+                      oferta,
+                      index,
+                    ) => (
+                      <tr
+                        key={
+                          oferta.id ||
+                          index
+                        }
+                      >
+                        <td
+                          style={
+                            styles.td
+                          }
+                        >
+                          <strong
+                            style={
+                              styles.productName
+                            }
+                          >
                             {oferta.producto ||
                               "Producto"}
                           </strong>
                         </td>
 
-                        <td style={styles.td}>
+                        <td
+                          style={
+                            styles.td
+                          }
+                        >
                           {formatearMonto(
-                            oferta.precio_ofertado
+                            oferta.precio_ofertado,
                           )}
                         </td>
 
-                        <td style={styles.td}>
+                        <td
+                          style={
+                            styles.td
+                          }
+                        >
                           {oferta.incluye_despacho
                             ? "Incluido"
                             : "No incluido"}
                         </td>
 
-                        <td style={styles.td}>
+                        <td
+                          style={
+                            styles.td
+                          }
+                        >
                           {oferta.created_at
                             ? new Date(
-                                oferta.created_at
+                                oferta.created_at,
                               ).toLocaleDateString(
-                                "es-CL"
+                                "es-CL",
                               )
                             : "—"}
                         </td>
 
-                        <td style={styles.td}>
-                          <span style={styles.statusBadge}>
+                        <td
+                          style={
+                            styles.td
+                          }
+                        >
+                          <span
+                            style={
+                              styles.statusBadge
+                            }
+                          >
                             {mostrarEstado(
-                              oferta.estado
+                              oferta.estado,
                             )}
                           </span>
                         </td>
                       </tr>
-                    )
+                    ),
                   )}
                 </tbody>
               </table>
             </div>
           )}
         </section>
-      </main>
-    </div>
+      </div>
+
+      <style jsx>{`
+        button {
+          transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+        }
+
+        button:hover {
+          transform: translateY(
+            -1px
+          );
+        }
+
+        @media (max-width: 900px) {
+          .dashboard-content {
+            width: 100% !important;
+            margin: 0 auto 36px !important;
+          }
+
+          .dashboard-summary-grid {
+            grid-template-columns: repeat(
+              2,
+              minmax(0, 1fr)
+            ) !important;
+          }
+
+          .dashboard-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .dashboard-summary-grid {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+
+          .dashboard-main-grid {
+            gap: 16px !important;
+            margin-bottom: 16px !important;
+          }
+
+          .dashboard-card {
+            padding: 18px !important;
+            border-radius: 18px !important;
+          }
+
+          .dashboard-card-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+            margin-bottom: 18px !important;
+          }
+
+          .dashboard-chart {
+            height: 210px !important;
+            gap: 6px !important;
+          }
+
+          .dashboard-table-wrapper {
+            margin: 0 -4px !important;
+            padding-bottom: 6px !important;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .dashboard-card {
+            padding: 15px !important;
+          }
+
+          .dashboard-chart {
+            height: 185px !important;
+            gap: 3px !important;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          button {
+            transition: none;
+          }
+
+          button:hover {
+            transform: none;
+          }
+        }
+      `}</style>
+    </AppLayout>
   );
 }
 
@@ -562,7 +989,8 @@ function StatCard({
     },
   };
 
-  const tono = tonos[tone] || tonos.blue;
+  const tono =
+    tonos[tone] || tonos.blue;
 
   return (
     <article style={styles.statCard}>
@@ -570,8 +998,10 @@ function StatCard({
         style={{
           ...styles.statIcon,
           color: tono.color,
-          background: tono.background,
-          borderColor: tono.border,
+          background:
+            tono.background,
+          borderColor:
+            tono.border,
         }}
       >
         <KyntuIcon
@@ -586,11 +1016,17 @@ function StatCard({
           {label}
         </p>
 
-        <strong style={styles.statValue}>
+        <strong
+          style={styles.statValue}
+        >
           {value}
         </strong>
 
-        <p style={styles.statDetail}>
+        <p
+          style={
+            styles.statDetail
+          }
+        >
           {detail}
         </p>
       </div>
@@ -620,11 +1056,19 @@ function SummaryRow({
         />
       </div>
 
-      <span style={styles.summaryLabel}>
+      <span
+        style={
+          styles.summaryLabel
+        }
+      >
         {label}
       </span>
 
-      <strong style={styles.summaryValue}>
+      <strong
+        style={
+          styles.summaryValue
+        }
+      >
         {value}
       </strong>
     </div>
@@ -637,16 +1081,13 @@ function KyntuIcon({
   size = 24,
 }) {
   const iconos = {
-    arrowLeft: (
-      <>
-        <path d="m15 18-6-6 6-6" />
-        <path d="M9 12h10" />
-      </>
-    ),
-
     alert: (
       <>
-        <circle cx="12" cy="12" r="9" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+        />
         <path d="M12 8v5" />
         <path d="M12 16h.01" />
       </>
@@ -692,7 +1133,11 @@ function KyntuIcon({
 
     aceptadas: (
       <>
-        <circle cx="12" cy="12" r="9" />
+        <circle
+          cx="12"
+          cy="12"
+          r="9"
+        />
         <path d="m8 12 2.5 2.5L16 9" />
       </>
     ),
@@ -716,85 +1161,11 @@ function KyntuIcon({
 }
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    position: "relative",
-    overflowX: "hidden",
-    background:
-      "linear-gradient(180deg, #F7FAFF 0%, #FFFFFF 48%, #F8FBFF 100%)",
-    color: "#071B3A",
-    fontFamily:
-      "'Inter', 'Segoe UI', Arial, sans-serif",
-  },
-
-  backgroundGlow: {
-    position: "fixed",
-    inset: 0,
-    pointerEvents: "none",
-    background:
-      "radial-gradient(circle at 9% 12%, rgba(23,107,255,0.10), transparent 28%), radial-gradient(circle at 90% 10%, rgba(244,122,42,0.09), transparent 24%), radial-gradient(circle at 76% 78%, rgba(21,169,120,0.07), transparent 26%)",
-  },
-
-  watermark: {
-    position: "fixed",
-    right: "-65px",
-    bottom: "-75px",
-    width: "390px",
-    opacity: 0.025,
-    pointerEvents: "none",
-  },
-
-  topBar: {
-    position: "relative",
-    zIndex: 2,
-    display: "grid",
-    gridTemplateColumns:
-      "minmax(190px, 1fr) minmax(300px, 2fr) minmax(190px, 1fr)",
-    alignItems: "center",
-    gap: "24px",
-    padding:
-      "32px clamp(18px, 5vw, 72px) 12px",
-  },
-
-  headerSide: {
-    display: "flex",
-    alignItems: "center",
-  },
-
-  headerSideRight: {
-    justifyContent: "flex-end",
-  },
-
-  headerCenter: {
-    textAlign: "center",
-  },
-
-  eyebrow: {
-    display: "inline-block",
-    color: "#176BFF",
-    fontSize: "12px",
-    fontWeight: 900,
-    letterSpacing: "1.8px",
-  },
-
-  title: {
-    margin: "7px 0 5px",
-    color: "#071B3A",
-    fontSize: "clamp(32px, 4vw, 46px)",
-    fontWeight: 900,
-  },
-
-  headerSubtitle: {
-    margin: 0,
-    color: "#65748B",
-    fontSize: "15px",
-  },
-
   content: {
     position: "relative",
     zIndex: 2,
-    width: "min(1180px, calc(100% - 32px))",
-    margin: "30px auto 70px",
+    width: "min(1180px, 100%)",
+    margin: "6px auto 46px",
   },
 
   summaryGrid: {
@@ -811,6 +1182,7 @@ const styles = {
     alignItems: "center",
     minHeight: "126px",
     padding: "23px",
+    boxSizing: "border-box",
     border: "1px solid #E4ECF7",
     borderRadius: "22px",
     background: "#FFFFFF",
@@ -873,7 +1245,8 @@ const styles = {
 
   cardHeader: {
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent:
+      "space-between",
     alignItems: "flex-start",
     gap: "18px",
     marginBottom: "24px",
@@ -895,7 +1268,8 @@ const styles = {
 
   cardBadge: {
     padding: "8px 12px",
-    border: "1px solid #D8E6FF",
+    border:
+      "1px solid #D8E6FF",
     borderRadius: "999px",
     background: "#EDF4FF",
     color: "#176BFF",
@@ -906,7 +1280,8 @@ const styles = {
   chart: {
     display: "flex",
     alignItems: "flex-end",
-    justifyContent: "space-between",
+    justifyContent:
+      "space-between",
     gap: "14px",
     height: "250px",
     paddingTop: "15px",
@@ -956,12 +1331,14 @@ const styles = {
 
   summaryRow: {
     display: "grid",
-    gridTemplateColumns: "42px 1fr auto",
+    gridTemplateColumns:
+      "42px 1fr auto",
     alignItems: "center",
     gap: "12px",
     marginBottom: "14px",
     padding: "13px",
-    border: "1px solid #E7EDF6",
+    border:
+      "1px solid #E7EDF6",
     borderRadius: "15px",
     background: "#FBFCFE",
   },
@@ -1000,38 +1377,14 @@ const styles = {
       "0 12px 26px rgba(23,107,255,0.24)",
   },
 
-  secondaryButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "7px",
-    padding: "11px 17px",
-    border: "1px solid #D9E4F3",
-    borderRadius: "13px",
-    background: "#FFFFFF",
-    color: "#0A3472",
-    fontWeight: 800,
-    cursor: "pointer",
-    boxShadow:
-      "0 8px 20px rgba(18,55,102,0.06)",
-  },
-
-  logoutButton: {
-    padding: "11px 17px",
-    border: "1px solid #FFD8C2",
-    borderRadius: "13px",
-    background: "#FFF8F3",
-    color: "#E26720",
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-
   errorBox: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
     marginBottom: "18px",
     padding: "14px 16px",
-    border: "1px solid #FFD8C2",
+    border:
+      "1px solid #FFD8C2",
     borderRadius: "14px",
     background: "#FFF8F3",
     color: "#B85018",
@@ -1051,7 +1404,8 @@ const styles = {
 
   th: {
     padding: "12px 14px",
-    borderBottom: "1px solid #E4ECF7",
+    borderBottom:
+      "1px solid #E4ECF7",
     color: "#748299",
     fontSize: "11px",
     textAlign: "left",
@@ -1061,7 +1415,8 @@ const styles = {
 
   td: {
     padding: "16px 14px",
-    borderBottom: "1px solid #EDF1F6",
+    borderBottom:
+      "1px solid #EDF1F6",
     color: "#53647B",
     fontSize: "13px",
   },
@@ -1073,7 +1428,8 @@ const styles = {
   statusBadge: {
     display: "inline-block",
     padding: "7px 11px",
-    border: "1px solid #CFE1FF",
+    border:
+      "1px solid #CFE1FF",
     borderRadius: "999px",
     background: "#EDF4FF",
     color: "#176BFF",
@@ -1086,7 +1442,8 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     padding: "42px 20px",
-    border: "1px dashed #D9E4F3",
+    border:
+      "1px dashed #D9E4F3",
     borderRadius: "18px",
     background: "#FAFCFF",
     textAlign: "center",
@@ -1114,15 +1471,14 @@ const styles = {
   },
 
   loadingCard: {
-    position: "relative",
-    zIndex: 2,
     display: "flex",
     alignItems: "center",
     gap: "12px",
     width: "fit-content",
     margin: "18vh auto",
     padding: "20px 28px",
-    border: "1px solid #E4ECF7",
+    border:
+      "1px solid #E4ECF7",
     borderRadius: "18px",
     background: "#FFFFFF",
     boxShadow:
@@ -1134,7 +1490,8 @@ const styles = {
   loadingCircle: {
     width: "18px",
     height: "18px",
-    border: "3px solid #D8E6FF",
+    border:
+      "3px solid #D8E6FF",
     borderTopColor: "#176BFF",
     borderRadius: "50%",
   },
