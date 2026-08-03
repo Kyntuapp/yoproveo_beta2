@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   Building2,
+  Lock,
   Mail,
   Save,
   WalletCards,
@@ -364,7 +365,7 @@ export default function DatosContactoProveedor() {
 
                 <div>
                   <h2 style={styles.sectionTitle}>
-                    Datos bancarios
+                    Tu cuenta bancaria
                   </h2>
 
                   <p
@@ -372,8 +373,9 @@ export default function DatosContactoProveedor() {
                       styles.sectionDescription
                     }
                   >
-                    Revisa cuidadosamente esta
-                    información antes de guardar.
+                    Ingresa los datos de la cuenta
+                    donde deseas recibir el pago por
+                    tus ventas.
                   </p>
                 </div>
               </div>
@@ -522,6 +524,42 @@ export default function DatosContactoProveedor() {
               </button>
             </div>
           </form>
+        )}
+
+        {!loading && (
+          <section
+            className="contact-card"
+            style={{
+              ...styles.card,
+              marginTop: "20px",
+            }}
+          >
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionIconNeutral}>
+                <Lock size={21} />
+              </span>
+
+              <div>
+                <h2 style={styles.sectionTitle}>
+                  Seguridad
+                </h2>
+
+                <p style={styles.sectionDescription}>
+                  Opciones de acceso a tu cuenta.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push("/reset-password")
+              }
+              style={styles.secondaryActionButton}
+            >
+              Cambiar contraseña
+            </button>
+          </section>
         )}
       </main>
 
@@ -732,6 +770,18 @@ const styles = {
     background: "#e7f8f4",
   },
 
+  sectionIconNeutral: {
+    width: "42px",
+    height: "42px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    borderRadius: "13px",
+    color: "#5b6f8a",
+    background: "#edf2f7",
+  },
+
   sectionTitle: {
     margin: 0,
     color: "#102b50",
@@ -878,6 +928,23 @@ const styles = {
   secondaryButton: {
     minWidth: "120px",
     minHeight: "48px",
+    padding: "12px 20px",
+    border: "1px solid #cbd9e9",
+    borderRadius: "12px",
+    background: "#ffffff",
+    color: "#3b5575",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: 900,
+  },
+
+  secondaryActionButton: {
+    width: "100%",
+    maxWidth: "360px",
+    minHeight: "48px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     padding: "12px 20px",
     border: "1px solid #cbd9e9",
     borderRadius: "12px",
