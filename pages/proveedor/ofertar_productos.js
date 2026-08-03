@@ -1,9 +1,14 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
+import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
+import {
+  fetchSolicitudesAdjudicadasIds,
+  resolverConversacionesPorSolicitudes,
+} from '../../lib/ofertaMensajes';
 import Tooltip from '../../components/Tooltip';
 
 const VISTA_STORAGE_KEY = 'kyntu_proveedor_vista_ofertas';
@@ -28,6 +33,15 @@ function formatearFechaCorta(fecha) {
   const yyyy = d.getFullYear();
 
   return `${dd}-${mm}-${yyyy}`;
+}
+
+function puedeMostrarChatSolicitud(item) {
+  return item.solicitud_abierta !== false;
+}
+
+function etiquetaChatSolicitud(conversacionId, chatAbierto) {
+  if (chatAbierto) return 'Ocultar chat';
+  return conversacionId ? 'Ver conversación' : 'Conversar';
 }
 
 function leerVistaPreferida() {
@@ -308,6 +322,11 @@ function ListaColumnHeader() {
 function SolicitudListaRowCard({
   item,
   detalleContactoId,
+  authUserId,
+  chatAbiertoSolicitudId,
+  onToggleChatSolicitud,
+  conversacionId,
+  onConversacionDetectada,
   onToggleContacto,
   onChangeOferta,
   onDespacho,
@@ -327,6 +346,8 @@ function SolicitudListaRowCard({
     item.estado !== 'cerrada';
   const esConfirmada =
     item.estado_oferta === 'confirmada';
+  const chatAbierto = chatAbiertoSolicitudId === item.id;
+  const puedeMostrarChat = puedeMostrarChatSolicitud(item);
   const rowSpanEnd = totalFormatos + 1;
 
   return (
@@ -509,33 +530,63 @@ function SolicitudListaRowCard({
             gridRow: `1 / ${rowSpanEnd}`,
           }}
         >
-          {esConfirmada ? (
-            <button
-              type="button"
-              onClick={() => onToggleContacto(item.id)}
-              className="kyntu-smallButton"
-              style={styles.smallButton}
-            >
-              {detalleContactoId === item.id
-                ? 'Ocultar contacto'
-                : 'Ver contacto'}
-            </button>
-          ) : puedeOfertar ? (
-            <button
-              type="button"
-              onClick={() => onOfertar(item.id)}
-              className="kyntu-mainButtonSmall"
-              style={styles.mainButtonSmall}
-            >
-              Enviar oferta
-            </button>
-          ) : (
-            <span style={styles.emptyAction}>
-              No disponible
-            </span>
-          )}
+          <div
+            className="kyntu-actionButtons"
+            style={styles.actionButtonsStack}
+          >
+            {puedeMostrarChat && (
+              <button
+                type="button"
+                onClick={() => onToggleChatSolicitud(item.id)}
+                className="kyntu-chatButton"
+                style={styles.chatButtonSmall}
+              >
+                {etiquetaChatSolicitud(conversacionId, chatAbierto)}
+              </button>
+            )}
+
+            {esConfirmada ? (
+              <button
+                type="button"
+                onClick={() => onToggleContacto(item.id)}
+                className="kyntu-smallButton"
+                style={styles.smallButton}
+              >
+                {detalleContactoId === item.id
+                  ? 'Ocultar contacto'
+                  : 'Ver contacto'}
+              </button>
+            ) : puedeOfertar ? (
+              <button
+                type="button"
+                onClick={() => onOfertar(item.id)}
+                className="kyntu-mainButtonSmall"
+                style={styles.mainButtonSmall}
+              >
+                Enviar oferta
+              </button>
+            ) : (
+              <span style={styles.emptyAction}>
+                No disponible
+              </span>
+            )}
+          </div>
         </div>
       </div>
+
+      {authUserId && (
+        <OfertaConversacionContenedor
+          listasComprasId={item.id}
+          authUserId={authUserId}
+          chatAbierto={chatAbierto && puedeMostrarChat}
+          onToggleChat={onToggleChatSolicitud}
+          onConversacionDetectada={onConversacionDetectada}
+          participanteLabel="Comprador"
+          tooltipChat="Hablar con el comprador"
+          variant="light"
+          ocultarBarra
+        />
+      )}
 
       {esConfirmada &&
         detalleContactoId === item.id && (
@@ -571,6 +622,27 @@ export default function OfertarProductos() {
   const [usuarios, setUsuarios] = useState([]);
   const [proveedorPerfilId, setProveedorPerfilId] =
     useState(null);
+  const [authUserId, setAuthUserId] = useState(null);
+  const [chatAbiertoSolicitudId, setChatAbiertoSolicitudId] =
+    useState(null);
+  const [conversacionesPorSolicitud, setConversacionesPorSolicitud] =
+    useState({});
+
+  const handleConversacionDetectada = useCallback(
+    (solicitudId, conversacionId) => {
+      setConversacionesPorSolicitud((prev) => {
+        const siguiente = conversacionId || null;
+
+        if (prev[solicitudId] === siguiente) return prev;
+
+        return {
+          ...prev,
+          [solicitudId]: siguiente,
+        };
+      });
+    },
+    []
+  );
 
   const [filtros, setFiltros] = useState({
     ...FILTROS_INICIALES,
@@ -598,6 +670,24 @@ export default function OfertarProductos() {
   const cambiarVista = (nuevaVista) => {
     setVista(nuevaVista);
   };
+
+  const toggleChatSolicitud = (listasComprasId) => {
+    setChatAbiertoSolicitudId((prev) =>
+      prev === listasComprasId ? null : listasComprasId
+    );
+  };
+
+  useEffect(() => {
+    if (!router.isReady || router.query?.notif !== 'chat') return;
+
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (!listIdParam) return;
+
+    setChatAbiertoSolicitudId(listIdParam);
+  }, [router.isReady, router.query]);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -635,6 +725,8 @@ export default function OfertarProductos() {
       setProveedorPerfilId(
         perfilProv.id
       );
+
+      setAuthUserId(userData.user.id);
 
       const {
         data: listasData,
@@ -786,6 +878,10 @@ export default function OfertarProductos() {
             ])
         );
 
+      const listaIdsEnriquecer = listasAjenas.map((item) => item.id);
+      const solicitudesAdjudicadas =
+        await fetchSolicitudesAdjudicadasIds(listaIdsEnriquecer);
+
       const enriquecida =
         listasAjenas
           .map((item) => {
@@ -808,8 +904,23 @@ export default function OfertarProductos() {
                   item.id
               );
 
+            const estadoLista = item.lista_id
+              ? estadoPorLista[item.lista_id] ?? null
+              : 'publicada';
+            const solicitudAdjudicada = solicitudesAdjudicadas.has(
+              String(item.id)
+            );
+            const solicitudAbierta =
+              !solicitudAdjudicada &&
+              (!item.lista_id ||
+                estadoPorLista[item.lista_id] === 'publicada');
+
             return {
               ...item,
+
+              estado: estadoLista,
+              solicitud_abierta: solicitudAbierta,
+              solicitud_adjudicada: solicitudAdjudicada,
 
               comprador_email:
                 item.comprador_email ||
@@ -838,9 +949,16 @@ export default function OfertarProductos() {
           })
           .filter(
             (item) =>
-              !item.ya_oferto
+              !item.ya_oferto && !item.solicitud_adjudicada
           );
 
+      const conversacionesMap =
+        await resolverConversacionesPorSolicitudes(
+          enriquecida.map((item) => item.id),
+          perfilProv.id
+        );
+
+      setConversacionesPorSolicitud(conversacionesMap);
       setListas(enriquecida);
     };
 
@@ -980,6 +1098,18 @@ export default function OfertarProductos() {
     ) {
       alert(
         'Selecciona el tiempo de despacho.'
+      );
+
+      return;
+    }
+
+    if (producto.solicitud_adjudicada) {
+      alert(
+        'Esta solicitud ya fue adjudicada y no admite nuevas ofertas.'
+      );
+
+      setListas((prev) =>
+        prev.filter((item) => item.id !== producto.id)
       );
 
       return;
@@ -1632,6 +1762,20 @@ return (
                   <SolicitudListaRowCard
                     key={item.id}
                     item={item}
+                    authUserId={authUserId}
+                    chatAbiertoSolicitudId={
+                      chatAbiertoSolicitudId
+                    }
+                    onToggleChatSolicitud={
+                      toggleChatSolicitud
+                    }
+                    conversacionId={
+                      conversacionesPorSolicitud[item.id] ||
+                      null
+                    }
+                    onConversacionDetectada={
+                      handleConversacionDetectada
+                    }
                     detalleContactoId={
                       detalleContactoId
                     }
@@ -1671,6 +1815,11 @@ return (
 
           const esConfirmada =
             item.estado_oferta === "confirmada";
+          const chatAbierto =
+            chatAbiertoSolicitudId === item.id;
+          const conversacionId =
+            conversacionesPorSolicitud[item.id] || null;
+          const puedeMostrarChat = puedeMostrarChatSolicitud(item);
 
           return (
             <article
@@ -1830,6 +1979,23 @@ return (
                     formatearNumero
                   }
                 />
+
+                {authUserId && (
+                  <OfertaConversacionContenedor
+                    listasComprasId={item.id}
+                    authUserId={authUserId}
+                    chatAbierto={chatAbierto && puedeMostrarChat}
+                    onToggleChat={toggleChatSolicitud}
+                    onConversacionDetectada={
+                      handleConversacionDetectada
+                    }
+                    participanteLabel="Comprador"
+                    tooltipChat="Hablar con el comprador"
+                    variant="light"
+                    ocultarBarra
+                  />
+                )}
+
                               {!item.ya_oferto &&
                   item.estado !== "cerrada" && (
                     <div style={styles.deliveryBox}>
@@ -1921,7 +2087,23 @@ return (
                   )}
               </div>
 
-              <div style={styles.cardFooter}>
+              <div
+                className="kyntu-cardFooterActions"
+                style={styles.cardFooterActions}
+              >
+                {puedeMostrarChat && (
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() => toggleChatSolicitud(item.id)}
+                  >
+                    {etiquetaChatSolicitud(
+                      conversacionId,
+                      chatAbierto
+                    )}
+                  </button>
+                )}
+
                 {esConfirmada ? (
                   <button
                     type="button"
@@ -2058,6 +2240,16 @@ return (
       @media (max-width: 620px) {
         .kyntu-listaSectionCard {
           padding: 16px 12px !important;
+        }
+
+        .kyntu-actionButtons {
+          gap: 5px !important;
+        }
+      }
+
+      @media (max-width: 375px) {
+        .kyntu-cardFooterActions {
+          gap: 6px !important;
         }
       }
     `}</style>
@@ -2364,7 +2556,40 @@ const styles = {
   },
 
   listaActionCell: {
-    minWidth: '130px',
+    minWidth: '118px',
+  },
+
+  actionButtonsStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    width: '100%',
+    minWidth: 0,
+  },
+
+  chatButtonSmall: {
+    width: '100%',
+    minHeight: '34px',
+    padding: '7px 8px',
+    borderRadius: '9px',
+    border: '1px solid #a9c5e8',
+    background: '#f5f9ff',
+    color: '#24507f',
+    cursor: 'pointer',
+    fontSize: '10px',
+    lineHeight: 1.25,
+    fontWeight: 900,
+    whiteSpace: 'normal',
+    textAlign: 'center',
+  },
+
+  cardFooterActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    padding: '16px 20px 20px',
+    borderTop: '1px solid #e6edf5',
+    background: '#fbfdff',
   },
 
   listaContactPanel: {

@@ -3,6 +3,16 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Notificaciones from '../components/Notificaciones';
 import OfertaConversacionContenedor from '../components/OfertaConversacionContenedor';
+import BandejaMensajesComerciales, {
+  IconoChatPreOferta,
+} from '../components/BandejaMensajesComerciales';
+import {
+  chatSoloLecturaPorAdjudicacion,
+  esOfertaAdjudicada,
+  marcarConversacionTraspasadaAOferta,
+  MENSAJE_CHAT_CERRADO_ADJUDICACION,
+  obtenerConversacionesSolicitud,
+} from '../lib/ofertaMensajes';
 import { comunasChile } from '../utils/comunasChile';
 import KyntuModal, { createModalState } from '../pages/KyntuModal';
 import ModalCalificacion from './ModalCalificacion';
@@ -51,6 +61,11 @@ export default function Comprador() {
   const [tienePerfilProveedor, setTienePerfilProveedor] = useState(false);
   const [conversacionAbiertaPorProducto, setConversacionAbiertaPorProducto] =
     useState({});
+  const [bandejaAbiertaPorProducto, setBandejaAbiertaPorProducto] =
+    useState({});
+  const [conversacionBandejaPorProducto, setConversacionBandejaPorProducto] =
+    useState({});
+  const [traspasadasRevision, setTraspasadasRevision] = useState(0);
   const [ofertaDestacadaId, setOfertaDestacadaId] = useState(null);
   const [deepLinkError, setDeepLinkError] = useState('');
   const [productosConOfertasAbiertas, setProductosConOfertasAbiertas] =
@@ -285,6 +300,10 @@ setListas(listasEnriquecidas);
       ? router.query.oferta_id[0]
       : router.query.oferta_id;
 
+    const conversacionIdParam = Array.isArray(router.query.conversacion_id)
+      ? router.query.conversacion_id[0]
+      : router.query.conversacion_id;
+
     if (listIdParam) {
       const listaMatch = listas.find(
         (l) => String(getRowId(l)) === String(listIdParam)
@@ -325,13 +344,72 @@ setListas(listasEnriquecidas);
       }
     }
 
+    if (conversacionIdParam && tipoNotif === 'chat' && listIdToOpen) {
+      setBandejaAbiertaPorProducto((prev) => ({
+        ...prev,
+        [listIdToOpen]: true,
+      }));
+      setConversacionBandejaPorProducto((prev) => ({
+        ...prev,
+        [listIdToOpen]: String(conversacionIdParam),
+      }));
+    }
+
     verOfertas(fechaKey);
+  };
+
+  const toggleBandejaProducto = (productoRowId) => {
+    setBandejaAbiertaPorProducto((prev) => {
+      if (prev[productoRowId]) {
+        const next = { ...prev };
+        delete next[productoRowId];
+        return next;
+      }
+
+      return { ...prev, [productoRowId]: true };
+    });
+
+    setConversacionAbiertaPorProducto((prev) => {
+      if (!prev[productoRowId]) return prev;
+      const next = { ...prev };
+      delete next[productoRowId];
+      return next;
+    });
   };
 
   const toggleConversacionProducto = (productoRowId, ofertaId) => {
     const ofertaStr = String(ofertaId);
 
     setConversacionAbiertaPorProducto((prev) => {
+      const abrir = prev[productoRowId] !== ofertaStr;
+
+      if (abrir) {
+        obtenerConversacionesSolicitud(productoRowId)
+          .then((conversaciones) => {
+            const conv = conversaciones.find(
+              (c) =>
+                c.oferta_id &&
+                String(c.oferta_id) === ofertaStr
+            );
+
+            if (conv?.id) {
+              marcarConversacionTraspasadaAOferta(
+                productoRowId,
+                conv.id
+              );
+              setTraspasadasRevision((n) => n + 1);
+            }
+          })
+          .catch(() => {});
+
+        setBandejaAbiertaPorProducto((bandejaPrev) => {
+          if (!bandejaPrev[productoRowId]) return bandejaPrev;
+          const next = { ...bandejaPrev };
+          delete next[productoRowId];
+          return next;
+        });
+      }
+
       if (prev[productoRowId] === ofertaStr) {
         const next = { ...prev };
         delete next[productoRowId];
@@ -397,6 +475,31 @@ setListas(listasEnriquecidas);
   }, [router.isReady, router.query, ofertasCrudasPorProducto]);
 
   useEffect(() => {
+    if (!router.isReady || router.query?.notif !== 'chat') return;
+
+    const conversacionIdParam = Array.isArray(router.query.conversacion_id)
+      ? router.query.conversacion_id[0]
+      : router.query.conversacion_id;
+
+    if (!conversacionIdParam) return;
+
+    const listIdParam = Array.isArray(router.query.list_id)
+      ? router.query.list_id[0]
+      : router.query.list_id;
+
+    if (!listIdParam) return;
+
+    setBandejaAbiertaPorProducto((prev) => ({
+      ...prev,
+      [listIdParam]: true,
+    }));
+    setConversacionBandejaPorProducto((prev) => ({
+      ...prev,
+      [listIdParam]: String(conversacionIdParam),
+    }));
+  }, [router.isReady, router.query]);
+
+  useEffect(() => {
     if (!router.isReady) return;
     if (!['ofertas', 'chat'].includes(router.query?.notif)) return;
 
@@ -408,14 +511,26 @@ setListas(listasEnriquecidas);
       ? router.query.oferta_id[0]
       : router.query.oferta_id;
 
-    const scrollKey = ofertaIdParam
-      ? `oferta-card-${ofertaIdParam}`
-      : listIdParam
-        ? `oferta-${listIdParam}`
-        : null;
+    const conversacionIdParam = Array.isArray(router.query.conversacion_id)
+      ? router.query.conversacion_id[0]
+      : router.query.conversacion_id;
+
+    const scrollKey = conversacionIdParam
+      ? `chat-consolidado-${listIdParam || 'chat'}`
+      : ofertaIdParam
+        ? `oferta-card-${ofertaIdParam}`
+        : listIdParam
+          ? `oferta-${listIdParam}`
+          : null;
 
     if (!scrollKey) return;
-    if (listIdParam && !productosConOfertasAbiertas[listIdParam]) return;
+    if (
+      listIdParam &&
+      !conversacionIdParam &&
+      !productosConOfertasAbiertas[listIdParam]
+    ) {
+      return;
+    }
     if (scrolledToOfertaRef.current === scrollKey) return;
 
     const timer = setTimeout(() => {
@@ -1110,6 +1225,25 @@ const publicarLista = async (listaId) => {
       ...prev,
       ...crudas,
     }));
+
+    for (const listaId of listaIds) {
+      obtenerConversacionesSolicitud(listaId)
+        .then((conversaciones) => {
+          let cambio = false;
+
+          (conversaciones || []).forEach((conv) => {
+            if (conv?.oferta_id && conv?.id) {
+              marcarConversacionTraspasadaAOferta(listaId, conv.id);
+              cambio = true;
+            }
+          });
+
+          if (cambio) {
+            setTraspasadasRevision((n) => n + 1);
+          }
+        })
+        .catch(() => {});
+    }
 
     setListasConOfertas((prev) => [...new Set([...prev, fecha])]);
   };
@@ -1996,6 +2130,8 @@ const guardarCalificacion = async () => {
                               const ofertas = ofertasPorProducto[clave] || [];
                               const abierto =
                                 productosConOfertasAbiertas[rowId];
+                              const chatAbierto =
+                                !!bandejaAbiertaPorProducto[rowId];
 
                               return (
                                 <React.Fragment key={`producto-fragment-${rowId || idx}`}>
@@ -2018,16 +2154,58 @@ const guardarCalificacion = async () => {
                                       {textoDetallePedidoVisible(item) || '—'}
                                     </td>
                                     <td className="kyntu-td" style={styles.td}>
-                                      <span className="kyntu-offerCount" style={styles.offerCount}>
-                                        {ofertas.length > 0
-                                          ? 'Ver ofertas'
-                                          : 'Sin ofertas'}
-                                      </span>
-                                      <span className="kyntu-arrow" style={styles.arrow}>
-                                        {abierto ? '▲' : '▼'}
-                                      </span>
+                                      <div
+                                        className="kyntu-ofertasCell"
+                                        style={styles.ofertasCell}
+                                      >
+                                        <span className="kyntu-offerCount" style={styles.offerCount}>
+                                          {ofertas.length > 0
+                                            ? `${ofertas.length} ${ofertas.length === 1 ? 'oferta' : 'ofertas'}`
+                                            : 'Sin ofertas'}
+                                        </span>
+                                        {rowId && authUserId && (
+                                          <IconoChatPreOferta
+                                            listasComprasId={rowId}
+                                            authUserId={authUserId}
+                                            traspasadasRevision={
+                                              traspasadasRevision
+                                            }
+                                            activo={chatAbierto}
+                                            onClick={() =>
+                                              toggleBandejaProducto(rowId)
+                                            }
+                                          />
+                                        )}
+                                        <span className="kyntu-arrow" style={styles.arrow}>
+                                          {abierto ? '▲' : '▼'}
+                                        </span>
+                                      </div>
                                     </td>
                                   </tr>
+
+                                  {chatAbierto && rowId && authUserId && (
+                                    <tr key={`chat-${rowId || idx}`}>
+                                      <td
+                                        colSpan={7}
+                                        className="kyntu-chatConsolidadoRow"
+                                        style={styles.chatConsolidadoRow}
+                                      >
+                                        <BandejaMensajesComerciales
+                                          listasComprasId={rowId}
+                                          authUserId={authUserId}
+                                          abierto={chatAbierto}
+                                          conversacionDestacadaId={
+                                            conversacionBandejaPorProducto[
+                                              rowId
+                                            ] || null
+                                          }
+                                          traspasadasRevision={
+                                            traspasadasRevision
+                                          }
+                                        />
+                                      </td>
+                                    </tr>
+                                  )}
 
                                   {abierto && (
                                     <tr key={`ofertas-${rowId || idx}`}>
@@ -2050,6 +2228,11 @@ const guardarCalificacion = async () => {
                                               const estado = (
                                                 of.estado || ''
                                               ).toLowerCase();
+
+                                              const solicitudAdjudicada =
+                                                ofertas.some((o) =>
+                                                  esOfertaAdjudicada(o.estado)
+                                                );
 
                                               const isPending =
                                                 estado === 'pendiente';
@@ -2075,6 +2258,13 @@ const guardarCalificacion = async () => {
 
                                               const isRejected =
                                                 estado === 'rechazada';
+
+                                              const esPerdedoraAdjudicacion =
+                                                chatSoloLecturaPorAdjudicacion({
+                                                  estado,
+                                                  solicitud_adjudicada:
+                                                    solicitudAdjudicada,
+                                                });
 
                                               const cardDestacada =
                                                 ofertaDestacadaId &&
@@ -2115,7 +2305,9 @@ const guardarCalificacion = async () => {
                                                       className="kyntu-rejectedText"
                                                       style={styles.rejectedText}
                                                     >
-                                                      Oferta rechazada
+                                                      {esPerdedoraAdjudicacion
+                                                        ? 'Adjudicada a otro proveedor'
+                                                        : 'Oferta rechazada'}
                                                     </p>
                                                   )}
 
@@ -2124,6 +2316,14 @@ const guardarCalificacion = async () => {
                                                       ofertaId={of.id}
                                                       authUserId={authUserId}
                                                       estadoOferta={estado}
+                                                      soloLectura={
+                                                        esPerdedoraAdjudicacion
+                                                      }
+                                                      mensajeCierre={
+                                                        esPerdedoraAdjudicacion
+                                                          ? MENSAJE_CHAT_CERRADO_ADJUDICACION
+                                                          : ''
+                                                      }
                                                       variant="light"
                                                       participanteLabel="Proveedor"
                                                       tooltipChat="Hablar con el proveedor"
@@ -3040,8 +3240,23 @@ const styles = {
     fontWeight: 900,
   },
 
+  ofertasCell: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    flexWrap: 'nowrap',
+    maxWidth: '100%',
+    minWidth: 0,
+  },
+
+  chatConsolidadoRow: {
+    padding: '12px 16px 16px',
+    background: '#f8fbff',
+    borderBottom: '1px solid #e1e9f4',
+  },
+
   arrow: {
-    marginLeft: '8px',
+    marginLeft: '4px',
     color: '#176bff',
     fontWeight: 900,
   },
@@ -3050,6 +3265,13 @@ const styles = {
     padding: '18px',
     background: '#f7faff',
     borderBottom: '1px solid #e1e9f4',
+  },
+
+  bandejaAnchor: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
 
   offersGrid: {
