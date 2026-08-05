@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 import {
   useEffect,
   useMemo,
@@ -337,7 +338,7 @@ export default function DashboardComprador() {
         logoutError,
       );
 
-      alert(
+      showKyntuAlert(
         "No se pudo cerrar la sesión.",
       );
       return;

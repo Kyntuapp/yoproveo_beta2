@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 // pages/proveedor/datos-contacto.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -39,7 +40,7 @@ export default function DatosContactoProveedor() {
         } = await supabase.auth.getUser();
 
         if (userErr || !userWrap?.user) {
-          alert("Debes iniciar sesión.");
+          showKyntuAlert("Debes iniciar sesión.");
           router.push("/login");
           return;
         }
@@ -53,7 +54,7 @@ export default function DatosContactoProveedor() {
           );
 
         if (!perfilData) {
-          alert(
+          showKyntuAlert(
             'No se encontró perfil de proveedor.\nVe a "Cambiar perfil" y crea o selecciona el perfil de proveedor.',
           );
 
@@ -92,7 +93,7 @@ export default function DatosContactoProveedor() {
           error,
         );
 
-        alert("No se pudieron cargar tus datos.");
+        showKyntuAlert("No se pudieron cargar tus datos.");
       } finally {
         setLoading(false);
       }
@@ -110,14 +111,14 @@ export default function DatosContactoProveedor() {
     if (!perfil || saving) return;
 
     if (!emailContacto.trim()) {
-      alert("Ingresa un correo de contacto.");
+      showKyntuAlert("Ingresa un correo de contacto.");
       return;
     }
 
     const solo8 = normalizar8(fono8);
 
     if (solo8.length !== 8) {
-      alert(
+      showKyntuAlert(
         "El teléfono debe tener exactamente 8 dígitos después de +569.",
       );
       return;
@@ -143,7 +144,7 @@ export default function DatosContactoProveedor() {
         throw error;
       }
 
-      alert("Datos de contacto actualizados.");
+      showKyntuAlert("Datos de contacto actualizados.");
       router.push("/proveedor");
     } catch (error) {
       console.error(
@@ -151,7 +152,7 @@ export default function DatosContactoProveedor() {
         error,
       );
 
-      alert(
+      showKyntuAlert(
         `No se pudieron guardar los datos: ${error.message}`,
       );
     } finally {
@@ -180,7 +181,7 @@ export default function DatosContactoProveedor() {
         error,
       );
 
-      alert("No se pudo cerrar la sesión.");
+      showKyntuAlert("No se pudo cerrar la sesión.");
       return;
     }
 

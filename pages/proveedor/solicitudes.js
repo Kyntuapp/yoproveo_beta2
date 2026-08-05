@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -14,7 +15,7 @@ export default function SolicitudesProveedor() {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
-        alert('Debes iniciar sesión.');
+        showKyntuAlert('Debes iniciar sesión.');
         router.push('/login');
         return;
       }
@@ -24,7 +25,7 @@ export default function SolicitudesProveedor() {
       });
 
       if (!perfil) {
-        alert('No se encontró el perfil de proveedor.');
+        showKyntuAlert('No se encontró el perfil de proveedor.');
         router.push('/proveedor');
         return;
       }
@@ -37,7 +38,7 @@ export default function SolicitudesProveedor() {
         .eq('proveedor_id', perfil.id)
 
       if (solicitudesError) {
-        alert('Error al cargar solicitudes: ' + solicitudesError.message);
+        showKyntuAlert('Error al cargar solicitudes: ' + solicitudesError.message);
       } else {
         setSolicitudes(solicitudesData || []);
       }

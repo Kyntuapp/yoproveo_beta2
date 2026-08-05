@@ -7,6 +7,8 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import { validarSesion } from '../utils/sesions';
 import EncuestaGate from '../components/encuesta/EncuestaGate';
+import KyntuModal, { createModalState } from './KyntuModal';
+import { subscribeToKyntuAlerts } from '../lib/kyntuAlert';
 import {
   buildAceptarDocumentosPath,
   esRutaExentaGateLegal,
@@ -18,10 +20,27 @@ import {
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const [accessReady, setAccessReady] = useState(false);
+  const [kyntuModal, setKyntuModal] = useState(createModalState());
   const verificandoAccesoRef = useRef(false);
 
   const esRutaPublicaActual = esRutaPublica(router.pathname);
   const esRutaExentaLegal = esRutaExentaGateLegal(router.pathname);
+  useEffect(
+    () =>
+      subscribeToKyntuAlerts(({ title, message, type }) => {
+        const closeModal = () => setKyntuModal(createModalState());
+        setKyntuModal({
+          ...createModalState(),
+          open: true,
+          title,
+          message,
+          type,
+          onConfirm: closeModal,
+          onCancel: closeModal,
+        });
+      }),
+    []
+  );
 
   useEffect(() => {
     const actualizarActividad = () => {
@@ -144,6 +163,7 @@ function MyApp({ Component, pageProps }) {
       {mostrarContenido ? <Component {...pageProps} /> : null}
 
       {mostrarContenido && !esRutaPublicaActual && <EncuestaGate />}
+      <KyntuModal {...kyntuModal} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 // pages/proveedor/catalogo.js
 
 import { useEffect, useState } from 'react';
@@ -43,7 +44,7 @@ export default function CatalogoProveedor() {
         await supabase.auth.getUser();
 
       if (error || !userData?.user) {
-        alert('Debes iniciar sesión.');
+        showKyntuAlert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
@@ -56,7 +57,7 @@ export default function CatalogoProveedor() {
       );
 
       if (!perfil) {
-        alert('No se encontró un perfil de proveedor.');
+        showKyntuAlert('No se encontró un perfil de proveedor.');
         router.push('/');
         return;
       }
@@ -71,7 +72,7 @@ export default function CatalogoProveedor() {
         .select('nombre, formato, marca');
 
       if (universoError) {
-        alert(
+        showKyntuAlert(
           'Error al cargar universo de productos: ' +
             universoError.message
         );
@@ -100,7 +101,7 @@ export default function CatalogoProveedor() {
       .eq('proveedor_id', idProveedor);
 
     if (productosError) {
-      alert(
+      showKyntuAlert(
         'Error al cargar productos: ' +
           productosError.message
       );
@@ -198,7 +199,7 @@ export default function CatalogoProveedor() {
     );
 
     if (productosValidos.length === 0) {
-      alert(
+      showKyntuAlert(
         'Debes seleccionar al menos un producto, formato y marca.'
       );
       return;
@@ -217,12 +218,12 @@ export default function CatalogoProveedor() {
       .insert(productosConProveedor);
 
     if (error) {
-      alert(
+      showKyntuAlert(
         'Error al agregar productos: ' +
           error.message
       );
     } else {
-      alert('Productos agregados correctamente');
+      showKyntuAlert('Productos agregados correctamente');
 
       setProductosNuevos([
         {
@@ -256,7 +257,7 @@ export default function CatalogoProveedor() {
     const valor = Number(nuevaCantidad);
 
     if (Number.isNaN(valor) || valor < 0) {
-      alert(
+      showKyntuAlert(
         'La cantidad debe ser un número mayor o igual a 0.'
       );
       return;
@@ -270,12 +271,12 @@ export default function CatalogoProveedor() {
       .eq('id', id);
 
     if (error) {
-      alert(
+      showKyntuAlert(
         'Error al actualizar la cantidad: ' +
           error.message
       );
     } else {
-      alert('Cantidad actualizada correctamente');
+      showKyntuAlert('Cantidad actualizada correctamente');
 
       setProductosStock((prev) =>
         prev.map((producto) =>
@@ -311,12 +312,12 @@ export default function CatalogoProveedor() {
       .eq('id', id);
 
     if (error) {
-      alert(
+      showKyntuAlert(
         'Error al eliminar el producto: ' +
           error.message
       );
     } else {
-      alert('Producto eliminado correctamente');
+      showKyntuAlert('Producto eliminado correctamente');
 
       setProductosStock((prev) =>
         prev.filter(
@@ -368,7 +369,7 @@ export default function CatalogoProveedor() {
       Number(solicitud.cantidad_disponible) || 0;
 
     if (!nombre) {
-      alert(
+      showKyntuAlert(
         'Debes ingresar al menos el nombre del producto.'
       );
       return;
@@ -391,7 +392,7 @@ export default function CatalogoProveedor() {
       .select('id, nombre, marca, formato');
 
     if (errorCatalogo) {
-      alert(
+      showKyntuAlert(
         'Error al validar el catálogo: ' +
           errorCatalogo.message
       );
@@ -418,7 +419,7 @@ export default function CatalogoProveedor() {
     });
 
     if (existeProducto) {
-      alert(
+      showKyntuAlert(
         "Este producto ya está en nuestro catálogo, puedes agregarlo directamente desde la opción 'Agregar producto'"
       );
       return;
@@ -439,12 +440,12 @@ export default function CatalogoProveedor() {
       ]);
 
     if (error) {
-      alert(
+      showKyntuAlert(
         'Error al enviar la solicitud: ' +
           error.message
       );
     } else {
-      alert(
+      showKyntuAlert(
         'Solicitud enviada al administrador.'
       );
 

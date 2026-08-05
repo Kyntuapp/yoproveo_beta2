@@ -108,7 +108,13 @@ export default function Login() {
         style={styles.watermark}
       />
 
-      <div style={styles.card}>
+      <form
+        style={styles.card}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!loading) handleLogin();
+        }}
+      >
         <img
           src="/icono_2.png"
           alt="Kyntü"
@@ -165,7 +171,7 @@ export default function Login() {
 
         <div style={styles.buttonGroup}>
           <button
-            onClick={handleLogin}
+            type="submit"
             style={styles.button}
             disabled={loading}
           >
@@ -173,13 +179,14 @@ export default function Login() {
           </button>
 
           <button
+            type="button"
             onClick={() => router.push('/')}
             style={styles.secondaryButton}
           >
             Volver
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

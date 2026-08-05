@@ -1,4 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { showKyntuAlert } from '../../lib/kyntuAlert';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
@@ -700,7 +701,7 @@ export default function OfertarProductos() {
         userError ||
         !userData?.user
       ) {
-        alert('Debes iniciar sesión.');
+        showKyntuAlert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
@@ -715,7 +716,7 @@ export default function OfertarProductos() {
       );
 
       if (!perfilProv) {
-        alert(
+        showKyntuAlert(
           'El usuario no tiene un perfil de proveedor asociado.'
         );
 
@@ -817,7 +818,7 @@ export default function OfertarProductos() {
             ofertasError
         );
 
-        alert(
+        showKyntuAlert(
           'Error al cargar datos.'
         );
 
@@ -1055,7 +1056,7 @@ export default function OfertarProductos() {
     itemId
   ) => {
     if (!proveedorPerfilId) {
-      alert(
+      showKyntuAlert(
         'No hay perfil de proveedor activo.'
       );
 
@@ -1085,7 +1086,7 @@ export default function OfertarProductos() {
       isNaN(ofertaLimpia) ||
       ofertaLimpia <= 0
     ) {
-      alert(
+      showKyntuAlert(
         'Por favor ingresa un valor numérico válido en la oferta.'
       );
 
@@ -1096,7 +1097,7 @@ export default function OfertarProductos() {
       producto.incluye_despacho &&
       !producto.tiempo_despacho_horas
     ) {
-      alert(
+      showKyntuAlert(
         'Selecciona el tiempo de despacho.'
       );
 
@@ -1104,7 +1105,7 @@ export default function OfertarProductos() {
     }
 
     if (producto.solicitud_adjudicada) {
-      alert(
+      showKyntuAlert(
         'Esta solicitud ya fue adjudicada y no admite nuevas ofertas.'
       );
 
@@ -1122,7 +1123,7 @@ export default function OfertarProductos() {
         producto.fecha_cierre
       ) === '0'
     ) {
-      alert(
+      showKyntuAlert(
         'La licitación está cerrada.'
       );
 
@@ -1130,7 +1131,7 @@ export default function OfertarProductos() {
     }
 
     if (producto.ya_oferto) {
-      alert(
+      showKyntuAlert(
         'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
       );
 
@@ -1164,7 +1165,7 @@ export default function OfertarProductos() {
       .maybeSingle();
 
     if (dupError) {
-      alert(
+      showKyntuAlert(
         'Error al verificar ofertas existentes: ' +
           dupError.message
       );
@@ -1173,7 +1174,7 @@ export default function OfertarProductos() {
     }
 
     if (ofertaDuplicada) {
-      alert(
+      showKyntuAlert(
         'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
       );
 
@@ -1237,7 +1238,7 @@ export default function OfertarProductos() {
           .includes('unique');
 
       if (esDuplicada) {
-        alert(
+        showKyntuAlert(
           'Ya enviaste una oferta para este producto. Puedes verla en Mis ofertas enviadas.'
         );
 
@@ -1249,7 +1250,7 @@ export default function OfertarProductos() {
           )
         );
       } else {
-        alert(
+        showKyntuAlert(
           'Error al enviar oferta: ' +
             error.message
         );
@@ -1289,7 +1290,7 @@ export default function OfertarProductos() {
         )
       );
 
-      alert(
+      showKyntuAlert(
         'Oferta enviada correctamente.'
       );
     }
@@ -1323,7 +1324,7 @@ export default function OfertarProductos() {
         error
       );
 
-      alert(
+      showKyntuAlert(
         'No se pudo cerrar la sesión.'
       );
 

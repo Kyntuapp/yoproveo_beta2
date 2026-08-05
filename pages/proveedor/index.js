@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 // pages/proveedor/index.js
 
 import { useEffect, useState } from 'react';
@@ -23,7 +24,7 @@ export default function ProveedorIndex() {
         await supabase.auth.getUser();
 
       if (error || !userData?.user) {
-        alert('Debes iniciar sesión.');
+        showKyntuAlert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
@@ -36,7 +37,7 @@ export default function ProveedorIndex() {
       );
 
       if (!perfil) {
-        alert('No se encontró perfil de proveedor');
+        showKyntuAlert('No se encontró perfil de proveedor');
         router.push('/');
         return;
       }

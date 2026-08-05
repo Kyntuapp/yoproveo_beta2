@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 // pages/proveedor/ofertas_enviadas.js
 import {
   Fragment,
@@ -76,7 +77,7 @@ export default function OfertasEnviadas() {
         await supabase.auth.getUser();
 
       if (userError || !userData?.user) {
-        alert('Debes iniciar sesión.');
+        showKyntuAlert('Debes iniciar sesión.');
         router.push('/');
         return;
       }
@@ -89,7 +90,7 @@ export default function OfertasEnviadas() {
       );
 
       if (!perfilProv) {
-        alert('No se encontró perfil proveedor.');
+        showKyntuAlert('No se encontró perfil proveedor.');
         router.push('/proveedor');
         return;
       }
@@ -106,7 +107,7 @@ export default function OfertasEnviadas() {
         .order('id', { ascending: false });
 
       if (ofertasError) {
-        alert('Error al cargar ofertas: ' + ofertasError.message);
+        showKyntuAlert('Error al cargar ofertas: ' + ofertasError.message);
         return;
       }
 
@@ -576,7 +577,7 @@ export default function OfertasEnviadas() {
         error
       );
 
-      alert('No se pudo cerrar la sesión.');
+      showKyntuAlert('No se pudo cerrar la sesión.');
       return;
     }
 

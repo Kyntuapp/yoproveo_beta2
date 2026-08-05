@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -47,7 +48,7 @@ export default function MasterOperaciones() {
         .order('fecha_creacion', { ascending: false });
 
       if (listasError) {
-        alert('Error al cargar listas de compra: ' + listasError.message);
+        showKyntuAlert('Error al cargar listas de compra: ' + listasError.message);
         return;
       }
 
@@ -59,7 +60,7 @@ export default function MasterOperaciones() {
         .order('id', { ascending: false });
 
       if (ofertasError) {
-        alert('Error al cargar ofertas: ' + ofertasError.message);
+        showKyntuAlert('Error al cargar ofertas: ' + ofertasError.message);
         return;
       }
 
@@ -69,7 +70,7 @@ export default function MasterOperaciones() {
         .in('tipo', ['comprador', 'proveedor']);
 
       if (perfilesError) {
-        alert('Error al cargar perfiles: ' + perfilesError.message);
+        showKyntuAlert('Error al cargar perfiles: ' + perfilesError.message);
         return;
       }
 

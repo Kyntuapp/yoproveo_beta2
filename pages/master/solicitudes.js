@@ -1,3 +1,4 @@
+import { showKyntuAlert } from '../../lib/kyntuAlert';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
@@ -26,7 +27,7 @@ export default function MasterSolicitudes() {
 
   if (solicitudesError) {
     console.error('Error al cargar solicitudes:', solicitudesError);
-    alert('Error al cargar solicitudes: ' + solicitudesError.message);
+    showKyntuAlert('Error al cargar solicitudes: ' + solicitudesError.message);
     return;
   }
 
@@ -70,7 +71,7 @@ console.log('Perfiles encontrados:', perfilesData);
       .select('id, nombre, marca, formato');
 
     if (catalogoError) {
-      alert('Error al revisar catálogo: ' + catalogoError.message);
+      showKyntuAlert('Error al revisar catálogo: ' + catalogoError.message);
       return;
     }
 
@@ -87,7 +88,7 @@ console.log('Perfiles encontrados:', perfilesData);
         .insert([{ nombre, marca, formato }]);
 
       if (insertCatalogoError) {
-        alert('Error al insertar en catálogo: ' + insertCatalogoError.message);
+        showKyntuAlert('Error al insertar en catálogo: ' + insertCatalogoError.message);
         return;
       }
     }
@@ -103,7 +104,7 @@ console.log('Perfiles encontrados:', perfilesData);
       }]);
 
     if (insertProveedorError) {
-      alert('Error al agregar producto al proveedor: ' + insertProveedorError.message);
+      showKyntuAlert('Error al agregar producto al proveedor: ' + insertProveedorError.message);
       return;
     }
 
@@ -115,7 +116,7 @@ console.log('Perfiles encontrados:', perfilesData);
       .eq(solicitud.id ? 'id' : 'identificación', solicitudId);
 
     if (updateError) {
-      alert('Error al aprobar solicitud: ' + updateError.message);
+      showKyntuAlert('Error al aprobar solicitud: ' + updateError.message);
       return;
     }
 
@@ -128,7 +129,7 @@ console.log('Perfiles encontrados:', perfilesData);
       leida: false,
     }]);
 
-    alert('Solicitud aprobada');
+    showKyntuAlert('Solicitud aprobada');
     await cargarSolicitudes();
   };
 
@@ -147,7 +148,7 @@ console.log('Perfiles encontrados:', perfilesData);
       .eq(solicitud.id ? 'id' : 'identificación', solicitudId);
 
     if (updateError) {
-      alert('Error al rechazar: ' + updateError.message);
+      showKyntuAlert('Error al rechazar: ' + updateError.message);
       return;
     }
 
@@ -160,7 +161,7 @@ console.log('Perfiles encontrados:', perfilesData);
       leida: false,
     }]);
 
-    alert('Solicitud rechazada');
+    showKyntuAlert('Solicitud rechazada');
     await cargarSolicitudes();
   };
 
