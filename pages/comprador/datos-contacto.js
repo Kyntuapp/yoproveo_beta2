@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import {
+  CreditCard,
+  Lock,
   MapPin,
   Save,
   Truck,
@@ -301,7 +303,7 @@ export default function DatosContactoComprador() {
             </span>
 
             <h1 style={styles.heading}>
-              Datos de entrega
+              Actualiza tus datos
             </h1>
 
             <p style={styles.heroText}>
@@ -657,6 +659,55 @@ export default function DatosContactoComprador() {
             </div>
           </form>
         )}
+
+        {!loading && (
+          <section
+            className="delivery-card"
+            style={{
+              ...styles.card,
+              marginTop: "20px",
+            }}
+          >
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionIconNeutral}>
+                <Lock size={21} />
+              </span>
+
+              <div>
+                <h2 style={styles.sectionTitle}>
+                  Configuración de la cuenta
+                </h2>
+
+                <p style={styles.sectionDescription}>
+                  Accesos y preferencias de tu cuenta.
+                </p>
+              </div>
+            </div>
+
+            <div style={styles.accountActionsColumn}>
+              <button
+                type="button"
+                onClick={() =>
+                  router.push("/reset-password")
+                }
+                style={styles.secondaryActionButton}
+              >
+                <Lock size={16} />
+                Cambiar contraseña
+              </button>
+
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                style={styles.disabledActionButton}
+              >
+                <CreditCard size={16} />
+                Método de pago · Próximamente
+              </button>
+            </div>
+          </section>
+        )}
       </main>
 
       <KyntuModal
@@ -888,6 +939,18 @@ const styles = {
     background: "#e7f8f4",
   },
 
+  sectionIconNeutral: {
+    width: "42px",
+    height: "42px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    borderRadius: "13px",
+    color: "#5b6f8a",
+    background: "#edf2f7",
+  },
+
   sectionTitle: {
     margin: 0,
     color: "#102b50",
@@ -1058,6 +1121,49 @@ const styles = {
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: 900,
+  },
+
+  accountActionsColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    maxWidth: "360px",
+  },
+
+  secondaryActionButton: {
+    width: "100%",
+    minHeight: "48px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px 20px",
+    border: "1px solid #cbd9e9",
+    borderRadius: "12px",
+    background: "#ffffff",
+    color: "#3b5575",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: 900,
+  },
+
+  disabledActionButton: {
+    width: "100%",
+    minHeight: "48px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px 20px",
+    border: "1px solid #d9e2ec",
+    borderRadius: "12px",
+    background: "#f3f6fa",
+    color: "#9aa7b7",
+    cursor: "not-allowed",
+    pointerEvents: "none",
+    fontSize: "14px",
+    fontWeight: 800,
+    boxShadow: "none",
   },
 
   loadingCard: {
