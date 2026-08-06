@@ -113,7 +113,7 @@ export default function AppHeader({
         <div className="app-header-main" style={styles.mainRow}>
           <div className="app-header-brand" style={styles.brand}>
             <img
-              src="/icono_1.png"
+              src="/icono_2.png"
               alt="Kyntü"
               style={styles.logo}
             />

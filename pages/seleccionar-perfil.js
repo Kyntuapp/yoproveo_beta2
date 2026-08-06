@@ -61,7 +61,7 @@ export default function SeleccionarPerfil() {
         <div className="background-decoration background-decoration-two" />
 
         <img
-          src="/icono_1.png"
+          src="/icono_2.png"
           alt=""
           aria-hidden="true"
           className="background-logo"
@@ -186,7 +186,7 @@ export default function SeleccionarPerfil() {
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          padding: 48px 24px;
+          padding: 24px;
           box-sizing: border-box;
           font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
           background:
@@ -246,7 +246,7 @@ export default function SeleccionarPerfil() {
           z-index: 2;
           width: 100%;
           max-width: 760px;
-          padding: 42px;
+          padding: 28px 36px 24px;
           box-sizing: border-box;
           overflow: hidden;
           background: rgba(255, 255, 255, 0.94);
@@ -265,9 +265,9 @@ export default function SeleccionarPerfil() {
 
         .kyntu-logo {
           display: block;
-          width: 235px;
-          max-width: 78%;
-          margin: -46px auto -54px;
+          width: 150px;
+          max-width: 52%;
+          margin: -28px auto -32px;
           object-fit: contain;
         }
 
@@ -275,7 +275,7 @@ export default function SeleccionarPerfil() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 13px;
+          margin-bottom: 10px;
           padding: 7px 13px;
           border-radius: 999px;
           background: #edf4ff;
@@ -300,7 +300,7 @@ export default function SeleccionarPerfil() {
           flex-wrap: wrap;
           justify-content: center;
           gap: 5px;
-          margin: 13px 0 0;
+          margin: 10px 0 0;
           color: #687991;
           font-size: 14px;
           line-height: 1.6;
@@ -315,7 +315,7 @@ export default function SeleccionarPerfil() {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
-          margin-top: 32px;
+          margin-top: 22px;
         }
 
         .profile-option {
@@ -324,7 +324,7 @@ export default function SeleccionarPerfil() {
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          padding: 24px;
+          padding: 18px 20px;
           text-align: left;
           font-family: inherit;
           border: 1px solid #e1e9f4;
@@ -355,7 +355,7 @@ export default function SeleccionarPerfil() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 19px;
+          margin-bottom: 13px;
           border-radius: 17px;
         }
 
@@ -394,7 +394,7 @@ export default function SeleccionarPerfil() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin-top: 20px;
+          margin-top: 15px;
           padding: 10px 17px;
           border-radius: 12px;
           background: #176bff;
@@ -409,8 +409,8 @@ export default function SeleccionarPerfil() {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          margin: 25px auto 0;
-          padding: 12px 18px;
+          margin: 17px auto 0;
+          padding: 10px 18px;
           border: 0;
           border-radius: 12px;
           background: transparent;
@@ -495,8 +495,8 @@ export default function SeleccionarPerfil() {
           }
 
           .kyntu-logo {
-            width: 205px;
-            margin: -43px auto -47px;
+            width: 140px;
+            margin: -26px auto -29px;
           }
 
           .profile-options {
@@ -546,8 +546,8 @@ export default function SeleccionarPerfil() {
           }
 
           .kyntu-logo {
-            width: 185px;
-            margin: -38px auto -43px;
+            width: 125px;
+            margin: -23px auto -26px;
           }
 
           h1 {

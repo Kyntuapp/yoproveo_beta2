@@ -107,7 +107,7 @@ export default function EncuestaModal({ open, estado, onSuccess }) {
   return (
     <div style={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="encuesta-title">
       <div style={styles.modal}>
-        <img src="/icono_1.png" alt="" style={styles.backgroundLogo} />
+        <img src="/icono_2.png" alt="" style={styles.backgroundLogo} />
 
         <h2 id="encuesta-title" style={styles.title}>
           Encuesta semanal Kyntü

@@ -13,7 +13,7 @@ export default function ModalCalificacion({
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <img src="/icono_1.png" alt="" style={styles.watermark} />
+        <img src="/icono_2.png" alt="" style={styles.watermark} />
 
         <div style={styles.content}>
           <p style={styles.badge}>CALIFICACIÓN</p>

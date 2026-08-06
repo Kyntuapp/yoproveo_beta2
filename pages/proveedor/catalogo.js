@@ -519,19 +519,27 @@ export default function CatalogoProveedor() {
           className="catalogo-card"
           style={styles.card}
         >
-          <img
-            src="/icono_1.png"
-            alt="Kyntü"
-            className="catalogo-logo"
-            style={styles.logo}
-          />
-
-          <h2
-            className="catalogo-card-title"
-            style={styles.cardTitle}
+          <div
+            className="catalogo-section-heading"
+            style={styles.sectionHeading}
           >
-            Agregar productos disponibles
-          </h2>
+            <img
+              src="/icono_2.png"
+              alt="Kyntü"
+              className="catalogo-logo"
+              style={styles.logo}
+            />
+
+            <h2
+              className="catalogo-card-title"
+              style={{
+                ...styles.cardTitle,
+                ...styles.addCardTitle,
+              }}
+            >
+              Agregar productos disponibles
+            </h2>
+          </div>
 
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
@@ -1011,8 +1019,12 @@ export default function CatalogoProveedor() {
         }
 
         @media (max-width: 520px) {
+          .catalogo-section-heading {
+            gap: 10px !important;
+          }
+
           .catalogo-logo {
-            width: 110px !important;
+            width: 52px !important;
           }
 
           .catalogo-card-title {
@@ -1084,10 +1096,19 @@ const styles = {
   },
 
   logo: {
-    width: '145px',
+    width: '64px',
     height: 'auto',
     objectFit: 'contain',
-    marginBottom: '4px',
+    flexShrink: 0,
+  },
+
+  sectionHeading: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: '14px',
+    marginBottom: '22px',
   },
 
   cardTitle: {
@@ -1098,6 +1119,11 @@ const styles = {
     fontWeight: 900,
     letterSpacing: '-0.03em',
     textAlign: 'center',
+  },
+
+  addCardTitle: {
+    margin: 0,
+    textAlign: 'left',
   },
 
   tableWrapper: {

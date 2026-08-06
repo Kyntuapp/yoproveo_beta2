@@ -31,7 +31,7 @@ export default function KyntuModal({
     <div style={styles.overlay}>
       <div style={styles.modal}>
         <img
-            src="/icono_1.png"
+            src="/icono_2.png"
             alt=""
             style={styles.backgroundLogo}
             />

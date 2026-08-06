@@ -92,7 +92,7 @@ function normalizarFormatosItem(item) {
 }
 
 const LISTA_GRID_COLUMNS =
-  'minmax(150px, 1.5fr) minmax(80px, 0.7fr) minmax(65px, 0.5fr) minmax(100px, 0.8fr) minmax(140px, 1.2fr) minmax(110px, 0.9fr) minmax(85px, 0.7fr) minmax(145px, 1fr) minmax(95px, 0.7fr) minmax(130px, 0.9fr)';
+  'minmax(120px, 1.15fr) minmax(62px, 0.58fr) minmax(48px, 0.42fr) minmax(78px, 0.68fr) minmax(82px, 0.72fr) minmax(72px, 0.62fr) minmax(68px, 0.58fr) minmax(118px, 0.95fr) minmax(82px, 0.68fr) minmax(100px, 0.78fr)';
 
 function DetallePedidoCelda({ detalle }) {
   if (!detalle) {
@@ -147,7 +147,9 @@ function BloqueOferta({
   if (fila.ya_oferto) {
     return (
       <div className="kyntu-offerHighlight" style={boxStyle}>
-        <span style={styles.offerBlockTitle}>Tu oferta</span>
+        {!compacto && (
+          <span style={styles.offerBlockTitle}>Tu oferta</span>
+        )}
 
         <span style={styles.sentOffer}>
           ${formatearNumero(fila.oferta)}
@@ -159,7 +161,9 @@ function BloqueOferta({
   if (fila.estado === 'cerrada') {
     return (
       <div className="kyntu-offerHighlight" style={boxStyle}>
-        <span style={styles.offerBlockTitle}>Tu oferta</span>
+        {!compacto && (
+          <span style={styles.offerBlockTitle}>Tu oferta</span>
+        )}
         <span style={styles.sentOffer}>Cerrada</span>
       </div>
     );
@@ -169,32 +173,39 @@ function BloqueOferta({
 
   return (
     <div className="kyntu-offerHighlight" style={boxStyle}>
-      <div style={styles.offerBlockHeader}>
-        <div style={styles.offerBlockTitleRow}>
-          <span style={styles.offerBlockTitle}>Tu oferta</span>
+      {!compacto && (
+        <div style={styles.offerBlockHeader}>
+          <div style={styles.offerBlockTitleRow}>
+            <span style={styles.offerBlockTitle}>Tu oferta</span>
+            <Tooltip label={MENSAJE_AYUDA_OFERTA}>
+              <button
+                type="button"
+                aria-label={`Ayuda: ${MENSAJE_AYUDA_OFERTA}`}
+                style={styles.offerHelpButton}
+              >
+                ⓘ
+              </button>
+            </Tooltip>
+          </div>
+          <span style={styles.offerBlockHint}>
+            Ingresa tu precio · monto total ofertado
+          </span>
+        </div>
+      )}
 
+      {compacto && (
+        <div style={styles.offerBlockTitleRow}>
+          <span style={styles.offerBlockHintCompact}>Ingresa tu precio</span>
           <Tooltip label={MENSAJE_AYUDA_OFERTA}>
             <button
               type="button"
               aria-label={`Ayuda: ${MENSAJE_AYUDA_OFERTA}`}
-              style={styles.offerHelpButton}
+              style={styles.offerHelpButtonCompact}
             >
               ⓘ
             </button>
           </Tooltip>
         </div>
-
-        {!compacto && (
-          <span style={styles.offerBlockHint}>
-            Ingresa tu precio · monto total ofertado
-          </span>
-        )}
-      </div>
-
-      {compacto && (
-        <span style={styles.offerBlockHintCompact}>
-          Ingresa tu precio
-        </span>
       )}
 
       <span id={ayudaOfertaId} style={styles.srOnly}>
@@ -460,6 +471,7 @@ function SolicitudListaRowCard({
         </div>
 
         <div
+          className="kyntu-listaOfferCell"
           style={{
             ...styles.listaCell,
             ...styles.listaOfferCell,
@@ -524,6 +536,7 @@ function SolicitudListaRowCard({
         </div>
 
         <div
+          className="kyntu-listaActionCell"
           style={{
             ...styles.listaCell,
             ...styles.listaActionCell,
@@ -2202,6 +2215,19 @@ return (
     </main>
 
     <style jsx>{`
+      .kyntu-listaHeaderGrid > div {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        box-sizing: border-box;
+      }
+
+      .kyntu-listaHeaderGrid > div:not(:last-child) {
+        border-right: 1px solid #d8e2ef;
+      }
+
       @media (max-width: 820px) {
         .kyntu-filterCard {
           padding: 18px 16px !important;
@@ -2234,7 +2260,24 @@ return (
         }
 
         .kyntu-listaInner {
-          min-width: 720px !important;
+          min-width: 0 !important;
+        }
+
+        .kyntu-listaHeaderGrid,
+        .kyntu-listaRowGrid {
+          grid-template-columns:
+            minmax(0, 1.15fr)
+            minmax(0, 0.65fr)
+            0 0 0 0 0
+            minmax(105px, 1fr)
+            0
+            minmax(92px, 0.8fr) !important;
+          gap: 6px !important;
+        }
+
+        .kyntu-listaOfferCell,
+        .kyntu-listaActionCell {
+          min-width: 0 !important;
         }
       }
 
@@ -2245,6 +2288,18 @@ return (
 
         .kyntu-actionButtons {
           gap: 5px !important;
+        }
+
+        .kyntu-listaHeaderGrid,
+        .kyntu-listaRowGrid {
+          grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 0.55fr)
+            0 0 0 0 0
+            minmax(92px, 0.9fr)
+            0
+            minmax(82px, 0.72fr) !important;
+          gap: 4px !important;
         }
       }
 
@@ -2456,7 +2511,7 @@ const styles = {
     width: '100%',
     maxWidth: '100%',
     marginBottom: '28px',
-    padding: '24px',
+    padding: '18px',
     boxSizing: 'border-box',
     borderRadius: '26px',
     background: 'rgba(255,255,255,0.96)',
@@ -2468,24 +2523,24 @@ const styles = {
   listaScrollWrap: {
     width: '100%',
     maxWidth: '100%',
-    overflowX: 'auto',
+    overflowX: 'hidden',
     boxSizing: 'border-box',
     WebkitOverflowScrolling: 'touch',
   },
 
   listaInner: {
     width: '100%',
-    minWidth: '1120px',
+    minWidth: 0,
     boxSizing: 'border-box',
   },
 
   listaHeaderGrid: {
     display: 'grid',
     gridTemplateColumns: LISTA_GRID_COLUMNS,
-    gap: '8px 10px',
+    gap: '6px',
     alignItems: 'center',
     marginBottom: '12px',
-    padding: '10px 12px',
+    padding: '9px 8px',
     borderRadius: '12px',
     background: '#f3f7fc',
     border: '1px solid #e3ebf5',
@@ -2500,7 +2555,9 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.035em',
     textAlign: 'center',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    wordBreak: 'normal',
   },
 
   listaRowsStack: {
@@ -2512,7 +2569,7 @@ const styles = {
   },
 
   solicitudRowCard: {
-    padding: '12px 14px',
+    padding: '9px 8px',
     borderRadius: '20px',
     background: '#ffffff',
     border: '1px solid #e1e9f4',
@@ -2523,7 +2580,7 @@ const styles = {
   listaRowGrid: {
     display: 'grid',
     gridTemplateColumns: LISTA_GRID_COLUMNS,
-    gap: '8px 10px',
+    gap: '6px',
     alignItems: 'center',
     width: '100%',
     boxSizing: 'border-box',
@@ -2549,15 +2606,15 @@ const styles = {
   },
 
   listaOfferCell: {
-    minWidth: '145px',
+    minWidth: '118px',
   },
 
   listaDeliveryCell: {
-    minWidth: '95px',
+    minWidth: '82px',
   },
 
   listaActionCell: {
-    minWidth: '118px',
+    minWidth: '100px',
   },
 
   actionButtonsStack: {
@@ -2855,6 +2912,23 @@ const styles = {
     color: '#4a719e',
     cursor: 'pointer',
     fontSize: '11px',
+    lineHeight: 1,
+    fontWeight: 800,
+    flexShrink: 0,
+  },
+
+  offerHelpButtonCompact: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    padding: 0,
+    border: 'none',
+    background: 'transparent',
+    color: '#176bff',
+    cursor: 'pointer',
+    fontSize: '14px',
     lineHeight: 1,
     fontWeight: 800,
     flexShrink: 0,

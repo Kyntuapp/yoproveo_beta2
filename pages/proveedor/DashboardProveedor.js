@@ -166,10 +166,7 @@ export default function DashboardProveedor() {
             .eq(
               "proveedor_id",
               perfil.id,
-            )
-            .order("created_at", {
-              ascending: false,
-            }),
+            ),
 
           supabase
             .from(
@@ -179,10 +176,7 @@ export default function DashboardProveedor() {
             .eq(
               "proveedor_id",
               perfil.id,
-            )
-            .order("created_at", {
-              ascending: false,
-            }),
+            ),
         ]);
 
         if (ofertasError) {
@@ -196,9 +190,47 @@ export default function DashboardProveedor() {
           );
         }
 
-        setOfertas(
-          ofertasData || [],
-        );
+        const ofertasBase = ofertasData || [];
+        const listaIds = [
+          ...new Set(
+            ofertasBase
+              .map((oferta) => oferta.lista_id)
+              .filter(Boolean),
+          ),
+        ];
+
+        let fechaPorLista = new Map();
+
+        if (listaIds.length > 0) {
+          const { data: listasData, error: listasError } = await supabase
+            .from("listas_compras")
+            .select("id, fecha_creacion")
+            .in("id", listaIds);
+
+          if (listasError) {
+            throw listasError;
+          }
+
+          fechaPorLista = new Map(
+            (listasData || []).map((lista) => [
+              lista.id,
+              lista.fecha_creacion || null,
+            ]),
+          );
+        }
+
+        const ofertasOrdenadas = ofertasBase
+          .map((oferta) => ({
+            ...oferta,
+            created_at: fechaPorLista.get(oferta.lista_id) || null,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime(),
+          );
+
+        setOfertas(ofertasOrdenadas);
 
         setCalificaciones(
           calificacionesData || [],

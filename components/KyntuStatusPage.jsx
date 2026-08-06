@@ -10,7 +10,7 @@ export default function KyntuStatusPage({
     <main className="kyntu-status-page">
       <div className="kyntu-status-glow" />
       <section className="kyntu-status-card" aria-live="polite">
-        <img src="/icono_1.png" alt="Kyntü" className="kyntu-status-logo" />
+        <img src="/icono_2.png" alt="Kyntü" className="kyntu-status-logo" />
         <span className="kyntu-status-eyebrow">{eyebrow}</span>
         {loading && <span className="kyntu-status-spinner" aria-hidden="true" />}
         <h1>{title}</h1>

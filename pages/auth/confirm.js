@@ -73,7 +73,7 @@ export default function AuthConfirm() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
+        <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
         <h1 style={styles.title}>Confirmación de correo</h1>
 
         {checking ? (

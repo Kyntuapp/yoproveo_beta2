@@ -189,7 +189,7 @@ console.log('Perfiles encontrados:', perfilesData);
         </section>
 
         <section style={styles.card}>
-          <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
+          <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
 
           {solicitudes.length === 0 ? (
             <p style={styles.emptyText}>No hay solicitudes</p>

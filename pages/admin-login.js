@@ -79,7 +79,7 @@ export default function AdminLogin() {
           if (!loading) handleLogin();
         }}
       >
-        <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
+        <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
         <span style={styles.eyebrow}>Panel interno</span>
         <h1 style={styles.title}>Acceso administrador</h1>
         <p style={styles.subtitle}>Ingresa con tu cuenta master para gestionar la plataforma.</p>

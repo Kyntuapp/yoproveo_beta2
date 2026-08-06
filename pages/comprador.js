@@ -2674,19 +2674,27 @@ export default function Comprador() {
         className="kyntu-card"
         style={styles.card}
       >
-        <img
-          src="/icono_1.png"
-          alt="Kyntü"
-          className="kyntu-logo"
-          style={styles.logo}
-        />
-
-        <h2
-          className="kyntu-cardTitle"
-          style={styles.cardTitle}
+        <div
+          className="kyntu-sectionHeading"
+          style={styles.sectionHeading}
         >
-          Agrega productos a tu lista
-        </h2>
+          <img
+            src="/icono_2.png"
+            alt="Kyntü"
+            className="kyntu-logo"
+            style={styles.logo}
+          />
+
+          <h2
+            className="kyntu-cardTitle"
+            style={{
+              ...styles.cardTitle,
+              ...styles.addCardTitle,
+            }}
+          >
+            Agrega productos a tu lista
+          </h2>
+        </div>
 
         <div
           className="kyntu-comunaBox"
@@ -4297,9 +4305,12 @@ export default function Comprador() {
           }
 
           .kyntu-logo {
-            width: 190px !important;
-            margin-top: -42px !important;
-            margin-bottom: -42px !important;
+            width: 52px !important;
+            margin: 0 !important;
+          }
+
+          .kyntu-sectionHeading {
+            gap: 10px !important;
           }
 
           .kyntu-cardTitle {
@@ -4562,11 +4573,19 @@ const styles = {
 
   logo: {
     display: 'block',
-    width: '230px',
-    maxWidth: '75%',
+    width: '64px',
     height: 'auto',
-    margin: '-52px auto -52px',
     objectFit: 'contain',
+    flexShrink: 0,
+  },
+
+  sectionHeading: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: '14px',
+    marginBottom: '22px',
   },
 
   cardTitle: {
@@ -4577,6 +4596,11 @@ const styles = {
     textAlign: 'center',
     fontWeight: 900,
     letterSpacing: '-0.025em',
+  },
+
+  addCardTitle: {
+    margin: 0,
+    textAlign: 'left',
   },
 
   comunaBox: {

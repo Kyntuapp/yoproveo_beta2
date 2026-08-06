@@ -36,7 +36,7 @@ export default function LegalLayout({
           </button>
 
           <img
-            src="/icono_1.png"
+            src="/icono_2.png"
             alt="Kyntü"
             style={styles.logo}
           />

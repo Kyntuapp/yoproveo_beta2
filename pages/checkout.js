@@ -77,7 +77,7 @@ export default function CheckoutPago() {
             </p>
 
             <div style={styles.card}>
-              <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
+              <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
               <h2 style={styles.cardTitle}>Resumen de pago</h2>
 
               <div style={styles.summaryRow}>

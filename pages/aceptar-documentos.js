@@ -143,7 +143,7 @@ export default function AceptarDocumentos() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
+        <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
         <h1 style={styles.title}>Documentos legales</h1>
         <p style={styles.subtitle}>
           Para continuar usando Kyntü, confirma que has leído y aceptas los
