@@ -13,7 +13,7 @@ export const layout = {
   shell: {
     display: 'flex',
     minHeight: '100vh',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     backgroundColor: colors.pageBg,
     color: colors.text,
   },

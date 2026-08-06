@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import {
   ArrowLeft,
   Bell,
@@ -25,6 +26,59 @@ export default function AppHeader({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [userDisplay, setUserDisplay] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    const loadUserDisplay = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!active || !user) return;
+
+      const email = user.email?.trim() || "";
+      const metadataName =
+        user.user_metadata?.full_name?.trim?.() ||
+        user.user_metadata?.name?.trim?.() ||
+        "";
+
+      const { data: profileByAuth } = await supabase
+        .from("perfiles")
+        .select("nombre_contacto")
+        .eq("auth_id", user.id)
+        .eq("tipo", profileLabel.toLowerCase())
+        .maybeSingle();
+
+      let profile = profileByAuth;
+
+      if (!profile && email) {
+        const { data: profileByEmail } = await supabase
+          .from("perfiles")
+          .select("nombre_contacto")
+          .eq("email", email)
+          .eq("tipo", profileLabel.toLowerCase())
+          .maybeSingle();
+
+        profile = profileByEmail;
+      }
+
+      const profileName = profile?.nombre_contacto?.trim?.() || "";
+
+      if (active) {
+        setUserEmail(email);
+        setUserDisplay(profileName || metadataName || email || profileLabel);
+      }
+    };
+
+    loadUserDisplay();
+
+    return () => {
+      active = false;
+    };
+  }, [profileLabel]);
 
   const closeMenus = () => {
     setMenuOpen(false);
@@ -49,8 +103,9 @@ export default function AppHeader({
     }
   };
 
+  const displayName = userDisplay || profileLabel;
   const profileInitial =
-    profileLabel?.trim()?.charAt(0)?.toUpperCase() || "U";
+    displayName?.trim()?.charAt(0)?.toUpperCase() || "U";
 
   return (
     <>
@@ -149,11 +204,11 @@ export default function AppHeader({
                   style={styles.profileCopy}
                 >
                   <span style={styles.profileCaption}>
-                    Perfil activo
+                    {profileLabel}
                   </span>
 
                   <strong style={styles.profileName}>
-                    {profileLabel}
+                    {displayName}
                   </strong>
                 </span>
 
@@ -180,13 +235,15 @@ export default function AppHeader({
                     </span>
 
                     <div>
-                      <p style={styles.profileMenuLabel}>
-                        Sesión iniciada como
-                      </p>
+                      <p style={styles.profileMenuLabel}>{profileLabel}</p>
 
                       <strong style={styles.profileMenuName}>
-                        {profileLabel}
+                        {displayName}
                       </strong>
+
+                      {userEmail && userEmail !== displayName && (
+                        <span style={styles.profileMenuEmail}>{userEmail}</span>
+                      )}
                     </div>
                   </div>
 
@@ -610,6 +667,10 @@ const styles = {
     color: "#17365e",
     fontSize: "13px",
     fontWeight: 900,
+    maxWidth: "155px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
 
   chevron: {
@@ -665,6 +726,17 @@ const styles = {
     color: "#17365e",
     fontSize: "13px",
     fontWeight: 900,
+  },
+
+  profileMenuEmail: {
+    display: "block",
+    maxWidth: "180px",
+    marginTop: "2px",
+    overflow: "hidden",
+    color: "#718097",
+    fontSize: "10px",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
 
   menuItem: {

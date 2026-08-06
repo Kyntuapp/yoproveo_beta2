@@ -121,7 +121,7 @@ export default function MasterWarRoom() {
 
   if (authLoading || !authorized) {
     return (
-      <div style={{ padding: 32, fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ padding: 32, fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif" }}>
         Verificando acceso...
       </div>
     );

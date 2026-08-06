@@ -145,16 +145,26 @@ export default function DashboardComprador() {
         } = await supabase
           .from("ofertas_productos")
           .select("*")
-          .in("lista_id", idsListas)
-          .order("created_at", {
-            ascending: false,
-          });
+          .in("lista_id", idsListas);
 
         if (ofertasError) {
           throw ofertasError;
         }
 
-        ofertasData = data || [];
+        const fechaPorLista = new Map(
+          listasObtenidas.map((lista) => [lista.id, lista.fecha_creacion || null]),
+        );
+
+        ofertasData = (data || [])
+          .map((oferta) => ({
+            ...oferta,
+            created_at: fechaPorLista.get(oferta.lista_id) || null,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime(),
+          );
       }
 
       setListas(listasObtenidas);

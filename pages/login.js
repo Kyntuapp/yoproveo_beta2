@@ -204,7 +204,7 @@ const styles = {
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
   },
 
   backgroundGlow: {

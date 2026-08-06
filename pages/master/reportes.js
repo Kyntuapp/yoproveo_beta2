@@ -404,14 +404,14 @@ const styles = {
   page: {
     minHeight: '100vh',
     padding: 32,
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     background:
       'linear-gradient(135deg, #F5F8FF 0%, #EEF4FF 45%, #FFFFFF 100%)',
     color: '#071B3A',
   },
   loadingPage: {
     padding: 32,
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
   },
   header: {
     display: 'flex',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useRouter } from 'next/router';
+import KyntuStatusPage from '../components/KyntuStatusPage';
 
 export default function FixPerfil() {
   const [mensaje, setMensaje] = useState('');
@@ -37,10 +38,15 @@ export default function FixPerfil() {
     actualizarPerfil();
   }, []);
 
+  const hayError = mensaje.startsWith('Error');
+
   return (
-    <div style={{ textAlign: 'center', marginTop: '50px' }}>
-      <h2>Actualizando perfil...</h2>
-      <p>{mensaje}</p>
-    </div>
+    <KyntuStatusPage
+      title={hayError ? 'No pudimos actualizar tu perfil' : 'Actualizando perfil'}
+      message={mensaje || 'Estamos preparando tu acceso a Kyntü.'}
+      loading={!hayError}
+      action={hayError ? () => router.push('/login') : undefined}
+      actionText={hayError ? 'Volver al inicio de sesión' : undefined}
+    />
   );
 }

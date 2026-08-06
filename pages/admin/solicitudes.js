@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import KyntuStatusPage from '../../components/KyntuStatusPage';
 
 export default function AdminSolicitudesRedirect() {
   const router = useRouter();
@@ -8,5 +9,5 @@ export default function AdminSolicitudesRedirect() {
     router.replace('/master/solicitudes');
   }, [router]);
 
-  return <div style={{ padding: 20 }}>Redirigiendo a solicitudes master...</div>;
+  return <KyntuStatusPage title="Abriendo solicitudes" message="Cargando la gestión de productos." />;
 }

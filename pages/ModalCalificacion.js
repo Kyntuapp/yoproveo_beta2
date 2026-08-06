@@ -101,7 +101,7 @@ const styles = {
     padding: '32px',
     boxShadow: '0 30px 90px rgba(20, 55, 120, 0.22)',
     overflow: 'hidden',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
   },
   watermark: {
     position: 'absolute',
@@ -160,7 +160,7 @@ const styles = {
     outline: 'none',
     resize: 'vertical',
     boxSizing: 'border-box',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     marginBottom: '22px',
   },
   actions: {

@@ -188,7 +188,7 @@ export default function SeleccionarPerfil() {
           overflow: hidden;
           padding: 48px 24px;
           box-sizing: border-box;
-          font-family: Arial, Helvetica, sans-serif;
+          font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
           background:
             radial-gradient(
               circle at 12% 12%,

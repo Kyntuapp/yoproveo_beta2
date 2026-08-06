@@ -216,7 +216,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '40px 20px',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     color: '#061b41',
   },
   card: {

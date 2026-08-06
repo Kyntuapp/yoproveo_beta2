@@ -102,7 +102,7 @@ const styles = {
     padding: '32px 30px',
     boxShadow: '0 30px 90px rgba(20, 55, 120, 0.22)',
     textAlign: 'center',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
   },
   logo: {
     width: '90px',

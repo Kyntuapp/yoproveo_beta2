@@ -268,7 +268,7 @@ const styles = {
   page: {
     minHeight: '100vh',
     background: '#f7f9fc',
-    fontFamily: 'Arial, Helvetica, sans-serif',
+    fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     color: '#061b41',
   },
   container: {
