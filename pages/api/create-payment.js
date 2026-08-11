@@ -6,6 +6,10 @@ const supabaseAdmin = createClient(
 );
 
 export default async function handler(req, res) {
+  return res.status(410).json({
+    error: 'Ruta retirada. Usa /api/pagos/iniciar con una sesión autenticada.',
+  });
+  /* Flujo legado deshabilitado: no calcula montos desde la base de datos.
   if (req.method !== 'POST') {
     return res.status(405).json({
       error: 'Método no permitido',
@@ -62,4 +66,5 @@ export default async function handler(req, res) {
       error: 'Error creando pago',
     });
   }
+  */
 }

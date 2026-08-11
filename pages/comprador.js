@@ -2019,6 +2019,8 @@ export default function Comprador() {
   */
 
   const pagarOferta = async (oferta) => {
+    router.push(`/pagos?oferta_id=${encodeURIComponent(oferta.id)}`);
+    return;
     const {
       data: proveedor,
       error,
@@ -3732,7 +3734,9 @@ export default function Comprador() {
                                                     (
                                                       oferta.estado ||
                                                       ''
-                                                    ).toLowerCase();
+                                                    )
+                                                      .trim()
+                                                      .toLowerCase();
 
                                                   const solicitudAdjudicada =
                                                     ofertas.some(
@@ -3767,6 +3771,17 @@ export default function Comprador() {
                                                   const isProviderPaid =
                                                     estado ===
                                                     'pagada';
+
+                                                  const puedeResponderOferta =
+                                                    [
+                                                      '',
+                                                      'pendiente',
+                                                      'confirmada',
+                                                      'enviada',
+                                                      'activa',
+                                                    ].includes(
+                                                      estado
+                                                    );
 
                                                   const isAdjudicada =
                                                     isProviderPaid ||
@@ -3874,7 +3889,7 @@ export default function Comprador() {
                                                           participanteLabel="Proveedor"
                                                           tooltipChat="Hablar con el proveedor"
                                                           mostrarAceptarRechazar={
-                                                            isPending
+                                                            puedeResponderOferta
                                                           }
                                                           chatAbierto={
                                                             conversacionAbiertaPorProducto[

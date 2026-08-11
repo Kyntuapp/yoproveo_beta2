@@ -2,6 +2,10 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import KyntuModal, { createModalState } from './KyntuModal';
 
+export function getServerSideProps() {
+  return { redirect: { destination: '/pagos', permanent: false } };
+}
+
 export default function CheckoutPago() {
   const router = useRouter();
   const { pago_id } = router.query;

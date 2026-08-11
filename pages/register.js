@@ -256,8 +256,16 @@ export default function Register() {
 
   return (
     <div style={styles.container}>
+      <div style={styles.backgroundGlow}></div>
+
+      <img
+        src="/yoproveo_logo_mvp.png"
+        alt=""
+        style={styles.watermark}
+      />
+
       <div style={styles.card}>
-        <img src="/icono_2.png" alt="Kyntü" style={styles.logo} />
+        <img src="/icono_1.png" alt="Kyntü" style={styles.logo} />
 
         <h1 style={styles.title}>Registro</h1>
 
@@ -369,14 +377,36 @@ export default function Register() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#f7f9fc',
+    width: '100%',
+    background:
+      'linear-gradient(135deg, #f7f9ff 0%, #eef4ff 48%, #f8fbff 100%)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '40px 20px',
+    boxSizing: 'border-box',
+    position: 'relative',
+    overflow: 'hidden',
     fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif",
     color: '#061b41',
+  },
+  backgroundGlow: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 12% 20%, rgba(36, 94, 255, 0.16), transparent 32%), radial-gradient(circle at 88% 78%, rgba(12, 193, 201, 0.14), transparent 28%)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  },
+  watermark: {
+    position: 'absolute',
+    top: '34px',
+    left: '42px',
+    width: '220px',
+    opacity: 0.13,
+    pointerEvents: 'none',
+    zIndex: 2,
   },
   title: {
     fontSize: '34px',
@@ -439,6 +469,8 @@ const styles = {
     fontWeight: 900,
   },
   card: {
+    position: 'relative',
+    zIndex: 3,
     width: '100%',
     maxWidth: '430px',
     background: '#ffffff',
