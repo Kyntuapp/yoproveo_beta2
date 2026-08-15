@@ -118,7 +118,7 @@ export function getServerSideProps() {
   return {
     props: {
       transbankEnabled:
-        process.env.NODE_ENV !== 'production' ||
+        process.env.VERCEL_ENV !== 'production' ||
         process.env.TRANSBANK_ENVIRONMENT === 'production',
     },
   };

@@ -80,7 +80,7 @@ export default async function handler(req, res) {
   }
   if (
     provider === 'transbank' &&
-    process.env.NODE_ENV === 'production' &&
+    process.env.VERCEL_ENV === 'production' &&
     process.env.TRANSBANK_ENVIRONMENT !== 'production'
   ) {
     return res.status(503).json({
