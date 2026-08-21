@@ -14,6 +14,7 @@ import { comunasChile } from "../../utils/comunasChile";
 import { regionesChile } from "../../utils/regionesChile";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
+import SoporteLauncher from "../../components/soporte/SoporteLauncher";
 import KyntuModal, {
   createModalState,
 } from "../KyntuModal";
@@ -284,6 +285,9 @@ export default function DatosContactoComprador() {
         userId={perfilId}
         rol="comprador"
       />
+    ) : null,
+    support: perfilId ? (
+      <SoporteLauncher perfilId={perfilId} rol="comprador" />
     ) : null,
   };
 

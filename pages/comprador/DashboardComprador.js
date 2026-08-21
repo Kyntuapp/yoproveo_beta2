@@ -8,6 +8,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
+import SoporteLauncher from "../../components/soporte/SoporteLauncher";
 
 const normalizarEstado = (estado = "") =>
   estado
@@ -389,6 +390,9 @@ export default function DashboardComprador() {
         userId={perfilId}
         rol="comprador"
       />
+    ) : null,
+    support: perfilId ? (
+      <SoporteLauncher perfilId={perfilId} rol="comprador" />
     ) : null,
   };
 

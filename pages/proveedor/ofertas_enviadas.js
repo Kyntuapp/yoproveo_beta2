@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
+import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
 import CompradorContacto from '../../components/CompradorContacto';
 import {
@@ -600,6 +601,11 @@ export default function OfertasEnviadas() {
             userId={perfilId}
             rol="proveedor"
           />
+        ) : null
+      }
+      support={
+        perfilId ? (
+          <SoporteLauncher perfilId={perfilId} rol="proveedor" />
         ) : null
       }
     >

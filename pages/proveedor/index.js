@@ -12,6 +12,7 @@ import {
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import Notificaciones from '../../components/Notificaciones';
+import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import AppLayout from '../../components/Layout/AppLayout';
 
 export default function ProveedorIndex() {
@@ -86,6 +87,11 @@ export default function ProveedorIndex() {
           userId={perfilId}
           rol="proveedor"
         />
+      }
+      support={
+        perfilId ? (
+          <SoporteLauncher perfilId={perfilId} rol="proveedor" />
+        ) : null
       }
     >
       <section

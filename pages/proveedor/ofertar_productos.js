@@ -5,6 +5,7 @@ import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
+import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
 import {
   fetchSolicitudesAdjudicadasIds,
@@ -1578,6 +1579,11 @@ return (
         userId={proveedorPerfilId}
         rol="proveedor"
       />
+    }
+    support={
+      proveedorPerfilId ? (
+        <SoporteLauncher perfilId={proveedorPerfilId} rol="proveedor" />
+      ) : null
     }
   >
     <main

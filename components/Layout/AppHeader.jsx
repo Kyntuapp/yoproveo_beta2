@@ -23,6 +23,7 @@ export default function AppHeader({
   onBack,
   onLogout,
   notifications,
+  support,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -173,6 +174,16 @@ export default function AppHeader({
           </nav>
 
           <div style={styles.actions}>
+            {support && (
+              <div
+                className="app-header-support"
+                style={styles.support}
+                aria-label="Soporte"
+              >
+                {support}
+              </div>
+            )}
+
             {notifications && (
               <div
                 className="app-header-notifications"
@@ -605,6 +616,14 @@ const styles = {
     justifyContent: "flex-end",
     gap: "8px",
     minWidth: "220px",
+  },
+
+  support: {
+    minWidth: "42px",
+    minHeight: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   notifications: {

@@ -10,6 +10,7 @@ export default function AppLayout({
   onDashboard,
   onLogout,
   notifications,
+  support,
 }) {
   return (
     <>
@@ -39,6 +40,7 @@ export default function AppLayout({
             onDashboard={onDashboard}
             onLogout={onLogout}
             notifications={notifications}
+            support={support}
           />
 
           <main

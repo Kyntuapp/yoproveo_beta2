@@ -13,6 +13,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { resolveProveedorProfile } from "../../lib/resolveProveedorProfile";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
+import SoporteLauncher from "../../components/soporte/SoporteLauncher";
 
 export default function DatosContactoProveedor() {
   const router = useRouter();
@@ -205,6 +206,11 @@ export default function DatosContactoProveedor() {
             userId={perfil.id}
             rol="proveedor"
           />
+        ) : null
+      }
+      support={
+        perfil?.id ? (
+          <SoporteLauncher perfilId={perfil.id} rol="proveedor" />
         ) : null
       }
     >

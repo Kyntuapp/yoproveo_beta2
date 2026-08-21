@@ -12,6 +12,7 @@ import OfertaConversacionContenedor from '../components/OfertaConversacionConten
 import BandejaMensajesComerciales, {
   IconoChatPreOferta,
 } from '../components/BandejaMensajesComerciales';
+import SoporteLauncher from '../components/soporte/SoporteLauncher';
 import {
   chatSoloLecturaPorAdjudicacion,
   esOfertaAdjudicada,
@@ -2668,6 +2669,11 @@ export default function Comprador() {
           userId={authUserId}
           rol="comprador"
         />
+      }
+      support={
+        usuarioId ? (
+          <SoporteLauncher perfilId={usuarioId} rol="comprador" />
+        ) : null
       }
     >
           <section
