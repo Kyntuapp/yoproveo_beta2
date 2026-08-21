@@ -177,13 +177,10 @@ CREATE POLICY mensajes_soporte_insert
     )
   );
 
+-- Sin policy UPDATE en mensajes_soporte: los mensajes son inmutables vía API
+-- directa. El marcado de leído se hace solo con marcar_mensajes_soporte_leidos
+-- (SECURITY DEFINER), que actualiza únicamente leido_por_usuario / leido_por_admin.
 DROP POLICY IF EXISTS mensajes_soporte_update ON public.mensajes_soporte;
-CREATE POLICY mensajes_soporte_update
-  ON public.mensajes_soporte
-  FOR UPDATE
-  TO authenticated
-  USING (public.es_participante_conversacion_soporte(conversacion_id))
-  WITH CHECK (public.es_participante_conversacion_soporte(conversacion_id));
 
 -- ---------------------------------------------------------------------------
 -- 4. RPCs de escritura / lectura
