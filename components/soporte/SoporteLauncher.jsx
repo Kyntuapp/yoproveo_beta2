@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Headphones,
@@ -23,13 +24,14 @@ import {
 } from '../../lib/soporteMensajes';
 
 /**
- * Ícono de soporte + badge + sidebar overlay.
+ * Ícono de soporte en header + ventana flotante (portal a document.body).
  * Independiente de la campana de notificaciones.
  */
 export default function SoporteLauncher({
   perfilId,
   rol = 'comprador',
 }) {
+  const [montado, setMontado] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [vista, setVista] = useState('lista'); // lista | nueva | chat
   const [conversaciones, setConversaciones] = useState([]);
@@ -48,6 +50,10 @@ export default function SoporteLauncher({
   const historialRef = useRef(null);
   const enviandoRef = useRef(false);
   const triggerRef = useRef(null);
+
+  useEffect(() => {
+    setMontado(true);
+  }, []);
 
   const refrescarBadge = useCallback(async () => {
     try {
@@ -154,14 +160,8 @@ export default function SoporteLauncher({
 
     document.addEventListener('keydown', onKey);
 
-    const prevOverflow = document.body.style.overflow;
-    if (typeof window !== 'undefined' && window.innerWidth <= 720) {
-      document.body.style.overflow = 'hidden';
-    }
-
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
     };
   }, [abierto]);
 
@@ -273,20 +273,15 @@ export default function SoporteLauncher({
         )}
       </button>
 
-      {abierto && (
-        <>
-          <div
-            style={styles.backdrop}
-            onClick={cerrarPanel}
-            aria-hidden="true"
-          />
-
+      {montado &&
+        abierto &&
+        createPortal(
           <aside
             ref={panelRef}
             className="soporte-panel"
             style={styles.panel}
             role="dialog"
-            aria-modal="true"
+            aria-modal="false"
             aria-label="Soporte Kyntü"
           >
             <header style={styles.panelHeader}>
@@ -521,9 +516,9 @@ export default function SoporteLauncher({
                 </>
               )}
             </div>
-          </aside>
-        </>
-      )}
+          </aside>,
+          document.body
+        )}
 
       <style jsx>{`
         .soporte-trigger:focus-visible {
@@ -540,12 +535,18 @@ export default function SoporteLauncher({
             transform: rotate(360deg);
           }
         }
-
+      `}</style>
+      <style jsx global>{`
         @media (max-width: 720px) {
           .soporte-panel {
-            width: 100vw !important;
-            max-width: 100vw !important;
-            border-radius: 0 !important;
+            left: 12px !important;
+            right: 12px !important;
+            bottom: 12px !important;
+            width: auto !important;
+            max-width: none !important;
+            height: min(560px, calc(100dvh - 24px)) !important;
+            max-height: calc(100dvh - 24px) !important;
+            border-radius: 16px !important;
           }
         }
       `}</style>
@@ -585,34 +586,33 @@ const styles = {
     justifyContent: 'center',
     border: '2px solid #fff',
   },
-  backdrop: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(7, 28, 65, 0.28)',
-    zIndex: 1100,
-  },
   panel: {
     position: 'fixed',
-    top: 0,
-    right: 0,
-    width: 'min(400px, 100vw)',
-    height: '100dvh',
+    right: 24,
+    bottom: 24,
+    width: 360,
+    height: 520,
+    maxWidth: 'calc(100vw - 48px)',
+    maxHeight: 'calc(100dvh - 48px)',
     background: '#ffffff',
-    borderLeft: '1px solid #d9e5f3',
-    boxShadow: '-18px 0 48px rgba(15, 42, 86, 0.18)',
+    border: '1px solid #d9e5f3',
+    borderRadius: 18,
+    boxShadow: '0 18px 48px rgba(15, 42, 86, 0.18)',
     zIndex: 1110,
     display: 'flex',
     flexDirection: 'column',
+    overflow: 'hidden',
   },
   panelHeader: {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    padding: '18px 18px 14px',
+    padding: '14px 14px 12px',
     borderBottom: '1px solid #e6eef8',
     background:
       'linear-gradient(135deg, rgba(241,247,255,0.98), rgba(255,255,255,0.98))',
+    flexShrink: 0,
   },
   headerCopy: {
     display: 'flex',
