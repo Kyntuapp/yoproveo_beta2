@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
 import SoporteLauncher from "../../components/soporte/SoporteLauncher";
+import CarroCompradorButton from "../../components/CarroCompradorButton";
 
 const normalizarEstado = (estado = "") =>
   estado
@@ -385,6 +386,7 @@ export default function DashboardComprador() {
     onUpdateData: irDatosContacto,
     onDashboard: irDashboard,
     onLogout: cerrarSesion,
+    cart: <CarroCompradorButton />,
     notifications: perfilId ? (
       <Notificaciones
         userId={perfilId}

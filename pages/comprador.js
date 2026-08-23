@@ -26,6 +26,8 @@ import KyntuModal, {
 } from '../pages/KyntuModal';
 import ModalCalificacion from './ModalCalificacion';
 import AppLayout from '../components/Layout/AppLayout';
+import CarroCompradorButton from '../components/CarroCompradorButton';
+import { notifyCarroUpdated } from '../lib/carroComprador';
 
 const MAX_DETALLE_PEDIDO = 120;
 
@@ -1879,7 +1881,7 @@ export default function Comprador() {
     );
   };
 
-  const aceptarOferta = async (oferta) => {
+  const aceptarOferta = async (oferta, fecha) => {
     const { error: ofertaError } =
       await supabase.rpc('adjudicar_oferta', {
         p_oferta_id: oferta.id,
@@ -1893,7 +1895,19 @@ export default function Comprador() {
       return;
     }
 
-    await pagarOferta(oferta);
+    if (fecha) {
+      await verOfertas(fecha);
+    }
+
+    notifyCarroUpdated();
+
+    showModal({
+      type: 'success',
+      title: 'Oferta agregada al carro',
+      message:
+        'Puedes seguir revisando tus solicitudes y pagar tus compras juntas cuando estés listo.',
+      confirmText: 'Continuar',
+    });
   };
 
   const showError = (
@@ -2563,6 +2577,7 @@ export default function Comprador() {
         )
       }
       onLogout={cerrarSesion}
+      cart={<CarroCompradorButton />}
       notifications={
         <Notificaciones
           userId={authUserId}
@@ -3801,7 +3816,8 @@ export default function Comprador() {
                                                             event.stopPropagation();
 
                                                             aceptarOferta(
-                                                              oferta
+                                                              oferta,
+                                                              fecha
                                                             );
                                                           }}
                                                           onRechazar={(
@@ -3854,6 +3870,8 @@ export default function Comprador() {
                                                             >
                                                               Pago
                                                               pendiente
+                                                              · en el
+                                                              carro
                                                             </p>
 
                                                             <button

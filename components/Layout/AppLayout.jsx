@@ -9,6 +9,7 @@ export default function AppLayout({
   onUpdateData,
   onDashboard,
   onLogout,
+  cart,
   notifications,
   support,
 }) {
@@ -39,6 +40,7 @@ export default function AppLayout({
             onUpdateData={onUpdateData}
             onDashboard={onDashboard}
             onLogout={onLogout}
+            cart={cart}
             notifications={notifications}
             support={support}
           />

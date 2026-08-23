@@ -22,6 +22,7 @@ export default function AppHeader({
   onDashboard,
   onBack,
   onLogout,
+  cart,
   notifications,
   support,
 }) {
@@ -181,6 +182,16 @@ export default function AppHeader({
                 aria-label="Soporte"
               >
                 {support}
+              </div>
+            )}
+
+            {cart && (
+              <div
+                className="app-header-cart"
+                style={styles.cart}
+                aria-label="Carro de compras"
+              >
+                {cart}
               </div>
             )}
 
@@ -479,7 +490,8 @@ export default function AppHeader({
             background: transparent !important;
           }
 
-          .app-header-notifications {
+          .app-header-notifications,
+          .app-header-cart {
             min-width: 42px !important;
             min-height: 42px !important;
           }
@@ -621,6 +633,14 @@ const styles = {
   support: {
     minWidth: "42px",
     minHeight: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cart: {
+    minWidth: "46px",
+    minHeight: "46px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
