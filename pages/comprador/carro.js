@@ -7,6 +7,9 @@ import Notificaciones from '../../components/Notificaciones';
 import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import CarroCompradorButton from '../../components/CarroCompradorButton';
 import {
+  CARRO_ESTADO_CHECKOUT_ABIERTO,
+  CARRO_ESTADO_DISPONIBLE,
+  CARRO_ESTADO_ORDEN_PREPARADA,
   CARRO_UPDATED_EVENT,
   cancelarOrdenCheckout,
   crearOrdenCheckout,
@@ -31,6 +34,39 @@ function nombreProveedor(oferta) {
     oferta?.perfiles?.email?.trim?.() ||
     'Proveedor'
   );
+}
+
+function agruparPorProveedor(lista) {
+  const map = new Map();
+  for (const oferta of lista) {
+    const key = oferta.proveedor_id || 'sin-proveedor';
+    if (!map.has(key)) {
+      map.set(key, {
+        proveedorId: key,
+        nombre: nombreProveedor(oferta),
+        items: [],
+      });
+    }
+    map.get(key).items.push(oferta);
+  }
+  return Array.from(map.values());
+}
+
+function agruparPorOrden(lista) {
+  const map = new Map();
+  for (const oferta of lista) {
+    const key = oferta.checkout_orden_id;
+    if (!key) continue;
+    if (!map.has(key)) {
+      map.set(key, { ordenId: key, items: [] });
+    }
+    map.get(key).items.push(oferta);
+  }
+  return Array.from(map.values());
+}
+
+function nombresProveedoresUnicos(items) {
+  return [...new Set((items || []).map((o) => nombreProveedor(o)))];
 }
 
 export default function CarroCompradorPage() {
@@ -61,12 +97,15 @@ export default function CarroCompradorPage() {
   };
 
   const sincronizarSeleccion = (nextOfertas) => {
-    const ids = (nextOfertas || []).map((o) => o.id);
+    const disponibles = (nextOfertas || [])
+      .filter((o) => o.seleccionable)
+      .map((o) => o.id);
+
     setSelectedIds((prev) => {
-      if (!ids.length) return [];
-      if (!prev.length) return ids;
-      const kept = prev.filter((id) => ids.includes(id));
-      return kept.length ? kept : ids;
+      if (!disponibles.length) return [];
+      if (!prev.length) return disponibles;
+      const kept = prev.filter((id) => disponibles.includes(id));
+      return kept.length ? kept : disponibles;
     });
   };
 
@@ -92,6 +131,7 @@ export default function CarroCompradorPage() {
 
   const ejecutarRevertir = async (oferta) => {
     if (!oferta?.id || revirtiendoId) return;
+    if (!oferta.eliminable) return;
 
     setRevirtiendoId(oferta.id);
 
@@ -126,6 +166,18 @@ export default function CarroCompradorPage() {
   };
 
   const confirmarEliminarDelCarro = (oferta) => {
+    if (!oferta?.eliminable) {
+      showModal({
+        type: 'warning',
+        title: 'No se puede eliminar',
+        message:
+          oferta.carro_estado === CARRO_ESTADO_ORDEN_PREPARADA
+            ? 'Esta oferta ya está en una orden preparada para pago.'
+            : 'Esta oferta está en un checkout abierto. Cancélalo o retómalo desde el resumen.',
+      });
+      return;
+    }
+
     const producto =
       oferta.producto ||
       oferta.lista_producto ||
@@ -146,16 +198,22 @@ export default function CarroCompradorPage() {
     });
   };
 
-  const toggleSeleccion = (ofertaId) => {
+  const toggleSeleccion = (oferta) => {
+    if (!oferta?.seleccionable) return;
+
     setSelectedIds((prev) =>
-      prev.includes(ofertaId)
-        ? prev.filter((id) => id !== ofertaId)
-        : [...prev, ofertaId]
+      prev.includes(oferta.id)
+        ? prev.filter((id) => id !== oferta.id)
+        : [...prev, oferta.id]
     );
   };
 
   const seleccionarTodos = () => {
-    setSelectedIds(ofertas.map((o) => o.id));
+    setSelectedIds(
+      ofertas
+        .filter((o) => o.carro_estado === CARRO_ESTADO_DISPONIBLE)
+        .map((o) => o.id)
+    );
   };
 
   const deseleccionarTodos = () => {
@@ -243,8 +301,46 @@ export default function CarroCompradorPage() {
   const continuarAlPago = async () => {
     if (!selectedIds.length || creandoOrden) return;
 
+    const seleccionDisponible = ofertas
+      .filter(
+        (o) =>
+          selectedIds.includes(o.id) &&
+          o.carro_estado === CARRO_ESTADO_DISPONIBLE
+      )
+      .map((o) => o.id);
+
+    if (!seleccionDisponible.length) {
+      const preparada = ofertas.find(
+        (o) =>
+          selectedIds.includes(o.id) &&
+          o.carro_estado === CARRO_ESTADO_ORDEN_PREPARADA
+      );
+      if (preparada?.checkout_orden_id) {
+        irACheckout(preparada.checkout_orden_id);
+        return;
+      }
+
+      const abierta = ofertas.find(
+        (o) =>
+          selectedIds.includes(o.id) &&
+          o.carro_estado === CARRO_ESTADO_CHECKOUT_ABIERTO
+      );
+      if (abierta?.checkout_orden_id) {
+        irACheckout(abierta.checkout_orden_id);
+        return;
+      }
+
+      showModal({
+        type: 'warning',
+        title: 'Sin ofertas disponibles',
+        message:
+          'Selecciona ofertas disponibles o abre el checkout ya iniciado.',
+      });
+      return;
+    }
+
     setCreandoOrden(true);
-    const { data, error } = await crearOrdenCheckout(selectedIds);
+    const { data, error } = await crearOrdenCheckout(seleccionDisponible);
     setCreandoOrden(false);
 
     if (!error && data?.orden_id) {
@@ -254,7 +350,18 @@ export default function CarroCompradorPage() {
 
     const msg = (error?.message || '').toLowerCase();
     if (msg.includes('orden') && msg.includes('abierta')) {
-      await manejarOrdenAbiertaConflicto(selectedIds);
+      await manejarOrdenAbiertaConflicto(seleccionDisponible);
+      return;
+    }
+
+    if (msg.includes('preparada para pago')) {
+      showModal({
+        type: 'warning',
+        title: 'Orden ya preparada',
+        message:
+          error?.message ||
+          'Una o más ofertas ya están en una orden preparada para pago.',
+      });
       return;
     }
 
@@ -330,27 +437,43 @@ export default function CarroCompradorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUserId]);
 
-  const grupos = useMemo(() => {
-    const map = new Map();
+  const ofertasDisponibles = useMemo(
+    () =>
+      ofertas.filter(
+        (o) => o.carro_estado === CARRO_ESTADO_DISPONIBLE
+      ),
+    [ofertas]
+  );
 
-    for (const oferta of ofertas) {
-      const key = oferta.proveedor_id || 'sin-proveedor';
-      if (!map.has(key)) {
-        map.set(key, {
-          proveedorId: key,
-          nombre: nombreProveedor(oferta),
-          items: [],
-        });
-      }
-      map.get(key).items.push(oferta);
-    }
+  const ordenesPendientesPago = useMemo(
+    () =>
+      agruparPorOrden(
+        ofertas.filter(
+          (o) => o.carro_estado === CARRO_ESTADO_ORDEN_PREPARADA
+        )
+      ),
+    [ofertas]
+  );
 
-    return Array.from(map.values());
-  }, [ofertas]);
+  const ordenesEnPreparacion = useMemo(
+    () =>
+      agruparPorOrden(
+        ofertas.filter(
+          (o) => o.carro_estado === CARRO_ESTADO_CHECKOUT_ABIERTO
+        )
+      ),
+    [ofertas]
+  );
+
+  const gruposDisponibles = useMemo(
+    () => agruparPorProveedor(ofertasDisponibles),
+    [ofertasDisponibles]
+  );
 
   const seleccionadas = useMemo(
-    () => ofertas.filter((o) => selectedIds.includes(o.id)),
-    [ofertas, selectedIds]
+    () =>
+      ofertasDisponibles.filter((o) => selectedIds.includes(o.id)),
+    [ofertasDisponibles, selectedIds]
   );
 
   const subtotalSeleccionado = useMemo(
@@ -362,8 +485,16 @@ export default function CarroCompradorPage() {
     [seleccionadas]
   );
 
+  const ofertasSeleccionables = ofertasDisponibles;
+
   const todosSeleccionados =
-    ofertas.length > 0 && selectedIds.length === ofertas.length;
+    ofertasSeleccionables.length > 0 &&
+    selectedIds.length === ofertasSeleccionables.length &&
+    ofertasSeleccionables.every((o) => selectedIds.includes(o.id));
+
+  const hayDisponibles = ofertasDisponibles.length > 0;
+  const hayPendientesPago = ordenesPendientesPago.length > 0;
+  const hayEnPreparacion = ordenesEnPreparacion.length > 0;
 
   const cerrarSesion = async () => {
     await supabase.auth.signOut();
@@ -403,9 +534,9 @@ export default function CarroCompradorPage() {
           <div>
             <h1 style={styles.title}>Tu carro</h1>
             <p style={styles.subtitle}>
-              Selecciona las compras que quieres pagar juntas.
-              Deseleccionar no cancela la adjudicación; eliminar del
-              carro sí.
+              {hayDisponibles
+                ? 'Selecciona las compras disponibles que quieres pagar juntas. Las órdenes ya preparadas aparecen aparte.'
+                : 'Revisa tus compras pendientes de pago o sigue adjudicando ofertas para armar un nuevo checkout.'}
             </p>
           </div>
         </div>
@@ -430,168 +561,345 @@ export default function CarroCompradorPage() {
           </div>
         ) : (
           <>
-            <div style={styles.selectionBar}>
-              <button
-                type="button"
-                style={styles.linkButton}
-                onClick={
-                  todosSeleccionados
-                    ? deseleccionarTodos
-                    : seleccionarTodos
-                }
-              >
-                {todosSeleccionados
-                  ? 'Deseleccionar todos'
-                  : 'Seleccionar todos'}
-              </button>
-              <span style={styles.selectionHint}>
-                {selectedIds.length} de {ofertas.length} seleccionadas
-              </span>
-            </div>
+            {hayPendientesPago && (
+              <section style={styles.blockSection}>
+                <h2 style={styles.sectionTitle}>Pendientes de pago</h2>
+                <p style={styles.sectionHint}>
+                  Compras ya confirmadas, listas para la integración
+                  de pago.
+                </p>
+                <div style={styles.orderCards}>
+                  {ordenesPendientesPago.map((orden) => {
+                    const subtotal = orden.items.reduce(
+                      (acc, o) =>
+                        acc + Number(o.precio_ofertado || 0),
+                      0
+                    );
+                    const proveedores = nombresProveedoresUnicos(
+                      orden.items
+                    );
 
-            <div style={styles.groups}>
-              {grupos.map((grupo) => {
-                const subtotalProv = grupo.items
-                  .filter((i) => selectedIds.includes(i.id))
-                  .reduce(
-                    (acc, i) => acc + Number(i.precio_ofertado || 0),
-                    0
-                  );
+                    return (
+                      <article
+                        key={orden.ordenId}
+                        style={styles.orderCard}
+                      >
+                        <div style={styles.orderCardHeader}>
+                          <span style={styles.pendingBadge}>
+                            Pendiente de pago
+                          </span>
+                          <strong style={styles.orderCount}>
+                            {orden.items.length}{' '}
+                            {orden.items.length === 1
+                              ? 'producto'
+                              : 'productos'}
+                          </strong>
+                        </div>
 
-                return (
-                  <div key={grupo.proveedorId} style={styles.group}>
-                    <h2 style={styles.groupTitle}>{grupo.nombre}</h2>
-                    <div style={styles.items}>
-                      {grupo.items.map((oferta) => {
-                        const checked = selectedIds.includes(oferta.id);
-                        return (
-                          <article key={oferta.id} style={styles.item}>
-                            <label style={styles.checkLabel}>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  toggleSeleccion(oferta.id)
-                                }
-                                style={styles.checkbox}
-                              />
-                              <span style={styles.srOnly}>
-                                Seleccionar{' '}
-                                {oferta.producto || 'oferta'}
-                              </span>
-                            </label>
+                        <p style={styles.orderMeta}>
+                          Proveedor
+                          {proveedores.length === 1 ? '' : 'es'}:{' '}
+                          {proveedores.join(', ')}
+                        </p>
 
-                            <div style={styles.itemMain}>
-                              <h3 style={styles.itemTitle}>
-                                {oferta.producto ||
-                                  oferta.lista_producto ||
-                                  'Producto'}
-                              </h3>
-                              <p style={styles.itemMeta}>
-                                {[
-                                  oferta.marca || oferta.lista_marca,
-                                  oferta.formato ||
-                                    oferta.lista_formato,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' · ') || 'Sin detalle'}
-                              </p>
-                              <p style={styles.itemMeta}>
-                                Cantidad:{' '}
-                                {oferta.cantidad_solicitada ?? '—'}
-                              </p>
-                              {oferta.incluye_despacho != null && (
-                                <p style={styles.itemMeta}>
-                                  Despacho:{' '}
-                                  {oferta.incluye_despacho
-                                    ? oferta.tiempo_despacho_horas
-                                      ? `Sí (${oferta.tiempo_despacho_horas} h)`
-                                      : 'Sí'
-                                    : 'No'}
+                        <div style={styles.orderItems}>
+                          {orden.items.map((oferta) => (
+                            <div
+                              key={oferta.id}
+                              style={styles.orderItemRow}
+                            >
+                              <div style={styles.orderItemMain}>
+                                <p style={styles.orderItemTitle}>
+                                  {oferta.producto ||
+                                    oferta.lista_producto ||
+                                    'Producto'}
                                 </p>
-                              )}
-                            </div>
-
-                            <div style={styles.itemPrice}>
-                              <span style={styles.priceLabel}>
-                                Precio adjudicado
-                              </span>
+                                <p style={styles.itemMeta}>
+                                  {nombreProveedor(oferta)}
+                                  {[
+                                    oferta.marca || oferta.lista_marca,
+                                    oferta.formato ||
+                                      oferta.lista_formato,
+                                  ]
+                                    .filter(Boolean)
+                                    .map((v) => ` · ${v}`)
+                                    .join('')}
+                                </p>
+                              </div>
                               <strong style={styles.priceValue}>
                                 {formatearMonto(
                                   oferta.precio_ofertado
                                 )}
                               </strong>
-                              <button
-                                type="button"
-                                style={{
-                                  ...styles.removeButton,
-                                  ...(revirtiendoId === oferta.id
-                                    ? styles.removeButtonDisabled
-                                    : {}),
-                                }}
-                                disabled={Boolean(revirtiendoId)}
-                                onClick={() =>
-                                  confirmarEliminarDelCarro(oferta)
-                                }
-                              >
-                                {revirtiendoId === oferta.id
-                                  ? 'Eliminando…'
-                                  : 'Eliminar del carro'}
-                              </button>
                             </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                    <p style={styles.providerSubtotal}>
-                      Subtotal proveedor (seleccionados):{' '}
-                      <strong>{formatearMonto(subtotalProv)}</strong>
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+                          ))}
+                        </div>
 
-            <aside style={styles.summary}>
-              <div style={styles.summaryRow}>
-                <span>Compras seleccionadas</span>
-                <strong>{seleccionadas.length}</strong>
-              </div>
-              <div style={styles.summaryRow}>
-                <span>Subtotal productos</span>
-                <strong>
-                  {formatearMonto(subtotalSeleccionado)}
-                </strong>
-              </div>
-              <p style={styles.summaryNote}>
-                Un solo pago agrupado. Todavía no se muestran
-                comisiones adicionales.
-              </p>
-              <button
-                type="button"
-                style={{
-                  ...styles.primaryButtonFull,
-                  ...(selectedIds.length === 0 || creandoOrden
-                    ? styles.primaryButtonDisabled
-                    : {}),
-                }}
-                disabled={
-                  selectedIds.length === 0 || creandoOrden
-                }
-                onClick={continuarAlPago}
-              >
-                {creandoOrden
-                  ? 'Preparando…'
-                  : 'Continuar al pago'}
-              </button>
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => router.push('/comprador')}
-              >
-                Seguir comprando
-              </button>
-            </aside>
+                        <div style={styles.orderFooter}>
+                          <span style={styles.orderSubtotalLabel}>
+                            Subtotal productos
+                          </span>
+                          <strong style={styles.orderSubtotalValue}>
+                            {formatearMonto(subtotal)}
+                          </strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          style={styles.openCheckoutButton}
+                          onClick={() => irACheckout(orden.ordenId)}
+                        >
+                          Ver detalle de la compra
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {hayEnPreparacion && (
+              <section style={styles.blockSection}>
+                <h2 style={styles.sectionTitle}>
+                  Compra en preparación
+                </h2>
+                <p style={styles.sectionHint}>
+                  Tienes un checkout abierto. Continúa o cancélalo
+                  desde el resumen.
+                </p>
+                <div style={styles.orderCards}>
+                  {ordenesEnPreparacion.map((orden) => (
+                    <article
+                      key={orden.ordenId}
+                      style={styles.orderCardOpen}
+                    >
+                      <div style={styles.orderCardHeader}>
+                        <span style={styles.openBadge}>
+                          Checkout abierto
+                        </span>
+                        <strong style={styles.orderCount}>
+                          {orden.items.length}{' '}
+                          {orden.items.length === 1
+                            ? 'producto'
+                            : 'productos'}
+                        </strong>
+                      </div>
+                      <p style={styles.orderMeta}>
+                        {orden.items
+                          .map(
+                            (o) =>
+                              o.producto ||
+                              o.lista_producto ||
+                              'Producto'
+                          )
+                          .join(' · ')}
+                      </p>
+                      <button
+                        type="button"
+                        style={styles.openCheckoutButton}
+                        onClick={() => irACheckout(orden.ordenId)}
+                      >
+                        Continuar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {hayDisponibles && (
+              <section style={styles.blockSection}>
+                <h2 style={styles.sectionTitle}>
+                  Compras disponibles
+                </h2>
+                <p style={styles.sectionHint}>
+                  Selecciona las compras que quieres pagar juntas.
+                  Deseleccionar no cancela la adjudicación; eliminar
+                  del carro sí.
+                </p>
+
+                <div style={styles.selectionBar}>
+                  <button
+                    type="button"
+                    style={styles.linkButton}
+                    onClick={
+                      todosSeleccionados
+                        ? deseleccionarTodos
+                        : seleccionarTodos
+                    }
+                  >
+                    {todosSeleccionados
+                      ? 'Deseleccionar todos'
+                      : 'Seleccionar todos'}
+                  </button>
+                  <span style={styles.selectionHint}>
+                    {selectedIds.length} de{' '}
+                    {ofertasSeleccionables.length} seleccionadas
+                  </span>
+                </div>
+
+                <div style={styles.groups}>
+                  {gruposDisponibles.map((grupo) => {
+                    const subtotalProv = grupo.items
+                      .filter((i) => selectedIds.includes(i.id))
+                      .reduce(
+                        (acc, i) =>
+                          acc + Number(i.precio_ofertado || 0),
+                        0
+                      );
+
+                    return (
+                      <div key={grupo.proveedorId} style={styles.group}>
+                        <h3 style={styles.groupTitle}>
+                          {grupo.nombre}
+                        </h3>
+                        <div style={styles.items}>
+                          {grupo.items.map((oferta) => {
+                            const checked = selectedIds.includes(
+                              oferta.id
+                            );
+
+                            return (
+                              <article
+                                key={oferta.id}
+                                style={styles.item}
+                              >
+                                <label style={styles.checkLabel}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      toggleSeleccion(oferta)
+                                    }
+                                    style={styles.checkbox}
+                                  />
+                                  <span style={styles.srOnly}>
+                                    Seleccionar{' '}
+                                    {oferta.producto || 'oferta'}
+                                  </span>
+                                </label>
+
+                                <div style={styles.itemMain}>
+                                  <h3 style={styles.itemTitle}>
+                                    {oferta.producto ||
+                                      oferta.lista_producto ||
+                                      'Producto'}
+                                  </h3>
+                                  <p style={styles.itemMeta}>
+                                    {[
+                                      oferta.marca ||
+                                        oferta.lista_marca,
+                                      oferta.formato ||
+                                        oferta.lista_formato,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' · ') || 'Sin detalle'}
+                                  </p>
+                                  <p style={styles.itemMeta}>
+                                    Cantidad:{' '}
+                                    {oferta.cantidad_solicitada ??
+                                      '—'}
+                                  </p>
+                                  {oferta.incluye_despacho !=
+                                    null && (
+                                    <p style={styles.itemMeta}>
+                                      Despacho:{' '}
+                                      {oferta.incluye_despacho
+                                        ? oferta.tiempo_despacho_horas
+                                          ? `Sí (${oferta.tiempo_despacho_horas} h)`
+                                          : 'Sí'
+                                        : 'No'}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div style={styles.itemPrice}>
+                                  <span style={styles.priceLabel}>
+                                    Precio adjudicado
+                                  </span>
+                                  <strong style={styles.priceValue}>
+                                    {formatearMonto(
+                                      oferta.precio_ofertado
+                                    )}
+                                  </strong>
+                                  <button
+                                    type="button"
+                                    style={{
+                                      ...styles.removeButton,
+                                      ...(revirtiendoId === oferta.id
+                                        ? styles.removeButtonDisabled
+                                        : {}),
+                                    }}
+                                    disabled={Boolean(revirtiendoId)}
+                                    onClick={() =>
+                                      confirmarEliminarDelCarro(
+                                        oferta
+                                      )
+                                    }
+                                  >
+                                    {revirtiendoId === oferta.id
+                                      ? 'Eliminando…'
+                                      : 'Eliminar del carro'}
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                        <p style={styles.providerSubtotal}>
+                          Subtotal proveedor (seleccionados):{' '}
+                          <strong>
+                            {formatearMonto(subtotalProv)}
+                          </strong>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <aside style={styles.summary}>
+                  <div style={styles.summaryRow}>
+                    <span>Compras seleccionadas</span>
+                    <strong>{seleccionadas.length}</strong>
+                  </div>
+                  <div style={styles.summaryRow}>
+                    <span>Subtotal productos</span>
+                    <strong>
+                      {formatearMonto(subtotalSeleccionado)}
+                    </strong>
+                  </div>
+                  <p style={styles.summaryNote}>
+                    Un solo pago agrupado. Todavía no se muestran
+                    comisiones adicionales.
+                  </p>
+                  <button
+                    type="button"
+                    style={{
+                      ...styles.primaryButtonFull,
+                      ...(selectedIds.length === 0 || creandoOrden
+                        ? styles.primaryButtonDisabled
+                        : {}),
+                    }}
+                    disabled={
+                      selectedIds.length === 0 || creandoOrden
+                    }
+                    onClick={continuarAlPago}
+                  >
+                    {creandoOrden
+                      ? 'Preparando…'
+                      : 'Continuar al pago'}
+                  </button>
+                </aside>
+              </section>
+            )}
+
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={() => router.push('/comprador')}
+            >
+              Seguir comprando
+            </button>
           </>
         )}
       </section>
@@ -639,6 +947,118 @@ const styles = {
     lineHeight: 1.45,
   },
   muted: { color: '#6d7f98', fontSize: '14px' },
+  blockSection: {
+    marginBottom: '28px',
+  },
+  sectionTitle: {
+    margin: '0 0 6px',
+    color: '#061b41',
+    fontSize: '17px',
+    fontWeight: 900,
+  },
+  sectionHint: {
+    margin: '0 0 14px',
+    color: '#6d7f98',
+    fontSize: '13px',
+    lineHeight: 1.45,
+  },
+  orderCards: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  orderCard: {
+    border: '1px solid #b7e4d0',
+    borderRadius: '18px',
+    padding: '16px',
+    background: '#f6fbf8',
+  },
+  orderCardOpen: {
+    border: '1px solid #c9daf8',
+    borderRadius: '18px',
+    padding: '16px',
+    background: '#f5f8ff',
+  },
+  orderCardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    flexWrap: 'wrap',
+    marginBottom: '10px',
+  },
+  pendingBadge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    borderRadius: '999px',
+    background: '#d9f5e8',
+    color: '#0f766e',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+  openBadge: {
+    display: 'inline-block',
+    padding: '4px 10px',
+    borderRadius: '999px',
+    background: '#e0ebff',
+    color: '#176bff',
+    fontSize: '12px',
+    fontWeight: 800,
+  },
+  orderCount: {
+    color: '#17365e',
+    fontSize: '13px',
+    fontWeight: 800,
+  },
+  orderMeta: {
+    margin: '0 0 12px',
+    color: '#49617f',
+    fontSize: '13px',
+    lineHeight: 1.45,
+  },
+  orderItems: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '12px',
+  },
+  orderItemRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    background: '#ffffff',
+    border: '1px solid #dceee5',
+  },
+  orderItemMain: {
+    flex: '1 1 180px',
+    minWidth: 0,
+  },
+  orderItemTitle: {
+    margin: 0,
+    color: '#061b41',
+    fontSize: '14px',
+    fontWeight: 800,
+  },
+  orderFooter: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '12px',
+  },
+  orderSubtotalLabel: {
+    color: '#49617f',
+    fontSize: '13px',
+    fontWeight: 700,
+  },
+  orderSubtotalValue: {
+    color: '#061b41',
+    fontSize: '16px',
+    fontWeight: 900,
+  },
   empty: {
     display: 'flex',
     flexDirection: 'column',
@@ -713,6 +1133,19 @@ const styles = {
     borderRadius: '14px',
     background: '#ffffff',
     border: '1px solid #e7edf5',
+  },
+  openCheckoutButton: {
+    width: '100%',
+    minHeight: '44px',
+    marginTop: '0',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    border: '1px solid #b7cfff',
+    background: '#eef4ff',
+    color: '#176bff',
+    fontSize: '14px',
+    fontWeight: 800,
+    cursor: 'pointer',
   },
   checkLabel: {
     display: 'inline-flex',

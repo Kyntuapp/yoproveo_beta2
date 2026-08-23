@@ -41,6 +41,23 @@ function formatearFechaCorta(fecha) {
   return `${dd}-${mm}-${yyyy}`;
 }
 
+/** Timestamp de envío/creación de la oferta (`ofertas_productos.fecha`). */
+function timestampFechaOferta(oferta) {
+  if (!oferta?.fecha) return null;
+  const t = new Date(oferta.fecha).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Más reciente → más antigua; sin fecha válida al final. */
+function compararOfertasPorFechaDesc(a, b) {
+  const ta = timestampFechaOferta(a);
+  const tb = timestampFechaOferta(b);
+  if (ta != null && tb != null) return tb - ta;
+  if (ta != null) return -1;
+  if (tb != null) return 1;
+  return 0;
+}
+
 export default function OfertasEnviadas() {
   const router = useRouter();
 
@@ -105,7 +122,7 @@ export default function OfertasEnviadas() {
         .from('ofertas_productos')
         .select('*')
         .eq('proveedor_id', proveedorPerfilId)
-        .order('id', { ascending: false });
+        .order('fecha', { ascending: false, nullsFirst: false });
 
       if (ofertasError) {
         showKyntuAlert('Error al cargar ofertas: ' + ofertasError.message);
@@ -166,33 +183,35 @@ export default function OfertasEnviadas() {
         }
       });
 
-      const enriquecidas = (ofertasData || []).map((oferta) => {
-        const lista = mapLista[oferta.lista_id] || {};
-        const solicitudAdjudicada = Boolean(
-          adjudicadasPorLista[String(oferta.lista_id)]
-        );
+      const enriquecidas = (ofertasData || [])
+        .map((oferta) => {
+          const lista = mapLista[oferta.lista_id] || {};
+          const solicitudAdjudicada = Boolean(
+            adjudicadasPorLista[String(oferta.lista_id)]
+          );
 
-        return {
-          ...oferta,
-          producto: oferta.producto || lista.producto || '',
-          formato: oferta.formato || lista.formato || '',
-          marca: oferta.marca || lista.marca || '',
-          cantidad: lista.cantidad || '',
-          precio_objetivo: lista.precio || '',
-          comprador_auth_id: (
-            lista.usuario_id || ''
-          )
-            .toString()
-            .trim(),
-          comuna: lista.comuna_despacho || '—',
-          fecha_creacion: lista.fecha_creacion || null,
-          solicitud_adjudicada: solicitudAdjudicada,
-          chat_solo_lectura: chatSoloLecturaPorAdjudicacion({
-            estado: oferta.estado,
+          return {
+            ...oferta,
+            producto: oferta.producto || lista.producto || '',
+            formato: oferta.formato || lista.formato || '',
+            marca: oferta.marca || lista.marca || '',
+            cantidad: lista.cantidad || '',
+            precio_objetivo: lista.precio || '',
+            comprador_auth_id: (
+              lista.usuario_id || ''
+            )
+              .toString()
+              .trim(),
+            comuna: lista.comuna_despacho || '—',
+            fecha_creacion: lista.fecha_creacion || null,
             solicitud_adjudicada: solicitudAdjudicada,
-          }),
-        };
-      });
+            chat_solo_lectura: chatSoloLecturaPorAdjudicacion({
+              estado: oferta.estado,
+              solicitud_adjudicada: solicitudAdjudicada,
+            }),
+          };
+        })
+        .sort(compararOfertasPorFechaDesc);
 
       setOfertas(enriquecidas);
     };
@@ -362,32 +381,34 @@ export default function OfertasEnviadas() {
   };
 
   const ofertasFiltradas = useMemo(() => {
-    return ofertas.filter((item) => {
-      const valores = {
-        producto: item.producto,
-        formato: item.formato,
-        marca: item.marca,
-        cantidad: item.cantidad?.toString(),
-        precioObjetivo:
-          item.precio_objetivo?.toString(),
-        oferta: item.precio_ofertado?.toString(),
-        comuna: item.comuna,
-        comprador: esOfertaAdjudicada(item.estado)
-          ? 'CONTACTO DISPONIBLE'
-          : 'CONTRAPARTE',
-        estado: estadoTexto(item.estado, item.solicitud_adjudicada),
-      };
+    return ofertas
+      .filter((item) => {
+        const valores = {
+          producto: item.producto,
+          formato: item.formato,
+          marca: item.marca,
+          cantidad: item.cantidad?.toString(),
+          precioObjetivo:
+            item.precio_objetivo?.toString(),
+          oferta: item.precio_ofertado?.toString(),
+          comuna: item.comuna,
+          comprador: esOfertaAdjudicada(item.estado)
+            ? 'CONTACTO DISPONIBLE'
+            : 'CONTRAPARTE',
+          estado: estadoTexto(item.estado, item.solicitud_adjudicada),
+        };
 
-      return Object.entries(filtros).every(
-        ([campo, valor]) => {
-          if (!valor) return true;
+        return Object.entries(filtros).every(
+          ([campo, valor]) => {
+            if (!valor) return true;
 
-          return normalizarTexto(
-            valores[campo] || ''
-          ).includes(normalizarTexto(valor));
-        }
-      );
-    });
+            return normalizarTexto(
+              valores[campo] || ''
+            ).includes(normalizarTexto(valor));
+          }
+        );
+      })
+      .sort(compararOfertasPorFechaDesc);
   }, [ofertas, filtros]);
 
   const totalPaginas = Math.ceil(

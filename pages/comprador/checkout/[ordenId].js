@@ -280,7 +280,8 @@ export default function CheckoutOrdenPage() {
                 </h2>
                 <p style={styles.preparedText}>
                   Tu compra está lista. La conexión con el medio de
-                  pago se realizará desde este punto.
+                  pago se realizará desde este punto. No se puede
+                  crear otro checkout con estas mismas ofertas.
                 </p>
               </div>
             )}
