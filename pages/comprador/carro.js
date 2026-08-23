@@ -8,8 +8,11 @@ import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import CarroCompradorButton from '../../components/CarroCompradorButton';
 import {
   CARRO_UPDATED_EVENT,
+  cancelarOrdenCheckout,
+  crearOrdenCheckout,
   fetchCarroOfertasComprador,
   notifyCarroUpdated,
+  obtenerOrdenCheckout,
   revertirAdjudicacionDesdeCarro,
 } from '../../lib/carroComprador';
 import KyntuModal, { createModalState } from '../KyntuModal';
@@ -38,8 +41,10 @@ export default function CarroCompradorPage() {
   const [tienePerfilProveedor, setTienePerfilProveedor] =
     useState(false);
   const [ofertas, setOfertas] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [modal, setModal] = useState(createModalState());
   const [revirtiendoId, setRevirtiendoId] = useState(null);
+  const [creandoOrden, setCreandoOrden] = useState(false);
 
   const showModal = (config) => {
     setModal({
@@ -55,6 +60,16 @@ export default function CarroCompradorPage() {
     });
   };
 
+  const sincronizarSeleccion = (nextOfertas) => {
+    const ids = (nextOfertas || []).map((o) => o.id);
+    setSelectedIds((prev) => {
+      if (!ids.length) return [];
+      if (!prev.length) return ids;
+      const kept = prev.filter((id) => ids.includes(id));
+      return kept.length ? kept : ids;
+    });
+  };
+
   const cargarCarro = async (userId) => {
     const { ofertas: data, error } =
       await fetchCarroOfertasComprador(userId);
@@ -66,10 +81,13 @@ export default function CarroCompradorPage() {
         message: error.message,
       });
       setOfertas([]);
+      setSelectedIds([]);
       return;
     }
 
-    setOfertas(data || []);
+    const next = data || [];
+    setOfertas(next);
+    sincronizarSeleccion(next);
   };
 
   const ejecutarRevertir = async (oferta) => {
@@ -87,7 +105,7 @@ export default function CarroCompradorPage() {
         title: 'No se pudo eliminar del carro',
         message:
           error.message ||
-          'La adjudicación no pudo revertirse. Si la oferta está en una orden abierta, cancélala primero.',
+          'La adjudicación no pudo revertirse. Si la oferta está en un checkout abierto, vuelve al resumen y cancela la orden primero.',
       });
       return;
     }
@@ -116,7 +134,7 @@ export default function CarroCompradorPage() {
     showModal({
       type: 'warning',
       title: '¿Eliminar del carro?',
-      message: `Se cancelará la adjudicación de “${producto}”. El proveedor ganador dejará de estar pendiente de pago y las ofertas rivales rechazadas automáticamente volverán a competir.`,
+      message: `Se cancelará la adjudicación de “${producto}”. Esto no es lo mismo que deseleccionar: el proveedor ganador dejará de estar pendiente de pago y las ofertas rivales auto-rechazadas volverán a competir.`,
       confirmText: 'Eliminar del carro',
       cancelText: 'Conservar',
       showCancel: true,
@@ -125,6 +143,127 @@ export default function CarroCompradorPage() {
         setModal(createModalState());
         ejecutarRevertir(oferta);
       },
+    });
+  };
+
+  const toggleSeleccion = (ofertaId) => {
+    setSelectedIds((prev) =>
+      prev.includes(ofertaId)
+        ? prev.filter((id) => id !== ofertaId)
+        : [...prev, ofertaId]
+    );
+  };
+
+  const seleccionarTodos = () => {
+    setSelectedIds(ofertas.map((o) => o.id));
+  };
+
+  const deseleccionarTodos = () => {
+    setSelectedIds([]);
+  };
+
+  const irACheckout = (ordenId) => {
+    if (!ordenId) return;
+    router.push(`/comprador/checkout/${ordenId}`);
+  };
+
+  const manejarOrdenAbiertaConflicto = async (selected) => {
+    const { data: ordenAbierta, error } = await obtenerOrdenCheckout(null);
+
+    if (error || !ordenAbierta?.id) {
+      showModal({
+        type: 'error',
+        title: 'Ya tienes un checkout abierto',
+        message:
+          error?.message ||
+          'Cancela o retoma el checkout en curso antes de crear uno nuevo.',
+      });
+      return;
+    }
+
+    const idsOrden = (ordenAbierta.items || [])
+      .map((i) => i.oferta_id)
+      .filter(Boolean)
+      .sort();
+    const idsSel = [...selected].sort();
+    const mismoSet =
+      idsOrden.length === idsSel.length &&
+      idsOrden.every((id, idx) => id === idsSel[idx]);
+
+    if (mismoSet) {
+      irACheckout(ordenAbierta.id);
+      return;
+    }
+
+    showModal({
+      type: 'warning',
+      title: 'Checkout en curso',
+      message:
+        'Ya tienes una orden abierta con otra selección. Puedes retomarla o cancelarla para usar la selección actual.',
+      confirmText: 'Retomar checkout',
+      cancelText: 'Cancelar orden y continuar',
+      showCancel: true,
+      onConfirm: () => {
+        setModal(createModalState());
+        irACheckout(ordenAbierta.id);
+      },
+      onCancel: async () => {
+        setModal(createModalState());
+        setCreandoOrden(true);
+        const { error: cancelError } = await cancelarOrdenCheckout(
+          ordenAbierta.id
+        );
+        if (cancelError) {
+          setCreandoOrden(false);
+          showModal({
+            type: 'error',
+            title: 'No se pudo cancelar la orden',
+            message: cancelError.message,
+          });
+          return;
+        }
+        const { data, error: createError } =
+          await crearOrdenCheckout(selected);
+        setCreandoOrden(false);
+        if (createError || !data?.orden_id) {
+          showModal({
+            type: 'error',
+            title: 'No se pudo crear el checkout',
+            message:
+              createError?.message ||
+              'Inténtalo nuevamente.',
+          });
+          return;
+        }
+        irACheckout(data.orden_id);
+      },
+    });
+  };
+
+  const continuarAlPago = async () => {
+    if (!selectedIds.length || creandoOrden) return;
+
+    setCreandoOrden(true);
+    const { data, error } = await crearOrdenCheckout(selectedIds);
+    setCreandoOrden(false);
+
+    if (!error && data?.orden_id) {
+      irACheckout(data.orden_id);
+      return;
+    }
+
+    const msg = (error?.message || '').toLowerCase();
+    if (msg.includes('orden') && msg.includes('abierta')) {
+      await manejarOrdenAbiertaConflicto(selectedIds);
+      return;
+    }
+
+    showModal({
+      type: 'error',
+      title: 'No se pudo continuar al pago',
+      message:
+        error?.message ||
+        'Revisa la selección e inténtalo nuevamente.',
     });
   };
 
@@ -209,14 +348,22 @@ export default function CarroCompradorPage() {
     return Array.from(map.values());
   }, [ofertas]);
 
-  const subtotal = useMemo(
+  const seleccionadas = useMemo(
+    () => ofertas.filter((o) => selectedIds.includes(o.id)),
+    [ofertas, selectedIds]
+  );
+
+  const subtotalSeleccionado = useMemo(
     () =>
-      ofertas.reduce(
+      seleccionadas.reduce(
         (acc, o) => acc + Number(o.precio_ofertado || 0),
         0
       ),
-    [ofertas]
+    [seleccionadas]
   );
+
+  const todosSeleccionados =
+    ofertas.length > 0 && selectedIds.length === ofertas.length;
 
   const cerrarSesion = async () => {
     await supabase.auth.signOut();
@@ -256,8 +403,9 @@ export default function CarroCompradorPage() {
           <div>
             <h1 style={styles.title}>Tu carro</h1>
             <p style={styles.subtitle}>
-              Ofertas aceptadas pendientes de pago. Podrás agrupar
-              tus compras antes de pagar.
+              Selecciona las compras que quieres pagar juntas.
+              Deseleccionar no cancela la adjudicación; eliminar del
+              carro sí.
             </p>
           </div>
         </div>
@@ -282,87 +430,160 @@ export default function CarroCompradorPage() {
           </div>
         ) : (
           <>
+            <div style={styles.selectionBar}>
+              <button
+                type="button"
+                style={styles.linkButton}
+                onClick={
+                  todosSeleccionados
+                    ? deseleccionarTodos
+                    : seleccionarTodos
+                }
+              >
+                {todosSeleccionados
+                  ? 'Deseleccionar todos'
+                  : 'Seleccionar todos'}
+              </button>
+              <span style={styles.selectionHint}>
+                {selectedIds.length} de {ofertas.length} seleccionadas
+              </span>
+            </div>
+
             <div style={styles.groups}>
-              {grupos.map((grupo) => (
-                <div key={grupo.proveedorId} style={styles.group}>
-                  <h2 style={styles.groupTitle}>{grupo.nombre}</h2>
-                  <div style={styles.items}>
-                    {grupo.items.map((oferta) => (
-                      <article key={oferta.id} style={styles.item}>
-                        <div style={styles.itemMain}>
-                          <h3 style={styles.itemTitle}>
-                            {oferta.producto ||
-                              oferta.lista_producto ||
-                              'Producto'}
-                          </h3>
-                          <p style={styles.itemMeta}>
-                            {[
-                              oferta.marca || oferta.lista_marca,
-                              oferta.formato || oferta.lista_formato,
-                            ]
-                              .filter(Boolean)
-                              .join(' · ') || 'Sin detalle'}
-                          </p>
-                          <p style={styles.itemMeta}>
-                            Cantidad:{' '}
-                            {oferta.cantidad_solicitada ?? '—'}
-                          </p>
-                          {oferta.incluye_despacho != null && (
-                            <p style={styles.itemMeta}>
-                              Despacho:{' '}
-                              {oferta.incluye_despacho
-                                ? oferta.tiempo_despacho_horas
-                                  ? `Sí (${oferta.tiempo_despacho_horas} h)`
-                                  : 'Sí'
-                                : 'No'}
-                            </p>
-                          )}
-                        </div>
-                        <div style={styles.itemPrice}>
-                          <span style={styles.priceLabel}>
-                            Precio adjudicado
-                          </span>
-                          <strong style={styles.priceValue}>
-                            {formatearMonto(oferta.precio_ofertado)}
-                          </strong>
-                          <button
-                            type="button"
-                            style={{
-                              ...styles.removeButton,
-                              ...(revirtiendoId === oferta.id
-                                ? styles.removeButtonDisabled
-                                : {}),
-                            }}
-                            disabled={Boolean(revirtiendoId)}
-                            onClick={() =>
-                              confirmarEliminarDelCarro(oferta)
-                            }
-                          >
-                            {revirtiendoId === oferta.id
-                              ? 'Eliminando…'
-                              : 'Eliminar del carro'}
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+              {grupos.map((grupo) => {
+                const subtotalProv = grupo.items
+                  .filter((i) => selectedIds.includes(i.id))
+                  .reduce(
+                    (acc, i) => acc + Number(i.precio_ofertado || 0),
+                    0
+                  );
+
+                return (
+                  <div key={grupo.proveedorId} style={styles.group}>
+                    <h2 style={styles.groupTitle}>{grupo.nombre}</h2>
+                    <div style={styles.items}>
+                      {grupo.items.map((oferta) => {
+                        const checked = selectedIds.includes(oferta.id);
+                        return (
+                          <article key={oferta.id} style={styles.item}>
+                            <label style={styles.checkLabel}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  toggleSeleccion(oferta.id)
+                                }
+                                style={styles.checkbox}
+                              />
+                              <span style={styles.srOnly}>
+                                Seleccionar{' '}
+                                {oferta.producto || 'oferta'}
+                              </span>
+                            </label>
+
+                            <div style={styles.itemMain}>
+                              <h3 style={styles.itemTitle}>
+                                {oferta.producto ||
+                                  oferta.lista_producto ||
+                                  'Producto'}
+                              </h3>
+                              <p style={styles.itemMeta}>
+                                {[
+                                  oferta.marca || oferta.lista_marca,
+                                  oferta.formato ||
+                                    oferta.lista_formato,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || 'Sin detalle'}
+                              </p>
+                              <p style={styles.itemMeta}>
+                                Cantidad:{' '}
+                                {oferta.cantidad_solicitada ?? '—'}
+                              </p>
+                              {oferta.incluye_despacho != null && (
+                                <p style={styles.itemMeta}>
+                                  Despacho:{' '}
+                                  {oferta.incluye_despacho
+                                    ? oferta.tiempo_despacho_horas
+                                      ? `Sí (${oferta.tiempo_despacho_horas} h)`
+                                      : 'Sí'
+                                    : 'No'}
+                                </p>
+                              )}
+                            </div>
+
+                            <div style={styles.itemPrice}>
+                              <span style={styles.priceLabel}>
+                                Precio adjudicado
+                              </span>
+                              <strong style={styles.priceValue}>
+                                {formatearMonto(
+                                  oferta.precio_ofertado
+                                )}
+                              </strong>
+                              <button
+                                type="button"
+                                style={{
+                                  ...styles.removeButton,
+                                  ...(revirtiendoId === oferta.id
+                                    ? styles.removeButtonDisabled
+                                    : {}),
+                                }}
+                                disabled={Boolean(revirtiendoId)}
+                                onClick={() =>
+                                  confirmarEliminarDelCarro(oferta)
+                                }
+                              >
+                                {revirtiendoId === oferta.id
+                                  ? 'Eliminando…'
+                                  : 'Eliminar del carro'}
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                    <p style={styles.providerSubtotal}>
+                      Subtotal proveedor (seleccionados):{' '}
+                      <strong>{formatearMonto(subtotalProv)}</strong>
+                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <aside style={styles.summary}>
               <div style={styles.summaryRow}>
-                <span>Ofertas en el carro</span>
-                <strong>{ofertas.length}</strong>
+                <span>Compras seleccionadas</span>
+                <strong>{seleccionadas.length}</strong>
               </div>
               <div style={styles.summaryRow}>
                 <span>Subtotal productos</span>
-                <strong>{formatearMonto(subtotal)}</strong>
+                <strong>
+                  {formatearMonto(subtotalSeleccionado)}
+                </strong>
               </div>
               <p style={styles.summaryNote}>
-                Todavía no se calculan comisiones ni cargos
-                adicionales en esta vista.
+                Un solo pago agrupado. Todavía no se muestran
+                comisiones adicionales.
               </p>
+              <button
+                type="button"
+                style={{
+                  ...styles.primaryButtonFull,
+                  ...(selectedIds.length === 0 || creandoOrden
+                    ? styles.primaryButtonDisabled
+                    : {}),
+                }}
+                disabled={
+                  selectedIds.length === 0 || creandoOrden
+                }
+                onClick={continuarAlPago}
+              >
+                {creandoOrden
+                  ? 'Preparando…'
+                  : 'Continuar al pago'}
+              </button>
               <button
                 type="button"
                 style={styles.secondaryButton}
@@ -417,10 +638,7 @@ const styles = {
     fontSize: '14px',
     lineHeight: 1.45,
   },
-  muted: {
-    color: '#6d7f98',
-    fontSize: '14px',
-  },
+  muted: { color: '#6d7f98', fontSize: '14px' },
   empty: {
     display: 'flex',
     flexDirection: 'column',
@@ -441,6 +659,28 @@ const styles = {
     color: '#6d7f98',
     fontSize: '14px',
     lineHeight: 1.5,
+  },
+  selectionBar: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px',
+    marginBottom: '14px',
+  },
+  linkButton: {
+    border: 0,
+    background: 'transparent',
+    color: '#176bff',
+    fontWeight: 800,
+    fontSize: '13px',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  selectionHint: {
+    color: '#6d7f98',
+    fontSize: '13px',
+    fontWeight: 700,
   },
   groups: {
     display: 'flex',
@@ -466,16 +706,36 @@ const styles = {
   },
   item: {
     display: 'flex',
-    justifyContent: 'space-between',
-    gap: '16px',
+    alignItems: 'flex-start',
+    gap: '12px',
     flexWrap: 'wrap',
     padding: '14px',
     borderRadius: '14px',
     background: '#ffffff',
     border: '1px solid #e7edf5',
   },
+  checkLabel: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    paddingTop: '4px',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
+  srOnly: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0,0,0,0)',
+    border: 0,
+  },
   itemMain: {
-    flex: '1 1 220px',
+    flex: '1 1 200px',
     minWidth: 0,
   },
   itemTitle: {
@@ -496,6 +756,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'flex-end',
     gap: '10px',
+    marginLeft: 'auto',
   },
   priceLabel: {
     display: 'block',
@@ -524,6 +785,13 @@ const styles = {
   removeButtonDisabled: {
     opacity: 0.65,
     cursor: 'wait',
+  },
+  providerSubtotal: {
+    margin: '12px 0 0',
+    color: '#49617f',
+    fontSize: '13px',
+    fontWeight: 700,
+    textAlign: 'right',
   },
   summary: {
     marginTop: '20px',
@@ -556,6 +824,21 @@ const styles = {
     color: '#fff',
     fontWeight: 800,
     cursor: 'pointer',
+  },
+  primaryButtonFull: {
+    width: '100%',
+    minHeight: '46px',
+    marginBottom: '10px',
+    borderRadius: '12px',
+    border: 0,
+    background: 'linear-gradient(135deg, #176bff 0%, #00b89c 100%)',
+    color: '#fff',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.45,
+    cursor: 'not-allowed',
   },
   secondaryButton: {
     width: '100%',

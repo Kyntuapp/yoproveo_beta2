@@ -3891,10 +3891,9 @@ export default function Comprador() {
                                                                 styles.pendingPaymentText
                                                               }
                                                             >
-                                                              Pago
-                                                              pendiente
-                                                              · en el
-                                                              carro
+                                                              En el carro
+                                                              · pendiente
+                                                              de pago
                                                             </p>
 
                                                             <button
@@ -3903,9 +3902,8 @@ export default function Comprador() {
                                                                 event
                                                               ) => {
                                                                 event.stopPropagation();
-
-                                                                pagarOferta(
-                                                                  oferta
+                                                                router.push(
+                                                                  '/comprador/carro'
                                                                 );
                                                               }}
                                                               className="kyntu-mainButtonSmall"
@@ -3913,7 +3911,7 @@ export default function Comprador() {
                                                                 styles.mainButtonSmall
                                                               }
                                                             >
-                                                              Pagar
+                                                              Ir al carro
                                                             </button>
                                                           </>
                                                         )}
