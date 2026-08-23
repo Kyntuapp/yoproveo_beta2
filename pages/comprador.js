@@ -1881,12 +1881,9 @@ export default function Comprador() {
 
   const aceptarOferta = async (oferta) => {
     const { error: ofertaError } =
-      await supabase
-        .from('ofertas_productos')
-        .update({
-          estado: 'pendiente_pago',
-        })
-        .eq('id', oferta.id);
+      await supabase.rpc('adjudicar_oferta', {
+        p_oferta_id: oferta.id,
+      });
 
     if (ofertaError) {
       showError(
@@ -1894,48 +1891,6 @@ export default function Comprador() {
       );
 
       return;
-    }
-
-    const { error: rechazadasError } =
-      await supabase
-        .from('ofertas_productos')
-        .update({
-          estado: 'rechazada',
-        })
-        .eq('lista_id', oferta.lista_id)
-        .neq('id', oferta.id);
-
-    if (rechazadasError) {
-      showError(
-        `Error al rechazar las otras ofertas: ${rechazadasError.message}`
-      );
-
-      return;
-    }
-
-    const { error: notificacionError } =
-      await supabase
-        .from('notificaciones')
-        .insert([
-          {
-            usuario_id:
-              oferta.proveedor_id,
-            rol: 'proveedor',
-            titulo:
-              'Compra pendiente de pago',
-            mensaje:
-              `El comprador aceptó tu oferta para ${oferta.producto}. El pago está en proceso.`,
-            ruta:
-              `${RUTA_MIS_OFERTAS}?notif=chat&oferta_id=${oferta.id}`,
-            leida: false,
-          },
-        ]);
-
-    if (notificacionError) {
-      console.error(
-        'Error creando notificación:',
-        notificacionError
-      );
     }
 
     await pagarOferta(oferta);
@@ -2062,63 +2017,35 @@ export default function Comprador() {
     const totalPagado =
       montoOferta + comisionKyntu;
 
-    let pagoCreado = null;
-
     const {
-      data: pagosExistentes,
-      error: pagoExistenteError,
-    } = await supabase
-      .from('pagos')
-      .select('*')
-      .eq('oferta_id', oferta.id)
-      .eq('estado_pago', 'pendiente')
-      .order('id', {
-        ascending: false,
-      })
-      .limit(1);
+      data: pagosRpc,
+      error: pagoError,
+    } = await supabase.rpc(
+      'obtener_o_crear_pago_pendiente',
+      { p_oferta_id: oferta.id }
+    );
 
-    if (pagoExistenteError) {
+    if (pagoError) {
       showError(
-        `Error buscando pago existente: ${pagoExistenteError.message}`
+        `Error creando registro de pago: ${pagoError.message}`
       );
 
       return;
     }
 
-    const pagoExistente =
-      pagosExistentes?.[0] || null;
+    const pagoCreado = Array.isArray(pagosRpc)
+      ? pagosRpc[0]
+      : pagosRpc;
 
-    if (pagoExistente) {
-      pagoCreado = pagoExistente;
-    } else {
-      const {
-        data: nuevoPago,
-        error: pagoError,
-      } = await supabase
-        .from('pagos')
-        .insert({
-          oferta_id: oferta.id,
-          proveedor_id:
-            oferta.proveedor_id,
-          monto_oferta: montoOferta,
-          comision_kyntu: comisionKyntu,
-          total_pagado: totalPagado,
-          estado_pago: 'pendiente',
-        })
-        .select()
-        .single();
+    if (!pagoCreado?.id) {
+      showError(
+        'No se pudo obtener el registro de pago.'
+      );
 
-      if (pagoError) {
-        showError(
-          `Error creando registro de pago: ${pagoError.message}`
-        );
-
-        return;
-      }
-
-      pagoCreado = nuevoPago;
+      return;
     }
-        const response = await fetch(
+
+    const response = await fetch(
       '/api/pagos/iniciar',
       {
         method: 'POST',
@@ -2132,7 +2059,9 @@ export default function Comprador() {
           proveedor_id:
             oferta.proveedor_id,
           titulo: oferta.producto,
-          precio: totalPagado,
+          precio:
+            Number(pagoCreado.total_pagado) ||
+            totalPagado,
         }),
       }
     );
@@ -2166,13 +2095,10 @@ export default function Comprador() {
   const actualizarOfertaAPagada = async (
     ofertaId
   ) => {
-    const { data, error } = await supabase
-      .from('ofertas_productos')
-      .update({
-        estado: 'pagada',
-      })
-      .eq('id', ofertaId)
-      .select('id');
+    const { data, error } = await supabase.rpc(
+      'marcar_oferta_pagada',
+      { p_oferta_id: ofertaId }
+    );
 
     if (error) {
       return {
@@ -2181,7 +2107,7 @@ export default function Comprador() {
       };
     }
 
-    if (!data?.length) {
+    if (!data) {
       return {
         ok: false,
         error: new Error(
@@ -2200,12 +2126,10 @@ export default function Comprador() {
     oferta,
     fechaLista
   ) => {
-    const { error } = await supabase
-      .from('ofertas_productos')
-      .update({
-        estado: 'recepcion_conforme',
-      })
-      .eq('id', oferta.id);
+    const { error } = await supabase.rpc(
+      'confirmar_recepcion_oferta',
+      { p_oferta_id: oferta.id }
+    );
 
     if (error) {
       showError(
@@ -2421,12 +2345,10 @@ export default function Comprador() {
     producto,
     fecha
   ) => {
-    const { error } = await supabase
-      .from('ofertas_productos')
-      .update({
-        estado: 'rechazada',
-      })
-      .eq('id', oferta.id);
+    const { error } = await supabase.rpc(
+      'rechazar_oferta',
+      { p_oferta_id: oferta.id }
+    );
 
     if (error) {
       showModal({
@@ -2437,29 +2359,6 @@ export default function Comprador() {
       });
 
       return;
-    }
-
-    const { error: notificacionError } =
-      await supabase
-        .from('notificaciones')
-        .insert([
-          {
-            usuario_id:
-              oferta.proveedor_id,
-            rol: 'proveedor',
-            titulo: 'Oferta rechazada',
-            mensaje:
-              `Tu oferta para ${oferta.producto} fue rechazada.`,
-            ruta: RUTA_MIS_OFERTAS,
-            leida: false,
-          },
-        ]);
-
-    if (notificacionError) {
-      console.error(
-        'Error creando notificación de rechazo:',
-        notificacionError
-      );
     }
 
     await verOfertas(fecha);
