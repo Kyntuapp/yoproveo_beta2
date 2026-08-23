@@ -27,7 +27,10 @@ import KyntuModal, {
 import ModalCalificacion from './ModalCalificacion';
 import AppLayout from '../components/Layout/AppLayout';
 import CarroCompradorButton from '../components/CarroCompradorButton';
-import { notifyCarroUpdated } from '../lib/carroComprador';
+import {
+  CARRO_UPDATED_EVENT,
+  notifyCarroUpdated,
+} from '../lib/carroComprador';
 
 const MAX_DETALLE_PEDIDO = 120;
 
@@ -1880,6 +1883,26 @@ export default function Comprador() {
       ]
     );
   };
+
+  useEffect(() => {
+    const onCarroUpdated = () => {
+      listasConOfertas.forEach((fecha) => {
+        verOfertas(fecha);
+      });
+    };
+
+    window.addEventListener(
+      CARRO_UPDATED_EVENT,
+      onCarroUpdated
+    );
+
+    return () => {
+      window.removeEventListener(
+        CARRO_UPDATED_EVENT,
+        onCarroUpdated
+      );
+    };
+  }, [listasConOfertas]);
 
   const aceptarOferta = async (oferta, fecha) => {
     const { error: ofertaError } =

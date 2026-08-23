@@ -9,6 +9,8 @@ import CarroCompradorButton from '../../components/CarroCompradorButton';
 import {
   CARRO_UPDATED_EVENT,
   fetchCarroOfertasComprador,
+  notifyCarroUpdated,
+  revertirAdjudicacionDesdeCarro,
 } from '../../lib/carroComprador';
 import KyntuModal, { createModalState } from '../KyntuModal';
 
@@ -37,6 +39,7 @@ export default function CarroCompradorPage() {
     useState(false);
   const [ofertas, setOfertas] = useState([]);
   const [modal, setModal] = useState(createModalState());
+  const [revirtiendoId, setRevirtiendoId] = useState(null);
 
   const showModal = (config) => {
     setModal({
@@ -45,6 +48,9 @@ export default function CarroCompradorPage() {
       ...config,
       onConfirm:
         config.onConfirm ||
+        (() => setModal(createModalState())),
+      onCancel:
+        config.onCancel ||
         (() => setModal(createModalState())),
     });
   };
@@ -64,6 +70,62 @@ export default function CarroCompradorPage() {
     }
 
     setOfertas(data || []);
+  };
+
+  const ejecutarRevertir = async (oferta) => {
+    if (!oferta?.id || revirtiendoId) return;
+
+    setRevirtiendoId(oferta.id);
+
+    const { error } = await revertirAdjudicacionDesdeCarro(oferta.id);
+
+    setRevirtiendoId(null);
+
+    if (error) {
+      showModal({
+        type: 'error',
+        title: 'No se pudo eliminar del carro',
+        message:
+          error.message ||
+          'La adjudicación no pudo revertirse. Si la oferta está en una orden abierta, cancélala primero.',
+      });
+      return;
+    }
+
+    if (authUserId) {
+      await cargarCarro(authUserId);
+    } else {
+      notifyCarroUpdated();
+    }
+
+    showModal({
+      type: 'success',
+      title: 'Oferta eliminada del carro',
+      message:
+        'La adjudicación fue cancelada. El producto vuelve a admitir ofertas y los proveedores reactivados fueron notificados.',
+      confirmText: 'Entendido',
+    });
+  };
+
+  const confirmarEliminarDelCarro = (oferta) => {
+    const producto =
+      oferta.producto ||
+      oferta.lista_producto ||
+      'esta oferta';
+
+    showModal({
+      type: 'warning',
+      title: '¿Eliminar del carro?',
+      message: `Se cancelará la adjudicación de “${producto}”. El proveedor ganador dejará de estar pendiente de pago y las ofertas rivales rechazadas automáticamente volverán a competir.`,
+      confirmText: 'Eliminar del carro',
+      cancelText: 'Conservar',
+      showCancel: true,
+      onCancel: () => setModal(createModalState()),
+      onConfirm: () => {
+        setModal(createModalState());
+        ejecutarRevertir(oferta);
+      },
+    });
   };
 
   useEffect(() => {
@@ -263,6 +325,23 @@ export default function CarroCompradorPage() {
                           <strong style={styles.priceValue}>
                             {formatearMonto(oferta.precio_ofertado)}
                           </strong>
+                          <button
+                            type="button"
+                            style={{
+                              ...styles.removeButton,
+                              ...(revirtiendoId === oferta.id
+                                ? styles.removeButtonDisabled
+                                : {}),
+                            }}
+                            disabled={Boolean(revirtiendoId)}
+                            onClick={() =>
+                              confirmarEliminarDelCarro(oferta)
+                            }
+                          >
+                            {revirtiendoId === oferta.id
+                              ? 'Eliminando…'
+                              : 'Eliminar del carro'}
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -413,6 +492,10 @@ const styles = {
   itemPrice: {
     flex: '0 0 auto',
     textAlign: 'right',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '10px',
   },
   priceLabel: {
     display: 'block',
@@ -422,10 +505,25 @@ const styles = {
   },
   priceValue: {
     display: 'block',
-    marginTop: '4px',
     color: '#061b41',
     fontSize: '18px',
     fontWeight: 900,
+  },
+  removeButton: {
+    minHeight: '38px',
+    padding: '0 12px',
+    borderRadius: '10px',
+    border: '1px solid #f0c7c3',
+    background: '#fff7f6',
+    color: '#c1342d',
+    fontSize: '12px',
+    fontWeight: 800,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  removeButtonDisabled: {
+    opacity: 0.65,
+    cursor: 'wait',
   },
   summary: {
     marginTop: '20px',
