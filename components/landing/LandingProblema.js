@@ -1,11 +1,11 @@
 const ITEMS = [
   {
     title: 'Para quien compra',
-    text: 'Comprar suele implicar buscar proveedores, comparar precios en distintos canales y perder tiempo coordinando.',
+    text: 'Cotizar proveedores hoy implica buscar en distintos canales, comparar precios manualmente y perder tiempo coordinando cada respuesta.',
   },
   {
     title: 'Para quien provee',
-    text: 'Vender implica salir a buscar compradores sin saber quién necesita realmente tu producto hoy.',
+    text: 'Vender servicios y productos a empresas ya no significa salir a buscar clientes potenciales uno por uno: te encuentran donde ya existe la necesidad.',
   },
 ];
 

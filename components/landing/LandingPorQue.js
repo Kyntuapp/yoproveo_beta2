@@ -10,37 +10,37 @@ import {
 const ITEMS = [
   {
     title: 'Demanda real en vivo',
-    text: 'Cada solicitud nace de una necesidad concreta de compra.',
+    text: 'Cada solicitud nace de una necesidad real de compra, no de una búsqueda al azar.',
     Icon: FiActivity,
     color: 'blue',
   },
   {
     title: 'Menos tiempo cotizando',
-    text: 'No necesitas buscar entre cientos de productos, precios y proveedores.',
+    text: 'Cotiza proveedores online sin buscar entre cientos de productos, precios y proveedores.',
     Icon: FiClock,
     color: 'turquoise',
   },
   {
     title: 'Todo en un solo lugar',
-    text: 'Publica, recibe ofertas y compara alternativas dentro del mismo flujo.',
+    text: 'Tu gestión de compras para pyme en un solo flujo: publica, recibe ofertas y compara.',
     Icon: FiGrid,
     color: 'orange',
   },
   {
     title: 'Más oportunidades comerciales',
-    text: 'Los proveedores llegan donde ya existe intención de compra.',
+    text: 'Más clientes sin salir a buscarlos: accedes a oportunidades de negocio B2B donde ya existe intención real de compra.',
     Icon: FiTrendingUp,
     color: 'violet',
   },
   {
     title: 'Comparación simple',
-    text: 'Las ofertas se ordenan para facilitar la decisión.',
+    text: 'Compara proveedores en Chile con las ofertas ya ordenadas para decidir fácil.',
     Icon: FiSliders,
     color: 'celeste',
   },
   {
     title: 'Mejor relación valor-condiciones',
-    text: 'El comprador puede elegir considerando precio, despacho y condiciones.',
+    text: 'Elige considerando precio, despacho y condiciones — sin sacrificar valor.',
     Icon: FiAward,
     color: 'green',
   },

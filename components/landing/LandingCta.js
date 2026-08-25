@@ -5,14 +5,14 @@ const ITEMS = [
   {
     id: 'comercio',
     title: '¿Tienes un comercio?',
-    text: 'Sube tu lista y recibe ofertas comparables.',
+    text: 'Sube tu lista y recibe cotizaciones de proveedores comparables.',
     Icon: FiShoppingBag,
     btnClass: 'landing-btn--primary',
   },
   {
     id: 'proveedor',
     title: '¿Quieres proveer?',
-    text: 'Encuentra compradores con demanda activa.',
+    text: 'Encuentra clientes sin salir a buscarlos: compradores con demanda activa.',
     Icon: FiTruck,
     btnClass: 'landing-btn--teal',
   },

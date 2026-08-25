@@ -5,18 +5,18 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Kyntü — Donde la oferta encuentra la demanda</title>
+        <title>Kyntü | Cotiza Proveedores y Consigue Clientes en Chile</title>
         <meta
           name="description"
-          content="Publica lo que necesitas, recibe ofertas y compara las mejores alternativas en un solo lugar. Compara. Cotiza. Elige. Crece."
+          content="Publica lo que necesitas y recibe cotizaciones de proveedores en minutos. Compara ofertas y elige la mejor opción con Kyntü, la plataforma que conecta compradores y proveedores en Chile."
         />
         <meta
           property="og:title"
-          content="Kyntü — Donde la oferta encuentra la demanda"
+          content="Kyntü | Cotiza Proveedores y Consigue Clientes en Chile"
         />
         <meta
           property="og:description"
-          content="No busques entre cientos de productos y proveedores. Publica tu necesidad, recibe ofertas y elige con claridad."
+          content="Publica lo que necesitas y recibe cotizaciones de proveedores en minutos. Compara ofertas y elige la mejor opción con Kyntü, la plataforma que conecta compradores y proveedores en Chile."
         />
         <meta property="og:type" content="website" />
       </Head>
