@@ -46,10 +46,10 @@ export default function OfertaAccionesBar({
 
         {mostrarAceptarRechazar && (
           <>
-            <Tooltip label="Aceptar y pagar la oferta">
+            <Tooltip label="Aceptar oferta y agregar al carro">
               <button
                 type="button"
-                aria-label="Aceptar y pagar la oferta"
+                aria-label="Aceptar oferta y agregar al carro"
                 onClick={onAceptar}
                 className={`oferta-accion-icono oferta-accion-aceptar${
                   light ? ' oferta-accion-aceptar-light' : ''

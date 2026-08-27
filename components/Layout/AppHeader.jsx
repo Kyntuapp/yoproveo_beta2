@@ -22,7 +22,9 @@ export default function AppHeader({
   onDashboard,
   onBack,
   onLogout,
+  cart,
   notifications,
+  support,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -173,6 +175,26 @@ export default function AppHeader({
           </nav>
 
           <div style={styles.actions}>
+            {support && (
+              <div
+                className="app-header-support"
+                style={styles.support}
+                aria-label="Soporte"
+              >
+                {support}
+              </div>
+            )}
+
+            {cart && (
+              <div
+                className="app-header-cart"
+                style={styles.cart}
+                aria-label="Carro de compras"
+              >
+                {cart}
+              </div>
+            )}
+
             {notifications && (
               <div
                 className="app-header-notifications"
@@ -468,7 +490,8 @@ export default function AppHeader({
             background: transparent !important;
           }
 
-          .app-header-notifications {
+          .app-header-notifications,
+          .app-header-cart {
             min-width: 42px !important;
             min-height: 42px !important;
           }
@@ -605,6 +628,22 @@ const styles = {
     justifyContent: "flex-end",
     gap: "8px",
     minWidth: "220px",
+  },
+
+  support: {
+    minWidth: "42px",
+    minHeight: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cart: {
+    minWidth: "46px",
+    minHeight: "46px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   notifications: {

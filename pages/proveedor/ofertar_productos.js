@@ -5,6 +5,7 @@ import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import { useRouter } from 'next/router';
 import AppLayout from '../../components/Layout/AppLayout';
 import Notificaciones from '../../components/Notificaciones';
+import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import OfertaConversacionContenedor from '../../components/OfertaConversacionContenedor';
 import {
   fetchSolicitudesAdjudicadasIds,
@@ -1203,42 +1204,23 @@ export default function OfertarProductos() {
     }
 
     const { error } =
-      await supabase
-        .from(
-          'ofertas_productos'
-        )
-        .insert({
-          lista_id:
+      await supabase.rpc(
+        'crear_oferta_producto',
+        {
+          p_lista_compras_id:
             producto.id,
-
-          proveedor_id:
-            proveedorPerfilId,
-
-          producto:
-            producto.producto,
-
-          formato:
-            producto.formato,
-
-          marca:
-            producto.marca,
-
-          precio_ofertado:
+          p_precio_ofertado:
             ofertaLimpia,
-
-          incluye_despacho:
+          p_incluye_despacho:
             producto.incluye_despacho,
-
-          tiempo_despacho_horas:
+          p_tiempo_despacho_horas:
             producto.incluye_despacho
               ? Number(
                   producto.tiempo_despacho_horas
                 )
               : null,
-
-          estado:
-            'pendiente',
-        });
+        }
+      );
 
     if (error) {
       const esDuplicada =
@@ -1578,6 +1560,11 @@ return (
         userId={proveedorPerfilId}
         rol="proveedor"
       />
+    }
+    support={
+      proveedorPerfilId ? (
+        <SoporteLauncher perfilId={proveedorPerfilId} rol="proveedor" />
+      ) : null
     }
   >
     <main

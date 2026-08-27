@@ -7,7 +7,7 @@ const STEPS = [
     core: false,
   },
   {
-    label: 'Los proveedores presentan ofertas',
+    label: 'Los proveedores envían sus cotizaciones',
     hint: 'Recibes propuestas con precio, despacho y condiciones.',
     core: false,
   },
@@ -17,7 +17,7 @@ const STEPS = [
     core: true,
   },
   {
-    label: 'Compara y elige',
+    label: 'Compara proveedores y elige',
     hint: 'Decides considerando precio, despacho y condiciones.',
     core: false,
   },
@@ -58,7 +58,7 @@ export default function LandingFlujo() {
             <div className="landing-flujo__mockup-frame">
               <img
                 src={MOCKUP_ART}
-                alt="Vista de solicitudes y ofertas en Kyntü"
+                alt="Comprador revisando cotizaciones de proveedores en Kyntü, la plataforma que conecta compradores y proveedores en Chile"
                 className="landing-flujo__mockup-art"
               />
             </div>

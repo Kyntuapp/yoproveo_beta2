@@ -8,6 +8,7 @@ import { Plus, Save, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { resolveProveedorProfile } from '../../lib/resolveProveedorProfile';
 import Notificaciones from '../../components/Notificaciones';
+import SoporteLauncher from '../../components/soporte/SoporteLauncher';
 import AppLayout from '../../components/Layout/AppLayout';
 
 export default function CatalogoProveedor() {
@@ -509,6 +510,11 @@ export default function CatalogoProveedor() {
           userId={proveedorId}
           rol="proveedor"
         />
+      }
+      support={
+        proveedorId ? (
+          <SoporteLauncher perfilId={proveedorId} rol="proveedor" />
+        ) : null
       }
     >
       <div

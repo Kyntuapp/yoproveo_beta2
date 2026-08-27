@@ -14,6 +14,8 @@ import { comunasChile } from "../../utils/comunasChile";
 import { regionesChile } from "../../utils/regionesChile";
 import AppLayout from "../../components/Layout/AppLayout";
 import Notificaciones from "../../components/Notificaciones";
+import SoporteLauncher from "../../components/soporte/SoporteLauncher";
+import CarroCompradorButton from "../../components/CarroCompradorButton";
 import KyntuModal, {
   createModalState,
 } from "../KyntuModal";
@@ -279,11 +281,15 @@ export default function DatosContactoComprador() {
     onUpdateData: irDatosContacto,
     onDashboard: irDashboard,
     onLogout: cerrarSesion,
+    cart: <CarroCompradorButton />,
     notifications: perfilId ? (
       <Notificaciones
         userId={perfilId}
         rol="comprador"
       />
+    ) : null,
+    support: perfilId ? (
+      <SoporteLauncher perfilId={perfilId} rol="comprador" />
     ) : null,
   };
 

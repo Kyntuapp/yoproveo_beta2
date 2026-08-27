@@ -95,11 +95,23 @@ export default function MasterHome() {
           </p>
         </button>
 
+        <button
+          style={styles.card}
+          onClick={() => router.push('/master/soporte')}
+        >
+          <div style={styles.cardIcon}>💬</div>
+          <h3 style={styles.cardTitle}>Soporte</h3>
+          <p style={styles.cardText}>
+            Conversaciones de soporte con compradores y proveedores.
+          </p>
+        </button>
+
         <button style={styles.cardDisabled} disabled>
           <div style={styles.cardIconDisabled}>👥</div>
           <h3 style={styles.cardTitle}>Usuarios</h3>
           <p style={styles.cardText}>
             Gestión de compradores, proveedores y actividad de perfiles.
+            (Contactar por soporte disponible en la bandeja de Soporte.)
           </p>
         </button>
       </div>

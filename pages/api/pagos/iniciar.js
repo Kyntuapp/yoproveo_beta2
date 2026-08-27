@@ -1,5 +1,5 @@
 import { requirePaymentUser } from '../../../lib/payments/auth';
-import { createPaymentOrder } from '../../../lib/payments/orders';
+import { createPaymentOrder, createPaymentOrderFromCheckout } from '../../../lib/payments/orders';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { createWebpayTransaction } from '../../../lib/payments/transbank';
 
@@ -43,7 +43,7 @@ async function startMercadoPago(req, order, items) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || 'Mercado Pago rechazó la solicitud');
 
-  await supabaseAdmin.from('payment_orders').update({ external_id: data.id }).eq('id', order.id);
+  await supabaseAdmin.from('payment_orders').update({ external_id: data.id, provider_payload: data }).eq('id', order.id);
   const useSandbox = process.env.MERCADOPAGO_USE_SANDBOX !== 'false';
   if (useSandbox && !data.sandbox_init_point) {
     throw new Error(
@@ -54,6 +54,9 @@ async function startMercadoPago(req, order, items) {
 }
 
 async function startTransbank(req, order) {
+  if (order.provider_payment_id && order.provider_payload?.url) {
+    return { form_url: order.provider_payload.url, token: order.provider_payment_id };
+  }
   const buyOrder = `K${order.id.replace(/-/g, '').slice(0, 25)}`;
   const response = await createWebpayTransaction({
     buy_order: buyOrder,
@@ -63,7 +66,7 @@ async function startTransbank(req, order) {
   });
   await supabaseAdmin
     .from('payment_orders')
-    .update({ external_id: buyOrder, provider_payment_id: response.token })
+    .update({ external_id: buyOrder, provider_payment_id: response.token, provider_payload: response })
     .eq('id', order.id);
   return { form_url: response.url, token: response.token };
 }
@@ -75,7 +78,8 @@ export default async function handler(req, res) {
 
   const provider = String(req.body?.provider || '');
   const offerIds = Array.isArray(req.body?.offer_ids) ? req.body.offer_ids : [];
-  if (!['mercadopago', 'transbank'].includes(provider) || !offerIds.length) {
+  const checkoutOrderId = String(req.body?.checkout_order_id || '');
+  if (!['mercadopago', 'transbank'].includes(provider) || (!offerIds.length && !checkoutOrderId)) {
     return res.status(400).json({ error: 'Selecciona ofertas y un método de pago' });
   }
   if (
@@ -89,7 +93,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { order, items } = await createPaymentOrder(auth.user.id, provider, offerIds);
+    const { order, items } = checkoutOrderId
+      ? await createPaymentOrderFromCheckout(auth.user.id, provider, checkoutOrderId)
+      : await createPaymentOrder(auth.user.id, provider, offerIds);
     const checkout = provider === 'mercadopago'
       ? await startMercadoPago(req, order, items)
       : await startTransbank(req, order);

@@ -5,13 +5,13 @@ const ROLE_STRIPS = [
   {
     id: 'comercio',
     title: '¿Tienes un comercio?',
-    text: 'Regístrate, sube tu lista y deja que proveedores oferten.',
+    text: 'Regístrate, publica tu necesidad de compra y deja que los proveedores te oferten.',
     btnClass: 'landing-btn--primary',
   },
   {
     id: 'proveedor',
     title: '¿Quieres proveer?',
-    text: 'Encuentra demanda activa y ofrece tus productos donde ya existe intención de compra.',
+    text: 'Consigue clientes sin salir a buscarlos: ofrece tus productos donde ya existe intención real de compra.',
     btnClass: 'landing-btn--teal',
   },
 ];
