@@ -2053,15 +2053,15 @@ export default function Comprador() {
       oferta.precio_ofertado
     );
 
-    const COMISION_KYNTU = 0.05;
+    const COMISION_KYNTU = 0;
     const IVA = 0.19;
 
     const comisionKyntu = Math.round(
-      montoOferta * COMISION_KYNTU * IVA
+      montoOferta * COMISION_KYNTU * (1 + IVA)
     );
 
-    const totalPagado =
-      montoOferta + comisionKyntu;
+    // La comisión se descuenta al proveedor; el comprador paga la oferta.
+    const totalPagado = montoOferta;
 
     let pagoCreado = null;
 

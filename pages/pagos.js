@@ -96,8 +96,8 @@ export default function Pagos({ transbankEnabled }) {
         <aside className="card summary">
           <h2>Resumen</h2>
           <div><span>Productos</span><b>{money(totals.subtotal)}</b></div>
-          <div><span>Servicio Kyntü + IVA</span><b>{money(totals.commission)}</b></div>
           <div className="total"><span>Total</span><b>{money(totals.total)}</b></div>
+          <p className="commissionNote">Kyntü no cobra comisión durante el MVP. El costo de la pasarela se descuenta de la liquidación del proveedor.</p>
           <h3>Método de pago</h3>
           {[
             ['mercadopago', 'Mercado Pago'],
