@@ -9,6 +9,15 @@ export default async function handler(req, res) {
   const auth = await verifyEncuestaRequest(req);
 
   if (!auth.ok) {
+    // En desarrollo algunos entornos Windows interceptan TLS y Node no logra
+    // validar el certificado de Supabase. La encuesta es complementaria: se
+    // omite sin entregar datos, mientras producción conserva el 401 estricto.
+    if (process.env.NODE_ENV !== 'production') {
+      return res.status(200).json({
+        requerida: false,
+        motivo: 'auth_no_disponible_en_desarrollo',
+      });
+    }
     return res.status(auth.status).json({ error: auth.error });
   }
 
