@@ -6,3 +6,4 @@ out/
 .env.development
 .env.production
 .next
+.next-dev-*.log
