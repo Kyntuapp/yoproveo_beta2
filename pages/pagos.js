@@ -11,7 +11,6 @@ export default function Pagos({ transbankEnabled }) {
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [provider, setProvider] = useState('mercadopago');
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [modal, setModal] = useState(createModalState());
@@ -50,7 +49,7 @@ export default function Pagos({ transbankEnabled }) {
     try {
       const response = await api('/api/pagos/iniciar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_ids: selected, provider }),
+        body: JSON.stringify({ offer_ids: selected, provider: 'transbank' }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error);
@@ -99,13 +98,10 @@ export default function Pagos({ transbankEnabled }) {
           <div className="total"><span>Total</span><b>{money(totals.total)}</b></div>
           <p className="commissionNote">Kyntü no cobra comisión durante el MVP. El costo de la pasarela se descuenta de la liquidación del proveedor.</p>
           <h3>Método de pago</h3>
-          {[
-            ['mercadopago', 'Mercado Pago'],
-            ...(transbankEnabled ? [['transbank', 'Webpay Plus']] : []),
-          ].map(([id, label]) => <label className={`method ${provider === id ? 'active' : ''}`} key={id}>
-            <input type="radio" name="provider" checked={provider === id} onChange={() => setProvider(id)} /><span><strong>{label}</strong><small>Serás redirigido al sitio seguro.</small></span>
-          </label>)}
-          <button className="pay" disabled={paying || loading || !selected.length} onClick={confirmPayment}>{paying ? 'Conectando...' : `Pagar ${money(totals.total)}`}</button>
+          {transbankEnabled
+            ? <div className="method active"><span><strong>Webpay Plus</strong><small>Pago único y seguro con Transbank.</small></span></div>
+            : <p className="commissionNote">Webpay estará disponible al activar las credenciales productivas.</p>}
+          <button className="pay" disabled={paying || loading || !selected.length || !transbankEnabled} onClick={confirmPayment}>{paying ? 'Conectando...' : `Pagar ${money(totals.total)}`}</button>
         </aside>
       </div>
     </main>

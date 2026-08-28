@@ -33,7 +33,6 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
   const [orden, setOrden] = useState(null);
   const [nombresProv, setNombresProv] = useState({});
   const [busy, setBusy] = useState(false);
-  const [provider, setProvider] = useState('mercadopago');
   const [modal, setModal] = useState(createModalState());
 
   const showModal = (config) => {
@@ -188,7 +187,7 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ checkout_order_id: checkoutOrderId, provider }),
+      body: JSON.stringify({ checkout_order_id: checkoutOrderId, provider: 'transbank' }),
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'No se pudo iniciar el pago');
@@ -360,26 +359,16 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
               </p>
 
               <h3 style={styles.methodTitle}>Método de pago</h3>
-              {[
-                ['mercadopago', 'Mercado Pago'],
-                ...(transbankEnabled ? [['transbank', 'Webpay Plus']] : []),
-              ].map(([id, label]) => (
-                <label key={id} style={{
-                  ...styles.method,
-                  ...(provider === id ? styles.methodActive : {}),
-                }}>
-                  <input
-                    type="radio"
-                    name="provider"
-                    checked={provider === id}
-                    onChange={() => setProvider(id)}
-                  />
+              {transbankEnabled ? (
+                <div style={{ ...styles.method, ...styles.methodActive }}>
                   <span>
-                    <strong>{label}</strong>
-                    <small style={styles.methodHelp}>Pago único y seguro</small>
+                    <strong>Webpay Plus</strong>
+                    <small style={styles.methodHelp}>Pago único y seguro con Transbank</small>
                   </span>
-                </label>
-              ))}
+                </div>
+              ) : (
+                <p style={styles.unavailable}>Webpay estará disponible al activar las credenciales productivas.</p>
+              )}
 
               {(esAbierta || esConfirmada) && (
                 <>
@@ -389,7 +378,7 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
                       ...styles.payButton,
                       ...(busy ? styles.disabled : {}),
                     }}
-                    disabled={busy}
+                    disabled={busy || !transbankEnabled}
                     onClick={handlePagarOrden}
                   >
                     {busy ? 'Conectando…' : `Pagar ${formatearMonto(orden.total_pagar)}`}
@@ -593,6 +582,14 @@ const styles = {
     marginTop: '3px',
     color: '#8594aa',
     fontSize: '11px',
+  },
+  unavailable: {
+    margin: '0 0 12px',
+    padding: '12px',
+    borderRadius: '12px',
+    background: '#fff7ed',
+    color: '#9a4d0b',
+    fontSize: '12px',
   },
   payButton: {
     width: '100%',

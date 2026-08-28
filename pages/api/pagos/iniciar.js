@@ -7,52 +7,6 @@ function publicBaseUrl(req) {
   return (process.env.NEXT_PUBLIC_APP_URL || `http://${req.headers.host}`).replace(/\/$/, '');
 }
 
-async function startMercadoPago(req, order, items) {
-  if (!process.env.MERCADOPAGO_ACCESS_TOKEN) throw new Error('Falta Access Token de Mercado Pago');
-  const baseUrl = publicBaseUrl(req);
-  const preference = {
-    items: items.map((item) => ({
-      id: String(item.id),
-      title: item.producto,
-      quantity: 1,
-      currency_id: 'CLP',
-      unit_price: item.total,
-    })),
-    external_reference: order.id,
-    back_urls: {
-      success: `${baseUrl}/checkout/resultado?provider=mercadopago&order_id=${order.id}`,
-      pending: `${baseUrl}/checkout/resultado?provider=mercadopago&order_id=${order.id}`,
-      failure: `${baseUrl}/checkout/resultado?provider=mercadopago&order_id=${order.id}`,
-    },
-    metadata: { order_id: order.id },
-  };
-  if (baseUrl.startsWith('https://')) {
-    preference.auto_return = 'approved';
-    preference.notification_url = `${baseUrl}/api/mercadopago-webhook`;
-  }
-
-  const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-      'Content-Type': 'application/json',
-      'X-Idempotency-Key': order.id,
-    },
-    body: JSON.stringify(preference),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.message || 'Mercado Pago rechazó la solicitud');
-
-  await supabaseAdmin.from('payment_orders').update({ external_id: data.id, provider_payload: data }).eq('id', order.id);
-  const useSandbox = process.env.MERCADOPAGO_USE_SANDBOX !== 'false';
-  if (useSandbox && !data.sandbox_init_point) {
-    throw new Error(
-      'Mercado Pago no entregó una URL de prueba. Revisa que estés usando credenciales de prueba.'
-    );
-  }
-  return { checkout_url: useSandbox ? data.sandbox_init_point : data.init_point };
-}
-
 async function startTransbank(req, order) {
   if (order.provider_payment_id && order.provider_payload?.url) {
     return { form_url: order.provider_payload.url, token: order.provider_payment_id };
@@ -79,8 +33,8 @@ export default async function handler(req, res) {
   const provider = String(req.body?.provider || '');
   const offerIds = Array.isArray(req.body?.offer_ids) ? req.body.offer_ids : [];
   const checkoutOrderId = String(req.body?.checkout_order_id || '');
-  if (!['mercadopago', 'transbank'].includes(provider) || (!offerIds.length && !checkoutOrderId)) {
-    return res.status(400).json({ error: 'Selecciona ofertas y un método de pago' });
+  if (provider !== 'transbank' || (!offerIds.length && !checkoutOrderId)) {
+    return res.status(400).json({ error: 'Webpay Plus es el único método de pago disponible' });
   }
   if (
     provider === 'transbank' &&
@@ -93,12 +47,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { order, items } = checkoutOrderId
+    const { order } = checkoutOrderId
       ? await createPaymentOrderFromCheckout(auth.user.id, provider, checkoutOrderId)
       : await createPaymentOrder(auth.user.id, provider, offerIds);
-    const checkout = provider === 'mercadopago'
-      ? await startMercadoPago(req, order, items)
-      : await startTransbank(req, order);
+    const checkout = await startTransbank(req, order);
     return res.status(200).json({ order_id: order.id, provider, ...checkout });
   } catch (error) {
     console.error('Error iniciando pago:', error);
