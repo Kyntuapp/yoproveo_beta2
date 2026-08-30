@@ -789,7 +789,7 @@ export default function DashboardProveedor() {
             </div>
           ) : (
             <div className="table-wrapper">
-              <table>
+              <table className="mobile-card-table">
                 <thead>
                   <tr>
                     <th>Producto</th>
@@ -810,31 +810,31 @@ export default function DashboardProveedor() {
                           index
                         }
                       >
-                        <td>
+                        <td data-label="Producto" data-primary="true">
                           <strong>
                             {oferta.producto ||
                               "Producto"}
                           </strong>
                         </td>
 
-                        <td>
+                        <td data-label="Cantidad">
                           {oferta.cantidad ||
                             "—"}
                         </td>
 
-                        <td>
+                        <td data-label="Tu oferta">
                           {formatearMonto(
                             oferta.precio_ofertado,
                           )}
                         </td>
 
-                        <td>
+                        <td data-label="Despacho" className="mobile-hide">
                           {oferta.incluye_despacho
                             ? "Incluido"
                             : "No incluido"}
                         </td>
 
-                        <td>
+                        <td data-label="Fecha" className="mobile-hide">
                           {oferta.created_at
                             ? new Date(
                                 oferta.created_at,
@@ -844,7 +844,7 @@ export default function DashboardProveedor() {
                             : "—"}
                         </td>
 
-                        <td>
+                        <td data-label="Estado">
                           <span className="status">
                             {mostrarEstado(
                               oferta.estado,

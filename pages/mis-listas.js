@@ -64,7 +64,7 @@ export default function MisListas() {
       ) : listas.length === 0 ? (
         <div style={styles.empty}><strong>No tienes listas registradas</strong><span>Crea una lista desde el panel comprador para verla aquí.</span></div>
       ) : (
-        <div style={styles.tableWrap}><table style={styles.table}>
+        <div className="mobile-card-table-wrap" style={styles.tableWrap}><table className="mobile-card-table" style={styles.table}>
           <thead>
             <tr>
               {['Fecha', 'Producto', 'Cantidad', 'Marca', 'Formato', 'Precio'].map((label) => <th key={label} style={styles.th}>{label}</th>)}
@@ -73,12 +73,12 @@ export default function MisListas() {
           <tbody>
             {listas.map((item, idx) => (
               <tr key={idx}>
-                <td style={styles.td}>{item.fecha_envio ? new Date(item.fecha_envio).toLocaleString('es-CL') : '—'}</td>
-                <td style={styles.primaryTd}>{item.producto || '—'}</td>
-                <td style={styles.td}>{item.cantidad ?? '—'}</td>
-                <td style={styles.td}>{item.marca || '—'}</td>
-                <td style={styles.td}>{item.formato || '—'}</td>
-                <td style={styles.td}>{item.precio != null ? `$${Number(item.precio).toLocaleString('es-CL')}` : '—'}</td>
+                <td data-label="Fecha" className="mobile-hide" style={styles.td}>{item.fecha_envio ? new Date(item.fecha_envio).toLocaleString('es-CL') : '—'}</td>
+                <td data-label="Producto" data-primary="true" style={styles.primaryTd}>{item.producto || '—'}</td>
+                <td data-label="Cantidad" style={styles.td}>{item.cantidad ?? '—'}</td>
+                <td data-label="Marca" style={styles.td}>{item.marca || '—'}</td>
+                <td data-label="Formato" style={styles.td}>{item.formato || '—'}</td>
+                <td data-label="Precio" style={styles.td}>{item.precio != null ? `$${Number(item.precio).toLocaleString('es-CL')}` : '—'}</td>
               </tr>
             ))}
           </tbody>

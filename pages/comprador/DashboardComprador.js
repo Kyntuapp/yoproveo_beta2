@@ -749,7 +749,7 @@ export default function DashboardComprador() {
                 styles.tableWrapper
               }
             >
-              <table
+              <table className="mobile-card-table"
                 style={styles.table}
               >
                 <thead>
@@ -808,7 +808,7 @@ export default function DashboardComprador() {
                           index
                         }
                       >
-                        <td
+                        <td data-label="Producto" data-primary="true"
                           style={
                             styles.td
                           }
@@ -823,7 +823,7 @@ export default function DashboardComprador() {
                           </strong>
                         </td>
 
-                        <td
+                        <td data-label="Oferta"
                           style={
                             styles.td
                           }
@@ -833,7 +833,7 @@ export default function DashboardComprador() {
                           )}
                         </td>
 
-                        <td
+                        <td data-label="Despacho" className="mobile-hide"
                           style={
                             styles.td
                           }
@@ -843,7 +843,7 @@ export default function DashboardComprador() {
                             : "No incluido"}
                         </td>
 
-                        <td
+                        <td data-label="Fecha" className="mobile-hide"
                           style={
                             styles.td
                           }
@@ -857,7 +857,7 @@ export default function DashboardComprador() {
                             : "—"}
                         </td>
 
-                        <td
+                        <td data-label="Estado"
                           style={
                             styles.td
                           }

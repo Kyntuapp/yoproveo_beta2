@@ -92,8 +92,8 @@ export default function SolicitudesProveedor() {
       {solicitudes.length === 0 ? (
         <div style={styles.empty}><strong>Aún no tienes solicitudes</strong><span>Los productos que envíes a revisión aparecerán aquí.</span></div>
       ) : (
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
+        <div className="mobile-card-table-wrap" style={styles.tableWrap}>
+          <table className="mobile-card-table" style={styles.table}>
             <thead>
               <tr>
                 {['Producto', 'Marca', 'Formato', 'Cantidad referencia', 'Estado', 'Comentario administrador'].map((label) => <th key={label} style={styles.th}>{label}</th>)}
@@ -102,12 +102,12 @@ export default function SolicitudesProveedor() {
             <tbody>
               {solicitudes.map((solicitud) => (
                 <tr key={solicitud.identificación || solicitud.id}>
-                  <td style={styles.primaryTd}>{solicitud.nombre}</td>
-                  <td style={styles.td}>{solicitud.marca || '—'}</td>
-                  <td style={styles.td}>{solicitud.formato || '—'}</td>
-                  <td style={styles.td}>{solicitud.cantidad_disponible ?? solicitud.cantidad_referencia ?? 0}</td>
-                  <td style={styles.td}><span style={{ ...styles.badge, ...estadoStyle(solicitud.estado) }}>{solicitud.estado || 'Pendiente'}</span></td>
-                  <td style={styles.td}>{solicitud.comentario_admin || 'Sin comentarios'}</td>
+                  <td data-label="Producto" data-primary="true" style={styles.primaryTd}>{solicitud.nombre}</td>
+                  <td data-label="Marca" style={styles.td}>{solicitud.marca || '—'}</td>
+                  <td data-label="Formato" style={styles.td}>{solicitud.formato || '—'}</td>
+                  <td data-label="Cantidad" style={styles.td}>{solicitud.cantidad_disponible ?? solicitud.cantidad_referencia ?? 0}</td>
+                  <td data-label="Estado" style={styles.td}><span style={{ ...styles.badge, ...estadoStyle(solicitud.estado) }}>{solicitud.estado || 'Pendiente'}</span></td>
+                  <td data-label="Comentario" className="mobile-hide" style={styles.td}>{solicitud.comentario_admin || 'Sin comentarios'}</td>
                 </tr>
               ))}
             </tbody>

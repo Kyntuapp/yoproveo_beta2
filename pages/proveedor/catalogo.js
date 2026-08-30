@@ -547,8 +547,8 @@ export default function CatalogoProveedor() {
             </h2>
           </div>
 
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
+          <div className="mobile-card-table-wrap" style={styles.tableWrapper}>
+            <table className="mobile-card-table" style={styles.table}>
               <thead>
                 <tr>
                   <th style={styles.th}>
@@ -593,7 +593,7 @@ export default function CatalogoProveedor() {
 
                     return (
                       <tr key={index}>
-                        <td style={styles.td}>
+                        <td data-label="Producto" data-primary="true" style={styles.td}>
                           <select
                             value={item.nombre}
                             onChange={(e) =>
@@ -622,7 +622,7 @@ export default function CatalogoProveedor() {
                           </select>
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Formato" style={styles.td}>
                           <select
                             value={item.formato}
                             onChange={(e) =>
@@ -652,7 +652,7 @@ export default function CatalogoProveedor() {
                           </select>
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Marca" style={styles.td}>
                           <select
                             value={item.marca}
                             onChange={(e) =>
@@ -682,7 +682,7 @@ export default function CatalogoProveedor() {
                           </select>
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Cantidad" style={styles.td}>
                           <input
                             type="number"
                             min="0"
@@ -858,8 +858,8 @@ export default function CatalogoProveedor() {
               No tienes productos en stock.
             </p>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+            <div className="mobile-card-table-wrap" style={styles.tableWrapper}>
+              <table className="mobile-card-table" style={styles.table}>
                 <thead>
                   <tr>
                     <th style={styles.th}>
@@ -888,19 +888,19 @@ export default function CatalogoProveedor() {
                   {productosStock.map(
                     (producto) => (
                       <tr key={producto.id}>
-                        <td style={styles.td}>
+                        <td data-label="Producto" data-primary="true" style={styles.td}>
                           {producto.nombre}
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Marca" style={styles.td}>
                           {producto.marca}
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Formato" style={styles.td}>
                           {producto.formato}
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Cantidad" style={styles.td}>
                           <input
                             type="number"
                             min="0"
@@ -925,7 +925,7 @@ export default function CatalogoProveedor() {
                           />
                         </td>
 
-                        <td style={styles.td}>
+                        <td data-label="Acciones" style={styles.td}>
                           <div
                             style={styles.iconActions}
                           >

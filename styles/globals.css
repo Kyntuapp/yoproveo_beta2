@@ -42,3 +42,89 @@ textarea {
 a {
   color: inherit;
 }
+
+/* Tablas legibles en móvil: cada fila pasa a ser una tarjeta compacta. */
+@media (max-width: 700px) {
+  .mobile-card-table-wrap {
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  table.mobile-card-table,
+  .mobile-card-table tbody,
+  .mobile-card-table tr,
+  .mobile-card-table td {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .mobile-card-table thead,
+  .mobile-card-table colgroup {
+    display: none;
+  }
+
+  .mobile-card-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .mobile-card-table tbody tr {
+    padding: 10px 12px;
+    border: 1px solid #dce6f3;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 16px rgba(20, 55, 100, 0.05);
+  }
+
+  .mobile-card-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 7px 0 !important;
+    border: 0 !important;
+    white-space: normal !important;
+    text-align: right !important;
+    font-size: 13px !important;
+  }
+
+  .mobile-card-table tbody td + td {
+    border-top: 1px solid #edf2f8 !important;
+  }
+
+  .mobile-card-table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 42%;
+    color: #6b7c94;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.035em;
+  }
+
+  .mobile-card-table tbody td > input,
+  .mobile-card-table tbody td > select,
+  .mobile-card-table tbody td > textarea {
+    width: 56% !important;
+    max-width: 220px;
+  }
+
+  .mobile-card-table tbody td[data-primary='true'] {
+    padding-top: 2px !important;
+    color: #061b41;
+    font-size: 15px !important;
+    font-weight: 800;
+  }
+
+  .mobile-card-table tbody td[data-primary='true']::before {
+    color: #176bff;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+}

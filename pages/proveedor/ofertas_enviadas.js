@@ -883,7 +883,7 @@ export default function OfertasEnviadas() {
               className="kyntu-tableWrapper"
               style={styles.tableWrapper}
             >
-              <table style={styles.table}>
+              <table className="mobile-card-table" style={styles.table}>
                 <colgroup>
                   <col style={{ width: '12%' }} />
                   <col style={{ width: '7%' }} />
@@ -969,7 +969,7 @@ export default function OfertasEnviadas() {
                     return (
                       <Fragment key={item.id}>
                         <tr style={styles.tableRow}>
-                          <td
+                          <td data-label="Producto" data-primary="true"
                             style={{
                               ...styles.td,
                               ...styles.productCell,
@@ -984,26 +984,26 @@ export default function OfertasEnviadas() {
                             </strong>
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Formato" className="mobile-hide" style={styles.td}>
                             {item.formato || '—'}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Marca" className="mobile-hide" style={styles.td}>
                             {item.marca || '—'}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Cantidad" style={styles.td}>
                             {item.cantidad || '—'}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Precio objetivo" className="mobile-hide" style={styles.td}>
                             $
                             {formatearNumero(
                               item.precio_objetivo
                             )}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Tu oferta" style={styles.td}>
                             <span
                               style={
                                 styles.offerPrice
@@ -1016,21 +1016,21 @@ export default function OfertasEnviadas() {
                             </span>
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Comuna" className="mobile-hide" style={styles.td}>
                             {item.comuna || '—'}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Comprador" style={styles.td}>
                             {adjudicada
                               ? 'Contacto disponible'
                               : 'Contraparte'}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Fecha" className="mobile-hide" style={styles.td}>
                             {formatearFechaCorta(item.fecha_creacion)}
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Estado" style={styles.td}>
                             <span
                               style={getEstadoStyle(
                                 item.estado
@@ -1043,7 +1043,7 @@ export default function OfertasEnviadas() {
                             </span>
                           </td>
 
-                          <td style={styles.conversacionCell}>
+                          <td data-label="Conversación" style={styles.conversacionCell}>
                             <button
                               type="button"
                               aria-expanded={conversacionAbierta}
@@ -1064,7 +1064,7 @@ export default function OfertasEnviadas() {
                             </button>
                           </td>
 
-                          <td style={styles.td}>
+                          <td data-label="Contacto" className="mobile-hide" style={styles.td}>
                             {puedeVerContacto ? (
                               <button
                                 type="button"

@@ -2736,11 +2736,11 @@ export default function Comprador() {
         </div>
 
         <div
-          className="kyntu-tableWrapper"
+          className="kyntu-tableWrapper mobile-card-table-wrap"
           style={styles.tableWrapper}
         >
           <table
-            className="kyntu-table"
+            className="kyntu-table mobile-card-table"
             style={styles.table}
           >
             <thead>
@@ -3322,13 +3322,13 @@ export default function Comprador() {
                   {expanded && (
                     <>
                       <div
-                        className="kyntu-tableWrapper"
+                        className="kyntu-tableWrapper mobile-card-table-wrap"
                         style={
                           styles.tableWrapper
                         }
                       >
                         <table
-                          className="kyntu-table"
+                          className="kyntu-table mobile-card-table"
                           style={
                             styles.table
                           }
@@ -4285,7 +4285,25 @@ export default function Comprador() {
           }
 
           .kyntu-table {
-            min-width: 900px !important;
+            min-width: 0 !important;
+          }
+
+          .kyntu-table.mobile-card-table td:nth-child(1)::before { content: 'Producto'; }
+          .kyntu-table.mobile-card-table td:nth-child(2)::before { content: 'Formato'; }
+          .kyntu-table.mobile-card-table td:nth-child(3)::before { content: 'Marca'; }
+          .kyntu-table.mobile-card-table td:nth-child(4)::before { content: 'Cantidad'; }
+          .kyntu-table.mobile-card-table td:nth-child(5)::before { content: 'Precio'; }
+          .kyntu-table.mobile-card-table td:nth-child(6)::before { content: 'Detalle'; }
+          .kyntu-table.mobile-card-table td:nth-child(7)::before { content: 'Ofertas'; }
+
+          .kyntu-table.mobile-card-table td:nth-child(1) {
+            color: #061b41;
+            font-weight: 800;
+          }
+
+          .kyntu-table.mobile-card-table td:nth-child(3),
+          .kyntu-table.mobile-card-table td:nth-child(6) {
+            display: none !important;
           }
 
           .kyntu-actionRow {
