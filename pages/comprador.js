@@ -4347,13 +4347,17 @@ export default function Comprador() {
           }
 
           .kyntu-offersGrid {
-            justify-content:
-              flex-start !important;
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            justify-content: stretch !important;
+            width: 100% !important;
+            gap: 10px !important;
           }
 
           .kyntu-offerCard {
             width: 100% !important;
-            max-width: 360px !important;
+            max-width: none !important;
+            padding: 14px !important;
           }
 
           .kyntu-offerPrice {

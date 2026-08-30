@@ -113,6 +113,25 @@ a {
     max-width: 220px;
   }
 
+  /* Filas desplegables (ofertas, chats o detalles) ocupan todo el ancho. */
+  .mobile-card-table tbody td[colspan] {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    text-align: left !important;
+    border: 0 !important;
+  }
+
+  .mobile-card-table tbody td[colspan]::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .mobile-card-table tbody td[colspan] > * {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
   .mobile-card-table tbody td[data-primary='true'] {
     padding-top: 2px !important;
     color: #061b41;
