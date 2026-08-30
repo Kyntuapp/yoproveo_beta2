@@ -376,6 +376,7 @@ function SolicitudListaRowCard({
         }}
       >
         <div
+          className="kyntu-listaProductCell"
           style={{
             ...styles.listaCell,
             ...styles.listaProductCell,
@@ -397,6 +398,7 @@ function SolicitudListaRowCard({
           return (
             <React.Fragment key={`${item.id}-fmt-${fmtIndex}`}>
               <div
+                className="kyntu-listaFormatCell"
                 style={{
                   ...styles.listaCell,
                   gridColumn: 2,
@@ -2269,24 +2271,111 @@ return (
       }
 
       @media (max-width: 620px) {
+        .kyntu-main {
+          padding: 8px 0 28px !important;
+        }
+
+        .kyntu-headerSection {
+          padding: 16px !important;
+          margin-bottom: 12px !important;
+        }
+
+        .kyntu-filterCard {
+          height: auto !important;
+          min-height: 0 !important;
+          padding: 14px !important;
+          margin: 0 0 14px !important;
+        }
+
+        .kyntu-filterFieldsGrid {
+          grid-template-columns: 1fr 1fr !important;
+          grid-auto-rows: auto !important;
+          align-content: start !important;
+          align-items: start !important;
+          gap: 10px !important;
+        }
+
+        .kyntu-filterFieldsGrid > div:first-child {
+          grid-column: 1 / -1 !important;
+        }
+
+        .kyntu-filterFieldsGrid > div {
+          height: auto !important;
+          min-height: 0 !important;
+          align-self: start !important;
+        }
+
+        .kyntu-filterFieldsGrid input,
+        .kyntu-filterFieldsGrid select {
+          min-height: 42px !important;
+        }
+
         .kyntu-listaSectionCard {
-          padding: 16px 12px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          overflow: visible !important;
+        }
+
+        .kyntu-listaHeaderGrid {
+          display: none !important;
+        }
+
+        .kyntu-listaRowsStack {
+          gap: 10px !important;
+        }
+
+        .kyntu-solicitudRowCard {
+          padding: 14px !important;
+          border-radius: 16px !important;
         }
 
         .kyntu-actionButtons {
-          gap: 5px !important;
+          display: grid !important;
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px !important;
         }
 
-        .kyntu-listaHeaderGrid,
         .kyntu-listaRowGrid {
-          grid-template-columns:
-            minmax(0, 1fr)
-            minmax(0, 0.55fr)
-            0 0 0 0 0
-            minmax(92px, 0.9fr)
-            0
-            minmax(82px, 0.72fr) !important;
-          gap: 4px !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          grid-template-rows: auto !important;
+          align-items: center !important;
+          gap: 8px 12px !important;
+        }
+
+        .kyntu-listaProductCell {
+          grid-column: 1 !important;
+          grid-row: 1 / -1 !important;
+        }
+
+        .kyntu-listaFormatCell {
+          grid-column: 2 !important;
+          grid-row: auto !important;
+          text-align: right !important;
+          font-size: 12px !important;
+        }
+
+        .kyntu-listaOfferCell,
+        .kyntu-listaActionCell {
+          grid-column: 1 / -1 !important;
+          grid-row: auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          padding-top: 10px !important;
+          border-top: 1px solid #e7edf5 !important;
+        }
+
+        .kyntu-offerHighlight,
+        .kyntu-offerInput {
+          width: 100% !important;
+          max-width: none !important;
+        }
+
+        .kyntu-listaActionCell button {
+          width: 100% !important;
+          min-height: 40px !important;
         }
       }
 
