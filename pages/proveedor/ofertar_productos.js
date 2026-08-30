@@ -2203,7 +2203,7 @@ return (
       )}
     </main>
 
-    <style jsx>{`
+    <style jsx global>{`
       .kyntu-listaHeaderGrid > div {
         min-height: 34px;
         display: flex;
