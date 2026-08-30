@@ -2230,6 +2230,9 @@ return (
 
         .kyntu-filterFieldsGrid {
           grid-template-columns: 1fr !important;
+          flex: 0 0 auto !important;
+          height: auto !important;
+          min-height: 0 !important;
         }
 
         .kyntu-clearFiltersBtn {
@@ -2292,6 +2295,9 @@ return (
           grid-auto-rows: auto !important;
           align-content: start !important;
           align-items: start !important;
+          flex: 0 0 auto !important;
+          height: auto !important;
+          min-height: 0 !important;
           gap: 10px !important;
         }
 
