@@ -377,6 +377,78 @@ export default function Comprador() {
           lista,
         ])
       );
+
+    }
+
+    // Las ofertas antiguas apuntan directamente al id de listas_compras,
+    // incluso cuando la fila no tiene una cabecera en listas.
+    const productIds = (listasData || [])
+      .map((item) => getRowId(item))
+      .filter(Boolean);
+    let estadoPorProducto = {};
+
+    if (productIds.length > 0) {
+      const { data: lifecycleOffers, error: lifecycleError } = await supabase
+        .from('ofertas_productos')
+        .select('lista_id, estado')
+        .in('lista_id', productIds);
+
+      if (lifecycleError) {
+        console.error('Error cargando ciclo de ofertas:', lifecycleError);
+      }
+
+      const paidStates = new Set([
+        'pago_recibido',
+        'recepcion_conforme',
+        'pagada',
+      ]);
+      const pendingPaymentStates = new Set([
+        'pendiente_pago',
+        'en_espera_confirmacion',
+        'confirmada',
+      ]);
+
+      (lifecycleOffers || []).forEach((offer) => {
+        const productId = String(offer.lista_id);
+        const offerState = (offer.estado || '').trim().toLowerCase();
+        const currentState = estadoPorProducto[productId];
+
+        if (paidStates.has(offerState)) {
+          estadoPorProducto[productId] = 'comprada';
+        } else if (
+          pendingPaymentStates.has(offerState) &&
+          currentState !== 'comprada'
+        ) {
+          estadoPorProducto[productId] = 'pago_pendiente';
+        }
+      });
+
+      // Una lista moderna aparece comprada cuando todos sus productos están
+      // pagados. Esta inferencia es solo de lectura y no modifica Supabase.
+      listaIds.forEach((headerId) => {
+        const products = (listasData || []).filter(
+          (item) => String(item.lista_id) === String(headerId)
+        );
+        const productStates = products.map(
+          (item) => estadoPorProducto[String(getRowId(item))]
+        );
+        const inferredState =
+          productStates.length > 0 &&
+          productStates.every((state) => state === 'comprada')
+            ? 'comprada'
+            : productStates.some((state) =>
+                ['comprada', 'pago_pendiente'].includes(state)
+              )
+              ? 'pago_pendiente'
+              : null;
+
+        if (inferredState && cabecerasPorId[headerId]) {
+          cabecerasPorId[headerId] = {
+            ...cabecerasPorId[headerId],
+            estado: inferredState,
+          };
+        }
+      });
     }
 
     const listasEnriquecidas = (
@@ -388,10 +460,10 @@ export default function Comprador() {
       return {
         ...item,
 
-        // Las listas antiguas sin cabecera
-        // siguen tratándose como publicadas.
         estado_lista:
-          cabecera?.estado || 'publicada',
+          cabecera?.estado ||
+          estadoPorProducto[String(getRowId(item))] ||
+          'publicada',
 
         nombre_lista:
           item.nombre_lista ||
@@ -1911,6 +1983,23 @@ export default function Comprador() {
       });
 
     if (ofertaError) {
+      const yaNoDisponible =
+        String(ofertaError.message || '')
+          .toLowerCase()
+          .includes('no está pendiente de adjudicación');
+
+      if (yaNoDisponible) {
+        if (fecha) await verOfertas(fecha);
+        notifyCarroUpdated();
+        showModal({
+          type: 'info',
+          title: 'Oferta actualizada',
+          message: 'Esta solicitud ya fue adjudicada. Actualizamos su estado en pantalla.',
+          confirmText: 'Aceptar',
+        });
+        return;
+      }
+
       showError(
         `Error al aceptar la oferta: ${ofertaError.message}`
       );
@@ -3183,6 +3272,16 @@ export default function Comprador() {
                   ?.estado_lista ===
                 'borrador';
 
+              const esComprada =
+                productosLista[0]
+                  ?.estado_lista ===
+                'comprada';
+
+              const esPagoPendiente =
+                productosLista[0]
+                  ?.estado_lista ===
+                'pago_pendiente';
+
               return (
                 <div
                   key={fecha}
@@ -3210,11 +3309,19 @@ export default function Comprador() {
                         style={
                           esBorrador
                             ? styles.draftBadge
+                            : esComprada
+                              ? styles.purchasedBadge
+                              : esPagoPendiente
+                                ? styles.pendingPaymentBadge
                             : styles.publishedBadge
                         }
                       >
                         {esBorrador
                           ? 'Borrador'
+                          : esComprada
+                            ? 'Comprada'
+                            : esPagoPendiente
+                              ? 'Pago pendiente'
                           : 'Publicada'}
                       </span>
 
@@ -3253,7 +3360,7 @@ export default function Comprador() {
                           : 'Ver'}
                       </button>
 
-                      <button
+                      {!esComprada && !esPagoPendiente && <button
                         type="button"
                         onClick={() =>
                           toggleEdit(fecha)
@@ -3266,7 +3373,7 @@ export default function Comprador() {
                         {editando
                           ? 'Cerrar edición'
                           : 'Editar'}
-                      </button>
+                      </button>}
 
                       {esBorrador && (
                         <button
@@ -3285,7 +3392,7 @@ export default function Comprador() {
                         </button>
                       )}
 
-                      {!esBorrador && (
+                      {!esBorrador && !esComprada && (
                         <button
                           type="button"
                           onClick={() =>
@@ -3302,20 +3409,22 @@ export default function Comprador() {
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          eliminarLista(
-                            fecha
-                          )
-                        }
-                        className="kyntu-deleteButton"
-                        style={
-                          styles.deleteButton
-                        }
-                      >
-                        Eliminar
-                      </button>
+                      {!esComprada && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            eliminarLista(
+                              fecha
+                            )
+                          }
+                          className="kyntu-deleteButton"
+                          style={
+                            styles.deleteButton
+                          }
+                        >
+                          Eliminar
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -3390,14 +3499,16 @@ export default function Comprador() {
                                 pedido
                               </th>
 
-                              <th
-                                className="kyntu-th"
-                                style={
-                                  styles.th
-                                }
-                              >
-                                Ofertas
-                              </th>
+                              {!esComprada && (
+                                <th
+                                  className="kyntu-th"
+                                  style={
+                                    styles.th
+                                  }
+                                >
+                                  Ofertas
+                                </th>
+                              )}
                             </tr>
                           </thead>
 
@@ -3445,14 +3556,23 @@ export default function Comprador() {
                                           ? `oferta-${rowId}`
                                           : undefined
                                       }
-                                      onClick={() =>
-                                        toggleOfertasProducto(
-                                          rowId
-                                        )
+                                      onClick={
+                                        esComprada
+                                          ? undefined
+                                          : () =>
+                                              toggleOfertasProducto(
+                                                rowId
+                                              )
                                       }
-                                      className="kyntu-clickableRow"
+                                      className={
+                                        esComprada
+                                          ? undefined
+                                          : 'kyntu-clickableRow'
+                                      }
                                       style={
-                                        styles.clickableRow
+                                        esComprada
+                                          ? undefined
+                                          : styles.clickableRow
                                       }
                                     >
                                       <td
@@ -3523,6 +3643,7 @@ export default function Comprador() {
                                           '—'}
                                       </td>
 
+                                      {!esComprada && (
                                       <td
                                         className="kyntu-td"
                                         style={
@@ -3587,9 +3708,10 @@ export default function Comprador() {
                                           </span>
                                         </div>
                                       </td>
+                                      )}
                                     </tr>
 
-                                    {chatAbierto &&
+                                    {!esComprada && chatAbierto &&
                                       rowId &&
                                       authUserId && (
                                         <tr>
@@ -3626,7 +3748,7 @@ export default function Comprador() {
                                         </tr>
                                       )}
 
-                                    {abierto && (
+                                    {!esComprada && abierto && (
                                       <tr>
                                         <td
                                           colSpan={7}
@@ -3832,7 +3954,8 @@ export default function Comprador() {
                                                           participanteLabel="Proveedor"
                                                           tooltipChat="Hablar con el proveedor"
                                                           mostrarAceptarRechazar={
-                                                            puedeResponderOferta
+                                                            puedeResponderOferta &&
+                                                            !solicitudAdjudicada
                                                           }
                                                           chatAbierto={
                                                             conversacionAbiertaPorProducto[
@@ -4888,6 +5011,36 @@ const styles = {
     border: '1px solid #bce3dc',
     background: '#edf8f6',
     color: '#287568',
+    fontSize: '11px',
+    lineHeight: 1,
+    fontWeight: 900,
+  },
+
+  purchasedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '8px',
+    padding: '5px 10px',
+    borderRadius: '999px',
+    border: '1px solid #bfd4ff',
+    background: '#edf4ff',
+    color: '#176bff',
+    fontSize: '11px',
+    lineHeight: 1,
+    fontWeight: 900,
+  },
+
+  pendingPaymentBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '8px',
+    padding: '5px 10px',
+    borderRadius: '999px',
+    border: '1px solid #f0d69a',
+    background: '#fff6df',
+    color: '#8a6214',
     fontSize: '11px',
     lineHeight: 1,
     fontWeight: 900,

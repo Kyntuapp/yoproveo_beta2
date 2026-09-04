@@ -136,7 +136,7 @@ export default function MasterOperaciones() {
         {listas.length === 0 ? (
           <div style={styles.empty}>No hay listas registradas.</div>
         ) : (
-          <div style={styles.tableWrap}><table className="master-table" style={styles.table}>
+          <div className="mobile-card-table-wrap" style={styles.tableWrap}><table className="master-table mobile-card-table" style={styles.table}>
             <thead>
               <tr>
                 <th>ID</th>
@@ -153,15 +153,15 @@ export default function MasterOperaciones() {
             <tbody>
               {listas.map((lista, index) => (
                 <tr key={getListaId(lista) ?? index}>
-                  <td>{getListaId(lista) ?? '—'}</td>
-                  <td>{lista.compradorDisplay}</td>
-                  <td>{lista.fecha_creacion?.split('T')[0] ?? '—'}</td>
-                  <td>{lista.comuna_despacho ?? '—'}</td>
-                  <td>{lista.producto ?? '—'}</td>
-                  <td>{lista.formato ?? '—'}</td>
-                  <td>{lista.marca ?? '—'}</td>
-                  <td>{lista.cantidad ?? '—'}</td>
-                  <td>
+                  <td className="mobile-hide" data-label="ID">{getListaId(lista) ?? '—'}</td>
+                  <td data-label="Comprador">{lista.compradorDisplay}</td>
+                  <td className="mobile-hide" data-label="Fecha">{lista.fecha_creacion?.split('T')[0] ?? '—'}</td>
+                  <td data-label="Comuna">{lista.comuna_despacho ?? '—'}</td>
+                  <td data-label="Producto" data-primary="true">{lista.producto ?? '—'}</td>
+                  <td className="mobile-hide" data-label="Formato">{lista.formato ?? '—'}</td>
+                  <td className="mobile-hide" data-label="Marca">{lista.marca ?? '—'}</td>
+                  <td data-label="Cantidad">{lista.cantidad ?? '—'}</td>
+                  <td data-label="Precio objetivo">
                     {lista.precio != null && lista.precio !== ''
                       ? `$${lista.precio}`
                       : '—'}
@@ -178,7 +178,7 @@ export default function MasterOperaciones() {
         {ofertas.length === 0 ? (
           <div style={styles.empty}>No hay ofertas registradas.</div>
         ) : (
-          <div style={styles.tableWrap}><table className="master-table" style={styles.table}>
+          <div className="mobile-card-table-wrap" style={styles.tableWrap}><table className="master-table mobile-card-table" style={styles.table}>
             <thead>
               <tr>
                 <th>ID</th>
@@ -193,18 +193,18 @@ export default function MasterOperaciones() {
             <tbody>
               {ofertas.map((oferta) => (
                 <tr key={oferta.id}>
-                  <td>{oferta.id}</td>
-                  <td>{oferta.lista_id ?? '—'}</td>
-                  <td>{oferta.proveedorDisplay}</td>
-                  <td>{oferta.producto ?? '—'}</td>
-                  <td>
+                  <td className="mobile-hide" data-label="ID">{oferta.id}</td>
+                  <td className="mobile-hide" data-label="Lista">{oferta.lista_id ?? '—'}</td>
+                  <td data-label="Proveedor">{oferta.proveedorDisplay}</td>
+                  <td data-label="Producto" data-primary="true">{oferta.producto ?? '—'}</td>
+                  <td data-label="Precio ofertado">
                     {oferta.precio_ofertado != null &&
                     oferta.precio_ofertado !== ''
                       ? `$${oferta.precio_ofertado}`
                       : '—'}
                   </td>
-                  <td>{oferta.incluye_despacho ? 'Sí' : 'No'}</td>
-                  <td>{estadoTexto(oferta.estado)}</td>
+                  <td data-label="Despacho">{oferta.incluye_despacho ? 'Sí' : 'No'}</td>
+                  <td data-label="Estado">{estadoTexto(oferta.estado)}</td>
                 </tr>
               ))}
             </tbody>

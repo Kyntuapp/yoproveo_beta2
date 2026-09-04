@@ -1,5 +1,5 @@
 import { requirePaymentUser } from '../../../lib/payments/auth';
-import { createPaymentOrder, createPaymentOrderFromCheckout } from '../../../lib/payments/orders';
+import { approveOrder, createPaymentOrder, createPaymentOrderFromCheckout } from '../../../lib/payments/orders';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 import { createWebpayTransaction } from '../../../lib/payments/transbank';
 
@@ -20,7 +20,11 @@ async function startTransbank(req, order) {
   });
   await supabaseAdmin
     .from('payment_orders')
-    .update({ external_id: buyOrder, provider_payment_id: response.token, provider_payload: response })
+    .update({
+      external_id: buyOrder,
+      provider_payment_id: response.token,
+      provider_payload: { ...response, checkout_order_id: order.checkout_order_id || null },
+    })
     .eq('id', order.id);
   return { form_url: response.url, token: response.token };
 }
@@ -31,10 +35,16 @@ export default async function handler(req, res) {
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
 
   const provider = String(req.body?.provider || '');
+  const demoEnabled =
+    process.env.ENABLE_DEMO_PAYMENTS !== 'false' &&
+    process.env.TRANSBANK_ENVIRONMENT !== 'production';
   const offerIds = Array.isArray(req.body?.offer_ids) ? req.body.offer_ids : [];
   const checkoutOrderId = String(req.body?.checkout_order_id || '');
-  if (provider !== 'transbank' || (!offerIds.length && !checkoutOrderId)) {
-    return res.status(400).json({ error: 'Webpay Plus es el único método de pago disponible' });
+  if (!['transbank', 'demo'].includes(provider) || (!offerIds.length && !checkoutOrderId)) {
+    return res.status(400).json({ error: 'Método de pago no disponible' });
+  }
+  if (provider === 'demo' && !demoEnabled) {
+    return res.status(403).json({ error: 'El pago demo no está habilitado' });
   }
   if (
     provider === 'transbank' &&
@@ -47,9 +57,23 @@ export default async function handler(req, res) {
   }
 
   try {
+    const storedProvider = provider === 'demo' ? 'transbank' : provider;
     const { order } = checkoutOrderId
-      ? await createPaymentOrderFromCheckout(auth.user.id, provider, checkoutOrderId)
-      : await createPaymentOrder(auth.user.id, provider, offerIds);
+      ? await createPaymentOrderFromCheckout(auth.user.id, storedProvider, checkoutOrderId)
+      : await createPaymentOrder(auth.user.id, storedProvider, offerIds);
+    if (provider === 'demo') {
+      const demoId = `DEMO-${Date.now()}`;
+      await approveOrder(order.id, demoId, {
+        demo: true,
+        approved_locally: true,
+        checkout_order_id: checkoutOrderId || null,
+      });
+      return res.status(200).json({
+        order_id: order.id,
+        provider,
+        checkout_url: `/checkout/resultado?provider=demo&status=approved&order_id=${order.id}`,
+      });
+    }
     const checkout = await startTransbank(req, order);
     return res.status(200).json({ order_id: order.id, provider, ...checkout });
   } catch (error) {

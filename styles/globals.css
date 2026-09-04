@@ -146,4 +146,21 @@ a {
   .mobile-hide {
     display: none !important;
   }
+
+  .master-liquidations-table tbody td:nth-child(1)::before { content: 'Proveedor'; }
+  .master-liquidations-table tbody td:nth-child(2)::before { content: 'Pasarela'; }
+  .master-liquidations-table tbody td:nth-child(3)::before { content: 'Bruto'; }
+  .master-liquidations-table tbody td:nth-child(4)::before { content: 'Costo pasarela'; }
+  .master-liquidations-table tbody td:nth-child(5)::before { content: 'Comisión Kyntü'; }
+  .master-liquidations-table tbody td:nth-child(6)::before { content: 'Neto'; }
+  .master-liquidations-table tbody td:nth-child(7)::before { content: 'Estado'; }
+  .master-liquidations-table tbody td:nth-child(8)::before { content: 'Confirmación'; }
+  .master-liquidations-table tbody td:nth-child(2),
+  .master-liquidations-table tbody td:nth-child(5) { display: none !important; }
+  .master-liquidations-table .confirm {
+    width: 56%;
+    display: grid;
+  }
+  .master-liquidations-table .confirm input,
+  .master-liquidations-table .confirm button { width: 100% !important; }
 }

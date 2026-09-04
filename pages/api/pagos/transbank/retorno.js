@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const { data: order, error } = await supabaseAdmin
       .from('payment_orders')
-      .select('id, total, external_id, status')
+      .select('id, total, external_id, status, provider_payload')
       .eq('provider', 'transbank')
       .eq('provider_payment_id', token)
       .single();
@@ -27,7 +27,10 @@ export default async function handler(req, res) {
         && result.buy_order === order.external_id
         && Math.round(Number(result.amount)) === Number(order.total);
       if (approved) {
-        await approveOrder(order.id, token, result);
+        await approveOrder(order.id, token, {
+          ...result,
+          checkout_order_id: order.provider_payload?.checkout_order_id || null,
+        });
       } else {
         await supabaseAdmin.from('payment_orders').update({
           status: 'rejected', provider_payload: result, updated_at: new Date().toISOString(),

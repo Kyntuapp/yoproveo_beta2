@@ -174,7 +174,7 @@ export default function AppHeader({
             )}
           </nav>
 
-          <div style={styles.actions}>
+          <div className="app-header-actions" style={styles.actions}>
             {support && (
               <div
                 className="app-header-support"
@@ -498,9 +498,33 @@ export default function AppHeader({
         }
 
         @media (max-width: 480px) {
+          .app-header {
+            padding: 12px !important;
+          }
+
+          .app-header-main {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+
+          .app-header-brand {
+            width: 100% !important;
+            padding: 0 4px 8px !important;
+            border-bottom: 1px solid #edf2f8 !important;
+          }
+
+          .app-header-actions {
+            width: 100% !important;
+            min-width: 0 !important;
+            justify-content: space-between !important;
+            gap: 6px !important;
+          }
+
           .app-header-brand img {
-            width: 42px !important;
-            height: 42px !important;
+            width: 38px !important;
+            height: 38px !important;
           }
 
           .app-header-brand span:first-child {
@@ -508,7 +532,7 @@ export default function AppHeader({
           }
 
           .app-header-brand span:last-child {
-            max-width: 145px !important;
+            max-width: calc(100vw - 100px) !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
             white-space: nowrap !important;

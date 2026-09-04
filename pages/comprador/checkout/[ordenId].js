@@ -21,7 +21,7 @@ const formatearMonto = (valor) =>
     maximumFractionDigits: 0,
   }).format(Number(valor || 0));
 
-export default function CheckoutOrdenPage({ transbankEnabled }) {
+export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnabled }) {
   const router = useRouter();
   const { ordenId } = router.query;
 
@@ -33,6 +33,7 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
   const [orden, setOrden] = useState(null);
   const [nombresProv, setNombresProv] = useState({});
   const [busy, setBusy] = useState(false);
+  const [processingProvider, setProcessingProvider] = useState(null);
   const [modal, setModal] = useState(createModalState());
 
   const showModal = (config) => {
@@ -176,7 +177,7 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
     router.push('/comprador/carro');
   };
 
-  const iniciarPasarela = async (checkoutOrderId) => {
+  const iniciarPasarela = async (checkoutOrderId, provider = 'transbank') => {
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -187,7 +188,7 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ checkout_order_id: checkoutOrderId, provider: 'transbank' }),
+      body: JSON.stringify({ checkout_order_id: checkoutOrderId, provider }),
     });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'No se pudo iniciar el pago');
@@ -208,19 +209,21 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
     throw new Error('La pasarela no entregó una URL de pago');
   };
 
-  const handlePagarOrden = async () => {
+  const handlePagarOrden = async (provider = 'transbank') => {
     if (!orden?.id || busy) return;
     if (!['abierta', 'confirmada'].includes(orden.estado)) return;
 
     setBusy(true);
+    setProcessingProvider(provider);
     try {
       if (orden.estado === 'abierta') {
         const { data, error } = await confirmarOrdenCheckout(orden.id);
         if (error || !data) throw error || new Error('No se pudo confirmar la orden');
       }
-      await iniciarPasarela(orden.id);
+      await iniciarPasarela(orden.id, provider);
     } catch (error) {
       setBusy(false);
+      setProcessingProvider(null);
       showModal({
         type: 'error',
         title: 'No se pudo iniciar el pago',
@@ -370,6 +373,13 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
                 <p style={styles.unavailable}>Webpay estará disponible al activar las credenciales productivas.</p>
               )}
 
+              {demoPaymentsEnabled && (
+                <div style={styles.demoNotice}>
+                  <strong>Pago MVP</strong>
+                  <span>Entorno de prueba; no realiza cargos reales.</span>
+                </div>
+              )}
+
               {(esAbierta || esConfirmada) && (
                 <>
                   <button
@@ -379,10 +389,22 @@ export default function CheckoutOrdenPage({ transbankEnabled }) {
                       ...(busy ? styles.disabled : {}),
                     }}
                     disabled={busy || !transbankEnabled}
-                    onClick={handlePagarOrden}
+                    onClick={() => handlePagarOrden('transbank')}
                   >
-                    {busy ? 'Conectando…' : `Pagar ${formatearMonto(orden.total_pagar)}`}
+                    {processingProvider === 'transbank'
+                      ? 'Conectando…'
+                      : `Pagar con Webpay · ${formatearMonto(orden.total_pagar)}`}
                   </button>
+                  {demoPaymentsEnabled && (
+                    <button
+                      type="button"
+                      style={styles.demoButton}
+                      disabled={busy}
+                      onClick={() => handlePagarOrden('demo')}
+                    >
+                      {processingProvider === 'demo' ? 'Procesando…' : 'Completar pago MVP'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     style={styles.secondaryButton}
@@ -591,13 +613,34 @@ const styles = {
     color: '#9a4d0b',
     fontSize: '12px',
   },
+  demoNotice: {
+    display: 'grid',
+    gap: '3px',
+    margin: '10px 0',
+    padding: '12px',
+    borderRadius: '12px',
+    background: '#f7f9fc',
+    color: '#718097',
+    fontSize: '11px',
+  },
+  demoButton: {
+    width: '100%',
+    minHeight: '44px',
+    marginBottom: '10px',
+    borderRadius: '12px',
+    border: '1px solid #b9cbea',
+    background: '#ffffff',
+    color: '#385a86',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
   payButton: {
     width: '100%',
     minHeight: '48px',
     marginBottom: '10px',
     borderRadius: '12px',
     border: 0,
-    background: 'linear-gradient(135deg, #176bff 0%, #00b89c 100%)',
+    background: 'linear-gradient(135deg, #df2638 0%, #b80f25 100%)',
     color: '#fff',
     fontWeight: 900,
     fontSize: '15px',
@@ -629,6 +672,9 @@ export function getServerSideProps() {
       transbankEnabled:
         process.env.VERCEL_ENV !== 'production' ||
         process.env.TRANSBANK_ENVIRONMENT === 'production',
+      demoPaymentsEnabled:
+        process.env.ENABLE_DEMO_PAYMENTS !== 'false' &&
+        process.env.TRANSBANK_ENVIRONMENT !== 'production',
     },
   };
 }

@@ -194,8 +194,8 @@ console.log('Perfiles encontrados:', perfilesData);
           {solicitudes.length === 0 ? (
             <p style={styles.emptyText}>No hay solicitudes</p>
           ) : (
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
+            <div className="mobile-card-table-wrap" style={styles.tableWrapper}>
+              <table className="mobile-card-table" style={styles.table}>
                 <thead>
                   <tr>
                     <th style={styles.th}>Producto</th>
@@ -212,26 +212,26 @@ console.log('Perfiles encontrados:', perfilesData);
                 <tbody>
                   {solicitudes.map((s) => (
                     <tr key={s.id ?? s.identificación}>
-                      <td style={styles.td}>{s.nombre}</td>
-                      <td style={styles.td}>{s.marca}</td>
-                      <td style={styles.td}>{s.formato}</td>
-                      <td style={styles.td}>
+                      <td data-label="Producto" data-primary="true" style={styles.td}>{s.nombre}</td>
+                      <td className="mobile-hide" data-label="Marca" style={styles.td}>{s.marca}</td>
+                      <td className="mobile-hide" data-label="Formato" style={styles.td}>{s.formato}</td>
+                      <td data-label="Cantidad" style={styles.td}>
                         {s.cantidad_disponible ?? s.cantidad_referencia ?? 0}
                       </td>
-                      <td style={styles.td}>
+                      <td data-label="Solicitante" style={styles.td}>
                         <strong>{s.perfiles?.email || 'Sin correo'}</strong>
                         <br />
                         <span style={styles.subText}>
                           ID: {s.proveedor_id}
                         </span>
                       </td>
-                      <td style={styles.td}>
+                      <td data-label="Estado" style={styles.td}>
                         <span style={getEstadoStyle(s.estado)}>
                           {s.estado}
                         </span>
                       </td>
-                      <td style={styles.td}>{s.comentario_admin || '-'}</td>
-                      <td style={styles.td}>
+                      <td data-label="Comentario" style={styles.td}>{s.comentario_admin || '-'}</td>
+                      <td data-label="Acciones" style={styles.td}>
                         {s.estado === 'pendiente' ? (
                           <div style={styles.actions}>
                             <button onClick={() => aprobarSolicitud(s)} style={styles.approveButton}>

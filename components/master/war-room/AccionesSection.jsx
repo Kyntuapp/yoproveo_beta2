@@ -140,7 +140,8 @@ export default function AccionesSection({ data }) {
             Sin historial persistente de acciones (pendiente de implementación).
           </EmptyState>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div className="mobile-card-table-wrap">
+          <table className="mobile-card-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
                 {['Acción', 'Responsable', 'Estado', 'Fecha revisión', 'Comentario'].map(
@@ -162,15 +163,16 @@ export default function AccionesSection({ data }) {
             <tbody>
               {seguimiento_acciones.map((row, i) => (
                 <tr key={i}>
-                  <td style={{ padding: '8px 6px' }}>{row.accion}</td>
-                  <td style={{ padding: '8px 6px' }}>{row.responsable}</td>
-                  <td style={{ padding: '8px 6px' }}>{row.estado}</td>
-                  <td style={{ padding: '8px 6px' }}>{row.fecha_revision}</td>
-                  <td style={{ padding: '8px 6px' }}>{row.comentario}</td>
+                  <td data-label="Acción" data-primary="true" style={{ padding: '8px 6px' }}>{row.accion}</td>
+                  <td data-label="Responsable" style={{ padding: '8px 6px' }}>{row.responsable}</td>
+                  <td data-label="Estado" style={{ padding: '8px 6px' }}>{row.estado}</td>
+                  <td data-label="Revisión" style={{ padding: '8px 6px' }}>{row.fecha_revision}</td>
+                  <td data-label="Comentario" style={{ padding: '8px 6px' }}>{row.comentario}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
