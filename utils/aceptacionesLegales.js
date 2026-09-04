@@ -11,6 +11,7 @@ export const RUTAS_PUBLICAS = [
   '/aceptar-documentos',
   '/terminos',
   '/privacidad',
+  '/links',
   '/auth/confirm',
   '/admin-login',
 ];

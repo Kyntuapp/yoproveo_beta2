@@ -1,0 +1,231 @@
+.page {
+  --links-navy: #081b4b;
+  --links-blue: #0b5fff;
+  --links-mint: #18d6b3;
+  --links-orange: #ff9e16;
+  --links-white: #ffffff;
+  --links-muted: rgba(255, 255, 255, 0.72);
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 48px 20px 28px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(11, 95, 255, 0.28), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 80%, rgba(24, 214, 179, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 10% 70%, rgba(255, 158, 22, 0.1), transparent 45%),
+    var(--links-navy);
+  color: var(--links-white);
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.main {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  flex: 1;
+  justify-content: center;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  display: block;
+}
+
+.name {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--links-white);
+}
+
+.nameAccent {
+  color: var(--links-mint);
+}
+
+.tagline {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--links-muted);
+}
+
+.dotBlue {
+  color: var(--links-blue);
+}
+
+.dotMint {
+  color: var(--links-mint);
+}
+
+.dotOrange {
+  color: var(--links-orange);
+}
+
+.actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--links-white);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease,
+    box-shadow 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--links-mint);
+  outline-offset: 3px;
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btnWeb {
+  border-color: rgba(11, 95, 255, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(11, 95, 255, 0.35) 0%,
+    rgba(11, 95, 255, 0.12) 100%
+  );
+}
+
+.btnWeb:hover {
+  border-color: rgba(11, 95, 255, 0.85);
+  box-shadow: 0 10px 32px rgba(11, 95, 255, 0.28);
+}
+
+.btnIg {
+  border-color: rgba(255, 158, 22, 0.45);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 158, 22, 0.28) 0%,
+    rgba(255, 158, 22, 0.08) 100%
+  );
+}
+
+.btnIg:hover {
+  border-color: rgba(255, 158, 22, 0.8);
+  box-shadow: 0 10px 32px rgba(255, 158, 22, 0.22);
+}
+
+.btnLi {
+  border-color: rgba(24, 214, 179, 0.45);
+  background: linear-gradient(
+    135deg,
+    rgba(24, 214, 179, 0.28) 0%,
+    rgba(24, 214, 179, 0.08) 100%
+  );
+}
+
+.btnLi:hover {
+  border-color: rgba(24, 214, 179, 0.8);
+  box-shadow: 0 10px 32px rgba(24, 214, 179, 0.22);
+}
+
+.iconWrap {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.15rem;
+}
+
+.btnWeb .iconWrap {
+  color: #8eb6ff;
+}
+
+.btnIg .iconWrap {
+  color: #ffc46a;
+}
+
+.btnLi .iconWrap {
+  color: #6eefd4;
+}
+
+.btnLabel {
+  flex: 1;
+  text-align: left;
+}
+
+.footer {
+  margin-top: 36px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+@media (min-width: 480px) {
+  .page {
+    padding: 56px 24px 32px;
+  }
+
+  .logo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .name {
+    font-size: 2.15rem;
+  }
+
+  .btn {
+    min-height: 60px;
+    font-size: 1rem;
+  }
+}
