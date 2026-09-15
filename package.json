@@ -2,9 +2,10 @@
   "name": "yoproveo_beta",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.cjs",
     "build": "next build",
     "start": "next start",
+    "test:payments": "node --test scripts/test-transfer-payments.cjs",
     "test:nicanor-mail": "node scripts/nicanor/test-mail.cjs",
     "test:nicanor-inbox": "node scripts/nicanor/test-inbox-scan.mjs",
     "test:nicanor-mcp": "node scripts/nicanor/test-mcp.mjs"

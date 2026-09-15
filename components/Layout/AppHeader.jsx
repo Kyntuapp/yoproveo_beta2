@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import {
   ArrowLeft,
@@ -8,6 +9,7 @@ import {
   LogOut,
   Menu,
   RefreshCw,
+  ShieldCheck,
   UserRound,
   UsersRound,
   X,
@@ -26,6 +28,7 @@ export default function AppHeader({
   notifications,
   support,
 }) {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [userDisplay, setUserDisplay] = useState("");
@@ -297,6 +300,17 @@ export default function AppHeader({
                     Actualizar datos
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => handleAction(() => router.push('/admin-login'))}
+                    className="app-header-menu-item"
+                    style={styles.menuItem}
+                    role="menuitem"
+                  >
+                    <ShieldCheck size={17} />
+                    Acceso administrador
+                  </button>
+
                   <div style={styles.menuDivider} />
 
                   <button
@@ -384,6 +398,16 @@ export default function AppHeader({
                 Cambiar perfil
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => handleAction(() => router.push('/admin-login'))}
+              className="app-header-mobile-item"
+              style={styles.mobileMenuItem}
+            >
+              <ShieldCheck size={18} />
+              Acceso administrador
+            </button>
 
             <button
               type="button"

@@ -1,4 +1,9 @@
-module.exports = {
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
+
+module.exports = (phase) => ({
+  distDir: phase === PHASE_DEVELOPMENT_SERVER
+    ? process.env.KYNTU_DEV_DIST_DIR || '.next-dev/3000'
+    : '.next',
   reactStrictMode: true,
   async rewrites() {
     return [{ source: '/mcp', destination: '/api/mcp' }];
@@ -29,4 +34,4 @@ module.exports = {
     }
     return config;
   },
-};
+});

@@ -27,6 +27,7 @@ import KyntuModal, {
 import ModalCalificacion from './ModalCalificacion';
 import AppLayout from '../components/Layout/AppLayout';
 import CarroCompradorButton from '../components/CarroCompradorButton';
+import { estadoOfertaComprador } from '../lib/estadosOfertaComprador';
 import {
   CARRO_UPDATED_EVENT,
   notifyCarroUpdated,
@@ -1785,7 +1786,8 @@ export default function Comprador() {
         perfiles:proveedor_id (
           email,
           email_contacto,
-          telefono_contacto
+          telefono_contacto,
+          nombre_contacto
         )
       `)
       .in('lista_id', listaIds)
@@ -3795,13 +3797,8 @@ export default function Comprador() {
                                                   oferta,
                                                   ofertaIndex
                                                 ) => {
-                                                  const estado =
-                                                    (
-                                                      oferta.estado ||
-                                                      ''
-                                                    )
-                                                      .trim()
-                                                      .toLowerCase();
+                                                  const estadoVista = estadoOfertaComprador(oferta.estado);
+                                                  const { estado } = estadoVista;
 
                                                   const solicitudAdjudicada =
                                                     ofertas.some(
@@ -3821,9 +3818,7 @@ export default function Comprador() {
                                                     estado ===
                                                     'en_espera_confirmacion';
 
-                                                  const isPendingPayment =
-                                                    estado ===
-                                                    'pendiente_pago';
+                                                  const isPendingPayment = estadoVista.pendientePago;
 
                                                   const isPaymentReceived =
                                                     estado ===
@@ -3837,16 +3832,7 @@ export default function Comprador() {
                                                     estado ===
                                                     'pagada';
 
-                                                  const puedeResponderOferta =
-                                                    [
-                                                      '',
-                                                      'pendiente',
-                                                      'confirmada',
-                                                      'enviada',
-                                                      'activa',
-                                                    ].includes(
-                                                      estado
-                                                    );
+                                                  const puedeResponderOferta = estadoVista.puedeAceptar;
 
                                                   const isAdjudicada =
                                                     isProviderPaid ||
@@ -3891,6 +3877,12 @@ export default function Comprador() {
                                                           : {}),
                                                       }}
                                                     >
+                                                      <p style={{ ...styles.offerMeta, fontWeight: 800, color: '#071b3d' }}>
+                                                        {oferta.perfiles?.nombre_contacto || `Proveedor ${ofertaIndex + 1}`}
+                                                      </p>
+                                                      <p style={styles.offerMeta}>
+                                                        {[oferta.producto || item.producto, oferta.formato, oferta.marca].filter(Boolean).join(' · ')}
+                                                      </p>
                                                       <p
                                                         className="kyntu-offerPrice"
                                                         style={
@@ -4029,9 +4021,7 @@ export default function Comprador() {
                                                                 styles.pendingPaymentText
                                                               }
                                                             >
-                                                              En el carro
-                                                              · pendiente
-                                                              de pago
+                                                              {estadoVista.confirmadaLegada ? 'Oferta aceptada · pendiente de pago' : 'En el carro · pendiente de pago'}
                                                             </p>
 
                                                             <button
@@ -4041,7 +4031,9 @@ export default function Comprador() {
                                                               ) => {
                                                                 event.stopPropagation();
                                                                 router.push(
-                                                                  '/comprador/carro'
+                                                                  estadoVista.confirmadaLegada
+                                                                    ? `/pagos?oferta_id=${encodeURIComponent(oferta.id)}`
+                                                                    : '/comprador/carro'
                                                                 );
                                                               }}
                                                               className="kyntu-mainButtonSmall"
@@ -4049,7 +4041,7 @@ export default function Comprador() {
                                                                 styles.mainButtonSmall
                                                               }
                                                             >
-                                                              Ir al carro
+                                                              {estadoVista.confirmadaLegada ? 'Continuar al pago' : 'Ir al carro'}
                                                             </button>
                                                           </>
                                                         )}

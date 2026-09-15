@@ -21,7 +21,7 @@ const formatearMonto = (valor) =>
     maximumFractionDigits: 0,
   }).format(Number(valor || 0));
 
-export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnabled }) {
+export default function CheckoutOrdenPage() {
   const router = useRouter();
   const { ordenId } = router.query;
 
@@ -177,7 +177,7 @@ export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnable
     router.push('/comprador/carro');
   };
 
-  const iniciarPasarela = async (checkoutOrderId, provider = 'transbank') => {
+  const iniciarPasarela = async (checkoutOrderId, provider = 'transferencia') => {
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
     if (!accessToken) throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.');
@@ -193,26 +193,12 @@ export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnable
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'No se pudo iniciar el pago');
     if (body.checkout_url) return window.location.assign(body.checkout_url);
-    if (body.form_url && body.token) {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = body.form_url;
-      const tokenInput = document.createElement('input');
-      tokenInput.type = 'hidden';
-      tokenInput.name = 'token_ws';
-      tokenInput.value = body.token;
-      form.appendChild(tokenInput);
-      document.body.appendChild(form);
-      form.submit();
-      return;
-    }
-    throw new Error('La pasarela no entregó una URL de pago');
+    throw new Error('No se pudo obtener la referencia de transferencia');
   };
 
-  const handlePagarOrden = async (provider = 'transbank') => {
+  const handlePagarOrden = async (provider = 'transferencia') => {
     if (!orden?.id || busy) return;
     if (!['abierta', 'confirmada'].includes(orden.estado)) return;
-
     setBusy(true);
     setProcessingProvider(provider);
     try {
@@ -298,7 +284,7 @@ export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnable
                 </h2>
                 <p style={styles.preparedText}>
                   Tu compra está lista para continuar en el medio de pago.
-                  Si saliste de la pasarela, puedes intentarlo nuevamente aquí.
+                  Puedes volver a consultar los datos de tu transferencia aquí.
                 </p>
               </div>
             )}
@@ -357,28 +343,11 @@ export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnable
                 <strong>{formatearMonto(subtotalProductos)}</strong>
               </div>
               <p style={styles.summaryNote}>
-                Kyntü no cobra comisión durante el MVP. El costo de la
-                pasarela se descuenta de la liquidación del proveedor.
+                Realiza un solo pago a Kyntü. Retenemos los fondos y pagamos a los proveedores por nómina cada jueves.
               </p>
 
               <h3 style={styles.methodTitle}>Método de pago</h3>
-              {transbankEnabled ? (
-                <div style={{ ...styles.method, ...styles.methodActive }}>
-                  <span>
-                    <strong>Webpay Plus</strong>
-                    <small style={styles.methodHelp}>Pago único y seguro con Transbank</small>
-                  </span>
-                </div>
-              ) : (
-                <p style={styles.unavailable}>Webpay estará disponible al activar las credenciales productivas.</p>
-              )}
-
-              {demoPaymentsEnabled && (
-                <div style={styles.demoNotice}>
-                  <strong>Pago MVP</strong>
-                  <span>Entorno de prueba; no realiza cargos reales.</span>
-                </div>
-              )}
+              <div style={{ ...styles.method, ...styles.methodActive }}><span><strong>Transferencia a Kyntü</strong><small style={styles.methodHelp}>Un solo pago por toda la compra</small></span></div>
 
               {(esAbierta || esConfirmada) && (
                 <>
@@ -388,23 +357,14 @@ export default function CheckoutOrdenPage({ transbankEnabled, demoPaymentsEnable
                       ...styles.payButton,
                       ...(busy ? styles.disabled : {}),
                     }}
-                    disabled={busy || !transbankEnabled}
-                    onClick={() => handlePagarOrden('transbank')}
+                    disabled={busy}
+                    onClick={() => handlePagarOrden('transferencia')}
                   >
-                    {processingProvider === 'transbank'
+                    {processingProvider === 'transferencia'
                       ? 'Conectando…'
-                      : `Pagar con Webpay · ${formatearMonto(orden.total_pagar)}`}
+                      : `Ver datos de transferencia · ${formatearMonto(orden.total_pagar)}`}
                   </button>
-                  {demoPaymentsEnabled && (
-                    <button
-                      type="button"
-                      style={styles.demoButton}
-                      disabled={busy}
-                      onClick={() => handlePagarOrden('demo')}
-                    >
-                      {processingProvider === 'demo' ? 'Procesando…' : 'Completar pago MVP'}
-                    </button>
-                  )}
+
                   <button
                     type="button"
                     style={styles.secondaryButton}
@@ -665,16 +625,3 @@ const styles = {
     cursor: 'wait',
   },
 };
-
-export function getServerSideProps() {
-  return {
-    props: {
-      transbankEnabled:
-        process.env.VERCEL_ENV !== 'production' ||
-        process.env.TRANSBANK_ENVIRONMENT === 'production',
-      demoPaymentsEnabled:
-        process.env.ENABLE_DEMO_PAYMENTS !== 'false' &&
-        process.env.TRANSBANK_ENVIRONMENT !== 'production',
-    },
-  };
-}

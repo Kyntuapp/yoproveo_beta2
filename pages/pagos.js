@@ -7,7 +7,7 @@ const money = (value) => new Intl.NumberFormat('es-CL', {
   style: 'currency', currency: 'CLP', maximumFractionDigits: 0,
 }).format(value || 0);
 
-export default function Pagos({ transbankEnabled, demoPaymentsEnabled }) {
+export default function Pagos() {
   const router = useRouter();
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -44,7 +44,7 @@ export default function Pagos({ transbankEnabled, demoPaymentsEnabled }) {
     { subtotal: 0, commission: 0, total: 0 }
   ), [items, selected]);
 
-  const startPayment = async (provider = 'transbank') => {
+  const startPayment = async (provider = 'transferencia') => {
     setPaying(true);
     try {
       const response = await api('/api/pagos/iniciar', {
@@ -54,15 +54,8 @@ export default function Pagos({ transbankEnabled, demoPaymentsEnabled }) {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error);
       if (body.checkout_url) return window.location.assign(body.checkout_url);
-      if (body.form_url && body.token) {
-        const form = document.createElement('form');
-        form.method = 'POST'; form.action = body.form_url;
-        const token = document.createElement('input');
-        token.type = 'hidden'; token.name = 'token_ws'; token.value = body.token;
-        form.appendChild(token); document.body.appendChild(form); form.submit();
-        return;
-      }
-      throw new Error('La pasarela no entregó una URL de pago');
+
+      throw new Error('No se pudo obtener la referencia de transferencia');
     } catch (error) {
       setPaying(false);
       setModal({ ...createModalState(), open: true, type: 'error', title: 'No se pudo iniciar el pago',
@@ -70,17 +63,10 @@ export default function Pagos({ transbankEnabled, demoPaymentsEnabled }) {
     }
   };
 
-  const confirmPayment = () => setModal({
-    ...createModalState(), open: true, type: 'warning', title: 'Confirmar pago',
-    message: `Pagarás ${selected.length} producto(s) por ${money(totals.total)}. Los demás quedarán pendientes.`,
-    confirmText: 'Continuar al pago', cancelText: 'Cancelar', showCancel: true,
-    onCancel: () => setModal(createModalState()),
-    onConfirm: () => { setModal(createModalState()); startPayment('transbank'); },
-  });
-
   return <div className="paymentPage">
     <main className="paymentShell">
       <button className="back" onClick={() => router.push('/comprador')}>← Volver a mis compras</button>
+      <button className="back" onClick={() => router.push('/checkout/transferencia')}>Mis transferencias iniciadas</button>
       <div className="paymentGrid">
         <section className="card">
           <div className="heading"><img src="/icono_2.png" alt="Kyntü" /><div><span>PAGO SEGURO</span><h1>Carrito de pagos</h1><p>Marca lo que deseas pagar ahora. El resto seguirá en tu lista.</p></div></div>
@@ -96,31 +82,14 @@ export default function Pagos({ transbankEnabled, demoPaymentsEnabled }) {
           <h2>Resumen</h2>
           <div><span>Productos</span><b>{money(totals.subtotal)}</b></div>
           <div className="total"><span>Total</span><b>{money(totals.total)}</b></div>
-          <p className="commissionNote">Kyntü no cobra comisión durante el MVP. El costo de la pasarela se descuenta de la liquidación del proveedor.</p>
+          <p className="commissionNote">Realiza un solo pago a Kyntü. Retenemos los fondos y pagamos a los proveedores por nómina cada jueves.</p>
           <h3>Método de pago</h3>
-          {transbankEnabled
-            ? <div className="method active"><span><strong>Webpay Plus</strong><small>Pago único y seguro con Transbank.</small></span></div>
-            : <p className="commissionNote">Webpay estará disponible al activar las credenciales productivas.</p>}
-          <button className="pay" disabled={paying || loading || !selected.length || !transbankEnabled} onClick={confirmPayment}>{paying ? 'Conectando...' : `Pagar con Webpay · ${money(totals.total)}`}</button>
-          {demoPaymentsEnabled && <button className="demoPay" disabled={paying || loading || !selected.length} onClick={() => startPayment('demo')}>{paying ? 'Procesando…' : 'Completar pago MVP'}</button>}
-          {demoPaymentsEnabled && <p className="demoNote">Entorno de prueba; no realiza cargos reales.</p>}
+          <div className="method active"><span><strong>Transferencia a Kyntü</strong><small>Un solo pago por todos los productos seleccionados.</small></span></div>
+          <button className="pay" disabled={paying || loading || !selected.length} onClick={() => startPayment()}>{paying ? 'Preparando...' : `Continuar · ${money(totals.total)}`}</button>
         </aside>
       </div>
     </main>
     <KyntuModal {...modal} />
     <style jsx>{`body{margin:0}.paymentPage{min-height:100vh;background:#eef5ff;color:#071b3d;font-family:'Plus Jakarta Sans',sans-serif}.paymentShell{max-width:1180px;margin:auto;padding:32px}.back{border:0;background:transparent;color:#176bff;font-weight:800;margin-bottom:24px;cursor:pointer}.paymentGrid{display:grid;grid-template-columns:1.5fr .8fr;gap:24px}.card{background:white;border:1px solid #dce7f7;border-radius:24px;padding:28px;box-shadow:0 18px 55px #234f8a16}.heading{display:flex;align-items:center;gap:18px}.heading img{width:72px;height:72px;object-fit:contain}.heading span{color:#176bff;font-size:12px;font-weight:900}.heading h1{font-size:32px;margin:3px 0}.heading p{color:#667792;margin:0 0 24px}.items{display:grid;gap:12px}.item{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px;border:1px solid #dce7f7;border-radius:16px;cursor:pointer}.item span,.method span{display:grid;gap:4px}.item small,.method small{color:#74839a}.summary{height:max-content;position:sticky;top:24px}.summary h2{margin-top:0}.summary>div{display:flex;justify-content:space-between;padding:12px 0}.summary .total{border-top:1px solid #dce7f7;font-size:20px;padding:20px 0}.method{display:flex;gap:12px;border:1px solid #dce7f7;border-radius:14px;padding:15px;margin:10px 0;cursor:pointer}.method.active{border-color:#176bff;background:#f4f8ff}.pay,.demoPay{width:100%;margin-top:18px;padding:16px;border:0;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer}.pay{background:#176bff;color:white}.demoPay{margin-top:10px;border:1px solid #cfe0ff;background:#f1f6ff;color:#176bff}.pay:disabled,.demoPay:disabled{opacity:.55;cursor:not-allowed}.demoNote{color:#718097;font-size:10px;line-height:1.4}.demoNote{text-align:center}@media(max-width:780px){.paymentShell{padding:18px}.paymentGrid{grid-template-columns:1fr}.summary{position:static}.heading h1{font-size:26px}.item{grid-template-columns:auto 1fr}.item>b{grid-column:2}}`}</style>
   </div>;
-}
-
-export function getServerSideProps() {
-  return {
-    props: {
-      transbankEnabled:
-        process.env.VERCEL_ENV !== 'production' ||
-        process.env.TRANSBANK_ENVIRONMENT === 'production',
-      demoPaymentsEnabled:
-        process.env.ENABLE_DEMO_PAYMENTS !== 'false' &&
-        process.env.TRANSBANK_ENVIRONMENT !== 'production',
-    },
-  };
 }

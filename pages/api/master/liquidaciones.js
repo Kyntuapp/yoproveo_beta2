@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { data: payouts, error } = await supabaseAdmin
       .from('provider_payouts')
-      .select('id, payment_order_id, provider_profile_id, payment_provider, gross_amount, kyntu_commission, gateway_fee, net_amount, status, transfer_reference, paid_at, created_at')
+      .select('id, payment_order_id, provider_profile_id, payment_provider, gross_amount, kyntu_commission, gateway_fee, net_amount, status, transfer_reference, paid_at, created_at, scheduled_date, batch_id, bank_snapshot')
       .order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
 
@@ -26,12 +26,26 @@ export default async function handler(req, res) {
     return res.status(200).json({
       payouts: (payouts || []).map((row) => ({
         ...row,
-        provider: profilesById.get(String(row.provider_profile_id)) || null,
+        provider: row.bank_snapshot || profilesById.get(String(row.provider_profile_id)) || null,
       })),
     });
   }
 
+  if (req.method === 'POST') {
+    const { data, error } = await supabaseAdmin.rpc('preparar_nomina_kyntu', { p_master: auth.user.id });
+    return res.status(error ? 409 : 200).json(error ? { error: error.message } : { batch_id: data });
+  }
+
   if (req.method === 'PATCH') {
+    if (req.body?.action === 'confirm_batch_provider') {
+      const reference = String(req.body?.transfer_reference || '').trim();
+      if (!req.body.batch_id || !req.body.provider_id || reference.length < 3 || reference.length > 120)
+        return res.status(400).json({ error: 'Indica la nómina, el proveedor y la referencia bancaria.' });
+      const { error } = await supabaseAdmin.rpc('confirmar_pago_nomina_kyntu', {
+        p_batch: req.body.batch_id, p_provider: req.body.provider_id, p_reference: reference,
+      });
+      return res.status(error ? 409 : 200).json(error ? { error: error.message } : { ok: true });
+    }
     const id = String(req.body?.id || '');
     if (req.body?.action === 'set_gateway_fee') {
       const gatewayFee = Math.round(Number(req.body?.gateway_fee));
@@ -43,6 +57,7 @@ export default async function handler(req, res) {
         .select('id, gross_amount, kyntu_commission, status')
         .eq('id', id)
         .eq('status', 'held')
+        .neq('payment_provider', 'transferencia')
         .maybeSingle();
       if (currentError) return res.status(500).json({ error: currentError.message });
       if (!current) return res.status(409).json({ error: 'La liquidación ya fue procesada o no está retenida' });
@@ -54,6 +69,7 @@ export default async function handler(req, res) {
         .update({ gateway_fee: gatewayFee, net_amount: netAmount, status: 'ready', updated_at: now })
         .eq('id', id)
         .eq('status', 'held')
+        .neq('payment_provider', 'transferencia')
         .select('id, gateway_fee, net_amount, status')
         .single();
       if (error) return res.status(500).json({ error: error.message });
@@ -69,6 +85,7 @@ export default async function handler(req, res) {
       .update({ status: 'paid', transfer_reference: transferReference, paid_at: now, updated_at: now })
       .eq('id', id)
       .eq('status', 'ready')
+      .neq('payment_provider', 'transferencia')
       .select('id, status, transfer_reference, paid_at')
       .maybeSingle();
     if (error) return res.status(500).json({ error: error.message });
@@ -76,6 +93,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ payout: data });
   }
 
-  res.setHeader('Allow', 'GET, PATCH');
+  res.setHeader('Allow', 'GET, POST, PATCH');
   return res.status(405).json({ error: 'Método no permitido' });
 }

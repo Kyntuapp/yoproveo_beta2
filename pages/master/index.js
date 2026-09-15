@@ -40,6 +40,10 @@ export default function MasterHome() {
       </div>
 
       <div style={styles.grid}>
+        <button style={styles.card} onClick={() => router.push('/master/transferencias')}>
+          <div style={styles.cardIcon}>🏦</div><h3 style={styles.cardTitle}>Transferencias recibidas</h3>
+          <p style={styles.cardText}>Validar abonos a Kyntü y habilitar los fondos para la nómina del jueves.</p>
+        </button>
         <button
           style={styles.card}
           onClick={() => router.push('/master/solicitudes')}
