@@ -13,6 +13,33 @@ function response() {
   return { code: 200, body: null, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
 }
 const { groupPayroll, payrollCsv } = load('lib/payments/payroll.js');
+test('MVP charges exactly the offered price, including the reported 5500 CLP case', () => {
+  const source = fs.readFileSync('lib/payments/orders.js', 'utf8')
+    .replace(/^import .*;\r?\n/gm, '').replace(/export /g, '');
+  const calculate = vm.runInNewContext(`${source}\n;calculateAmounts;`);
+  for (const amount of [5500, 6000, 15000]) {
+    const result = calculate(amount);
+    assert.equal(result.commission, 0);
+    assert.equal(result.total, amount);
+    assert.equal(result.providerNet, amount);
+  }
+});
+test('checkout rejects a stored legacy surcharge before creating a payment', async () => {
+  const source = fs.readFileSync('lib/payments/orders.js', 'utf8')
+    .replace(/^import .*;\r?\n/gm, '').replace(/export /g, '');
+  const responses = {
+    ordenes_checkout: { id: 'checkout', estado: 'confirmada', total_pagar: 5552 },
+    ordenes_checkout_items: [{ oferta_id: 'offer', proveedor_id: 'provider', monto_oferta: 5500, comision_kyntu: 52, total_item: 5552 }],
+  };
+  const db = { from(table) {
+    assert.ok(Object.hasOwn(responses, table), 'Must not create payment records');
+    const query = { select() { return this; }, eq() { return this; }, single() { return Promise.resolve({ data: responses[table] }); },
+      then(resolve) { return Promise.resolve({ data: responses[table] }).then(resolve); } };
+    return query;
+  } };
+  const create = vm.runInNewContext(`${source}\n;createPaymentOrderFromCheckout;`, { supabaseAdmin: db });
+  await assert.rejects(() => create('buyer', 'transferencia', 'checkout'), /recargo antiguo/);
+});
 test('payroll groups purchases by provider and preserves the selected batch, including paid rows', () => {
   const rows = [
     { id: '1', batch_id: 'a', provider_profile_id: 'p', net_amount: 200, status: 'ready', bank_snapshot: { numero_cuenta: '0012' } },
