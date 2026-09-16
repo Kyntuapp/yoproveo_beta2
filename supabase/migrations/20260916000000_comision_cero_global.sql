@@ -1,6 +1,7 @@
 -- Ejecutar completo una sola vez en SQL Editor. Puede repetirse sin duplicar ajustes.
 -- Corrige el calculo futuro y todos los pendientes elegibles en una transaccion.
-BEGIN;
+DO $kyntu_mvp$
+BEGIN
 SET LOCAL lock_timeout = '10s';
 
 CREATE OR REPLACE FUNCTION public.crear_orden_checkout(p_oferta_ids uuid[])
@@ -585,9 +586,17 @@ UPDATE public.pagos p SET comision_kyntu=0,total_pagado=p.monto_oferta
 WHERE p.id IN (SELECT id FROM mvp_pagos_legacy);
 
 NOTIFY pgrst, 'reload schema';
-SELECT (SELECT count(*) FROM mvp_checkouts) AS compras_pendientes_sin_comision,
-  (SELECT count(*) FROM mvp_transferencias) AS transferencias_pendientes_sin_comision,
-  (SELECT count(*) FROM mvp_pagos_legacy) AS registros_pago_sin_comision,
-  true AS calculo_futuro_sin_comision;
-COMMIT;
+RAISE NOTICE 'Compras: %, transferencias: %, registros de pago: %',
+  (SELECT count(*) FROM mvp_checkouts),
+  (SELECT count(*) FROM mvp_transferencias),
+  (SELECT count(*) FROM mvp_pagos_legacy);
+END;
+$kyntu_mvp$;
+
+SELECT true AS migracion_completada,
+  position('v_comision := 0' IN pg_get_functiondef('public.crear_orden_checkout(uuid[])'::regprocedure)) > 0
+    AS compras_nuevas_sin_comision,
+  count(*) AS registros_respaldados
+FROM public.ajustes_comision_mvp_auditoria
+WHERE migracion='20260916000000';
 

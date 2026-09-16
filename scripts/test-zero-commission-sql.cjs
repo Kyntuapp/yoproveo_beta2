@@ -66,7 +66,20 @@ test('global migration fixes pending purchases, preserves settled money, and cre
     `);
     const rows = async sql => (await db.query(sql)).rows;
     const protectedBefore = await rows(`SELECT to_jsonb(o) AS row FROM ordenes_checkout o WHERE id BETWEEN '${uuid(4)}' AND '${uuid(8)}' ORDER BY id`);
-    await db.exec(migration);
+    // Simulate an editor executing each top-level statement in its own transaction.
+    const boundary = migration.indexOf('$kyntu_mvp$;') + '$kyntu_mvp$;'.length;
+    assert.ok(boundary > '$kyntu_mvp$;'.length);
+    const applyMigration = async () => {
+      await db.exec(migration.slice(0, boundary));
+      const [result] = await rows(migration.slice(boundary));
+      assert.equal(result.migracion_completada, true);
+      assert.equal(result.compras_nuevas_sin_comision, true);
+    };
+    const pendingBefore = await rows('SELECT to_jsonb(o) AS row FROM ordenes_checkout o ORDER BY id');
+    await assert.rejects(db.exec(migration.slice(0, boundary).replace("NOTIFY pgrst, 'reload schema';",
+      "RAISE EXCEPTION 'simulated failure';")), /simulated failure/);
+    assert.deepEqual(await rows('SELECT to_jsonb(o) AS row FROM ordenes_checkout o ORDER BY id'), pendingBefore);
+    await applyMigration();
     for (const n of [1,2,3,9]) {
       assert.deepEqual(await rows(`SELECT total_ofertas,total_comision,total_pagar FROM ordenes_checkout WHERE id='${uuid(n)}'`),
         [{total_ofertas:'5500',total_comision:'0',total_pagar:'5500'}]);
@@ -81,7 +94,7 @@ test('global migration fixes pending purchases, preserves settled money, and cre
     assert.deepEqual(await rows(`SELECT to_jsonb(o) AS row FROM ordenes_checkout o WHERE id BETWEEN '${uuid(4)}' AND '${uuid(8)}' ORDER BY id`),protectedBefore);
     assert.equal(Number((await rows(`SELECT total FROM payment_orders WHERE id='${uuid(4)}'`))[0].total),5552);
     const auditBefore = await rows('SELECT * FROM ajustes_comision_mvp_auditoria ORDER BY tabla,registro_id');
-    await db.exec(migration);
+    await applyMigration();
     assert.deepEqual(await rows('SELECT * FROM ajustes_comision_mvp_auditoria ORDER BY tabla,registro_id'),auditBefore);
 
     // Real function execution: multiple products, ownership, duplicate checkout and legacy entry point.
