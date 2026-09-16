@@ -979,8 +979,42 @@ export default function OfertarProductos() {
       setListas(enriquecida);
     };
 
-    cargarDatos();
+    cargarDatos().catch((error) => {
+      setListas([]);
+      showKyntuAlert(error.message || 'No se pudo verificar la disponibilidad de las solicitudes.');
+    });
   }, [router]);
+
+  const solicitudesVisibles = listas.map((item) => item.id).join(',');
+  useEffect(() => {
+    if (!solicitudesVisibles) return undefined;
+    let activo = true;
+    let verificando = false;
+    const actualizarDisponibilidad = async () => {
+      if (verificando || document.visibilityState === 'hidden') return;
+      verificando = true;
+      try {
+        const cerradas = await fetchSolicitudesAdjudicadasIds(solicitudesVisibles.split(','));
+        if (activo && cerradas.size) {
+          // Conserva lo escrito en las cotizaciones que siguen disponibles.
+          setListas((prev) => prev.filter((item) => !cerradas.has(String(item.id))));
+        }
+      } catch (error) {
+        console.error('No se pudo actualizar la disponibilidad:', error.message);
+      } finally {
+        verificando = false;
+      }
+    };
+    const timer = setInterval(actualizarDisponibilidad, 15000);
+    window.addEventListener('focus', actualizarDisponibilidad);
+    document.addEventListener('visibilitychange', actualizarDisponibilidad);
+    return () => {
+      activo = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', actualizarDisponibilidad);
+      document.removeEventListener('visibilitychange', actualizarDisponibilidad);
+    };
+  }, [solicitudesVisibles]);
 
   const calcularDiasRestantes = (
     fecha_cierre
@@ -1120,7 +1154,14 @@ export default function OfertarProductos() {
       return;
     }
 
-    if (producto.solicitud_adjudicada) {
+    let adjudicada = producto.solicitud_adjudicada;
+    try {
+      adjudicada = adjudicada || (await fetchSolicitudesAdjudicadasIds([producto.id])).has(String(producto.id));
+    } catch (error) {
+      showKyntuAlert(error.message || 'No se pudo verificar la disponibilidad. Intenta nuevamente.');
+      return;
+    }
+    if (adjudicada) {
       showKyntuAlert(
         'Esta solicitud ya fue adjudicada y no admite nuevas ofertas.'
       );
